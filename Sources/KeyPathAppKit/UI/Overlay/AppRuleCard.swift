@@ -226,7 +226,7 @@ struct GlobalRulesCard: View {
                     }
 
                     if let shiftedOutput = rule.shiftedOutput {
-                        RuleModifierVariantView(label: "⇧ Shift", output: shiftedOutput)
+                        RuleModifierVariantView(label: String(localized: "⇧ Shift"), output: shiftedOutput)
                     }
                 }
 
@@ -331,7 +331,7 @@ private struct DrawerLayerChip: View {
 
     /// Human-readable display name with "Layer" suffix
     private var displayName: String {
-        "\(LayerInfo.displayName(for: layerName)) Layer"
+        String(localized: "\(LayerInfo.displayName(for: layerName)) Layer")
     }
 
     var body: some View {

@@ -11,6 +11,7 @@ struct CatalogUpdateReviewSheet: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var isApplying = false
     @State private var feedback: String?
+    @State private var feedbackIsError = false
 
     private var selectableIDs: Set<UUID> {
         Set(previews.filter(\.canApply).map(\.id))
@@ -37,7 +38,7 @@ struct CatalogUpdateReviewSheet: View {
             if let feedback {
                 Text(feedback)
                     .font(.callout)
-                    .foregroundColor(feedback.hasPrefix("Could not") ? .red : .secondary)
+                    .foregroundColor(feedbackIsError ? .red : .secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -113,22 +114,24 @@ struct CatalogUpdateReviewSheet: View {
         guard !ids.isEmpty else { return }
         isApplying = true
         feedback = nil
+        feedbackIsError = false
         Task {
             let result = await onApply(ids)
             await MainActor.run {
                 isApplying = false
                 guard result.saveResult.success else {
                     feedback = CatalogUpdateFeedback.failureMessage(for: result.saveResult)
+                    feedbackIsError = CatalogUpdateFeedback.isUnrecoveredFailure(result.saveResult)
                     return
                 }
                 let disposition = switch result.saveResult.reloadResult?.disposition {
-                case .applied: "Applied and running."
-                case .pending: "Saved; it will apply when the engine is available."
-                case .rejected: "The engine rejected the update; your prior rules were restored."
-                case .failed: "The engine could not apply the update; your prior rules were restored."
-                case nil: "Saved."
+                case .applied: String(localized: "Applied and running.")
+                case .pending: String(localized: "Saved; it will apply when the engine is available.")
+                case .rejected: String(localized: "The engine rejected the update; your prior rules were restored.")
+                case .failed: String(localized: "The engine could not apply the update; your prior rules were restored.")
+                case nil: String(localized: "Saved.")
                 }
-                let backup = result.backupPath.map { " Backup: \($0)" } ?? ""
+                let backup = result.backupPath.map { String(localized: " Backup: \($0)") } ?? ""
                 feedback = "\(disposition)\(backup)"
                 selectedIDs = []
             }
@@ -137,23 +140,32 @@ struct CatalogUpdateReviewSheet: View {
 }
 
 enum CatalogUpdateFeedback {
+    /// True for the plain "could not apply" failure, which is shown in red.
+    /// Restored-state outcomes are shown as secondary text.
+    static func isUnrecoveredFailure(_ result: SaveResult) -> Bool {
+        switch result.recoveryResult {
+        case .restoredPreviousRuleState, .ruleStateRecoveryFailed: false
+        default: true
+        }
+    }
+
     static func failureMessage(for result: SaveResult) -> String {
         switch result.recoveryResult {
         case let .restoredPreviousRuleState(reloadResult):
-            "The catalog update was not accepted. Your previous rules were restored.\(runtimeRecoveryMessage(reloadResult))"
+            String(localized: "The catalog update was not accepted. Your previous rules were restored.\(runtimeRecoveryMessage(reloadResult))")
         case .ruleStateRecoveryFailed:
-            "The catalog update was not accepted, and restoring your previous rules also failed. Please review your configuration and backup."
+            String(localized: "The catalog update was not accepted, and restoring your previous rules also failed. Please review your configuration and backup.")
         default:
-            "Could not apply the catalog update: \(result.error?.localizedDescription ?? "Unknown error")"
+            String(localized: "Could not apply the catalog update: \(result.error?.localizedDescription ?? String(localized: "Unknown error"))")
         }
     }
 
     private static func runtimeRecoveryMessage(_ result: ReloadResult?) -> String {
         switch result?.disposition {
-        case .applied: " The restored rules are running."
-        case .pending: " The restored rules are saved and will apply when the engine is available."
-        case .rejected: " The engine rejected the restored rules."
-        case .failed: " The restored rules could not be applied to the engine."
+        case .applied: String(localized: " The restored rules are running.")
+        case .pending: String(localized: " The restored rules are saved and will apply when the engine is available.")
+        case .rejected: String(localized: " The engine rejected the restored rules.")
+        case .failed: String(localized: " The restored rules could not be applied to the engine.")
         case nil: ""
         }
     }

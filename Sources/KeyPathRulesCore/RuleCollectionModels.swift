@@ -296,15 +296,15 @@ public enum WindowKeyConvention: String, Codable, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .standard: "Standard"
+        case .standard: String(localized: "Standard")
         case .vim: "Vim"
         }
     }
 
     public var description: String {
         switch self {
-        case .standard: "L=Left, R=Right, U/I/J/K corners"
-        case .vim: "H=Left, L=Right, Y/U/B/N corners"
+        case .standard: String(localized: "L=Left, R=Right, U/I/J/K corners")
+        case .vim: String(localized: "H=Left, L=Right, Y/U/B/N corners")
         }
     }
 }
@@ -316,15 +316,15 @@ public enum FunctionKeyMode: String, Codable, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .media: "Media Keys"
-        case .function: "Function Keys"
+        case .media: String(localized: "Media Keys")
+        case .function: String(localized: "Function Keys")
         }
     }
 
     public var description: String {
         switch self {
-        case .media: "Shows brightness, volume, and media controls (default Mac behavior)"
-        case .function: "Shows F1-F12 for apps that use function keys"
+        case .media: String(localized: "Shows brightness, volume, and media controls (default Mac behavior)")
+        case .function: String(localized: "Shows F1-F12 for apps that use function keys")
         }
     }
 
@@ -351,13 +351,13 @@ public enum RuleCollectionCategory: String, Codable, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .system: "System"
-        case .navigation: "Navigation"
-        case .productivity: "Productivity"
-        case .layers: "Layers"
-        case .accessibility: "Accessibility"
-        case .custom: "Custom"
-        case .experimental: "Experimental"
+        case .system: String(localized: "System")
+        case .navigation: String(localized: "Navigation")
+        case .productivity: String(localized: "Productivity")
+        case .layers: String(localized: "Layers")
+        case .accessibility: String(localized: "Accessibility", comment: "Rule collection category")
+        case .custom: String(localized: "Custom")
+        case .experimental: String(localized: "Experimental")
         }
     }
 
@@ -419,6 +419,16 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
     }
 
     public var displayName: String {
+        switch self {
+        case .base: String(localized: "Base")
+        case .navigation: String(localized: "Navigation")
+        case let .custom(name): name.capitalized
+        }
+    }
+
+    /// Name written into generated config comments. Never localized: the same
+    /// rules must produce the same config bytes in every language.
+    public var configName: String {
         switch self {
         case .base: "Base"
         case .navigation: "Navigation"

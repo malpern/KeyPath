@@ -33,7 +33,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                 holdMode: .layers,
                 selectedKey: selectedKey,
                 keyDisplayLabels: homeRowDisplayLabels,
-                helperText: "Tap for letter, hold for layer",
+                helperText: String(localized: "Tap for letter, hold for layer"),
                 onKeySelected: { key in
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedKey = selectedKey == key ? nil : key
@@ -200,7 +200,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                                         set: { config.timing.tapWindow = $0 }
                                     ),
                                     accessibilityIdentifier: "home-row-layer-toggles-tap-window-field",
-                                    accessibilityLabel: "Tap window"
+                                    accessibilityLabel: String(localized: "Tap window")
                                 )
                                 Text("ms")
                                     .font(.subheadline)
@@ -303,7 +303,7 @@ struct HomeRowLayerTogglesCollectionView: View {
                                                     }
                                                 ),
                                                 accessibilityIdentifier: "home-row-layer-toggles-tap-offset-\(key)-field",
-                                                accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) tap offset"
+                                                accessibilityLabel: String(localized: "\(displayLabel(forCanonicalKey: key)) tap offset")
                                             )
                                         }
                                     }
@@ -448,10 +448,10 @@ struct HomeRowLayerTogglesCollectionView: View {
 
     private var layerOptions: [(key: String, label: String, icon: String)] {
         [
-            ("fun", "Function", "f.cursive"),
-            ("num", "Numpad", "number"),
-            ("sym", "Symbol", "character"),
-            ("nav", "Navigation", "arrow.up.arrow.down")
+            ("fun", String(localized: "Function"), "f.cursive"),
+            ("num", String(localized: "Numpad"), "number"),
+            ("sym", String(localized: "Symbol"), "character"),
+            ("nav", String(localized: "Navigation"), "arrow.up.arrow.down")
         ]
     }
 
@@ -492,8 +492,8 @@ struct HomeRowLayerTogglesCollectionView: View {
 
     private var oppositeHandHelperText: String {
         usesTapWindow
-            ? "Tap and hold use separate timers."
-            : "The decision window determines when another-hand input activates the layer."
+            ? String(localized: "Tap and hold use separate timers.")
+            : String(localized: "The decision window determines when another-hand input activates the layer.")
     }
 
     private func displayLabel(forCanonicalKey key: String) -> String {

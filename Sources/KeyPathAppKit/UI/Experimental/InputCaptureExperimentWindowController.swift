@@ -23,7 +23,7 @@ class InputCaptureExperimentWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Input Capture Experiment"
+        window.title = String(localized: "Input Capture Experiment")
         window.contentView = NSHostingView(rootView: contentView)
         window.isReleasedWhenClosed = false
 

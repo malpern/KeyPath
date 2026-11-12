@@ -90,8 +90,8 @@ func openPreferencesTab(_ notification: Notification.Name, userInfo: [AnyHashabl
     // Find it in the app menu and trigger it programmatically
     if let appMenu = NSApp.mainMenu?.items.first?.submenu {
         for item in appMenu.items {
-            // Look for the "Settings..." menu item (standard name on macOS)
-            if item.title.contains("Settings") || item.title.contains("Preferences"),
+            // The Settings item is the one bound to ⌘, — its title is localized.
+            if item.keyEquivalent == ",", item.keyEquivalentModifierMask == .command,
                let action = item.action
             {
                 AppLogger.shared.log("✅ [App] Found Settings menu item, triggering it")
@@ -926,8 +926,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.viewModel?.emergencyStopActivated = true
 
                 UserNotificationService.shared.notifyConfigEvent(
-                    "Emergency stop activated",
-                    body: "Remapping paused. Open Settings -> Status to start the service again.",
+                    String(localized: "Emergency stop activated"),
+                    body: String(localized: "Remapping paused. Open Settings -> Status to start the service again."),
                     key: "emergency.stop.activated"
                 )
 

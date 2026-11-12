@@ -169,11 +169,11 @@ struct LauncherKeycapView: View {
 
     private var accessibilityLabel: String {
         if isCapsLockKey {
-            "Hyper key (Caps Lock)"
+            String(localized: "Hyper key (Caps Lock)")
         } else if let mapping {
             "\(displayLabel.uppercased()): \(mapping.action.displayName)"
         } else {
-            "\(displayLabel.uppercased()): Unmapped"
+            String(localized: "\(displayLabel.uppercased()): Unmapped")
         }
     }
 

@@ -37,11 +37,11 @@ final class RecentKeypressesService {
         var timeAgo: String {
             let seconds = Date().timeIntervalSince(timestamp)
             if seconds < 1 {
-                return "now"
+                return String(localized: "now", comment: "Recent keypress time: just happened")
             } else if seconds < 60 {
-                return "\(Int(seconds))s ago"
+                return String(localized: "\(Int(seconds))s ago", comment: "Recent keypress time in seconds")
             } else {
-                return "\(Int(seconds / 60))m ago"
+                return String(localized: "\(Int(seconds / 60))m ago", comment: "Recent keypress time in minutes")
             }
         }
     }

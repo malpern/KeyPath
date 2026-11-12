@@ -31,6 +31,14 @@ struct KarabinerImportSheet: View {
         case autoDetect = "Auto-Detect"
         case file = "Choose File"
         case paste = "Paste JSON"
+
+        var title: String {
+            switch self {
+            case .autoDetect: String(localized: "Auto-Detect")
+            case .file: String(localized: "Choose File")
+            case .paste: String(localized: "Paste JSON")
+            }
+        }
     }
 
     var body: some View {
@@ -60,7 +68,7 @@ struct KarabinerImportSheet: View {
             case let .success(urls):
                 selectedFileURL = urls.first
             case let .failure(error):
-                errorMessage = "Failed to select file: \(error.localizedDescription)"
+                errorMessage = String(localized: "Failed to select file: \(error.localizedDescription)")
             }
         }
     }
@@ -87,7 +95,7 @@ struct KarabinerImportSheet: View {
             // Source picker
             Picker("Import Source", selection: $importSource) {
                 ForEach(ImportSource.allCases, id: \.self) { source in
-                    Text(source.rawValue).tag(source)
+                    Text(source.title).tag(source)
                 }
             }
             .pickerStyle(.segmented)
@@ -264,11 +272,13 @@ struct KarabinerImportSheet: View {
 
                 // Collections
                 if !result.collections.isEmpty {
-                    sectionHeader("Rule Collections", count: result.collections.count)
+                    sectionHeader(String(localized: "Rule Collections"), count: result.collections.count)
                     ForEach(result.collections) { collection in
                         checkboxRow(
                             title: collection.name,
-                            subtitle: "\(collection.mappings.count) mapping\(collection.mappings.count == 1 ? "" : "s")",
+                            subtitle: collection.mappings.count == 1
+                                ? String(localized: "1 mapping")
+                                : String(localized: "\(collection.mappings.count) mappings"),
                             icon: collection.icon ?? "keyboard",
                             isSelected: selectedCollectionIds.contains(collection.id),
                             accessibilityIdentifier: "karabiner-import-collection-\(collection.id.uuidString.lowercased())"
@@ -280,11 +290,13 @@ struct KarabinerImportSheet: View {
 
                 // App Keymaps
                 if !result.appKeymaps.isEmpty {
-                    sectionHeader("App-Specific Rules", count: result.appKeymaps.count)
+                    sectionHeader(String(localized: "App-Specific Rules"), count: result.appKeymaps.count)
                     ForEach(result.appKeymaps) { keymap in
                         checkboxRow(
                             title: keymap.mapping.displayName,
-                            subtitle: "\(keymap.overrides.count) override\(keymap.overrides.count == 1 ? "" : "s")",
+                            subtitle: keymap.overrides.count == 1
+                                ? String(localized: "1 override")
+                                : String(localized: "\(keymap.overrides.count) overrides"),
                             icon: "app.badge",
                             isSelected: selectedAppKeymapIds.contains(keymap.id),
                             accessibilityIdentifier: "karabiner-import-app-keymap-\(keymap.id.uuidString.lowercased())"
@@ -296,11 +308,11 @@ struct KarabinerImportSheet: View {
 
                 // Launcher Mappings
                 if !result.launcherMappings.isEmpty {
-                    sectionHeader("Launcher Shortcuts", count: result.launcherMappings.count)
+                    sectionHeader(String(localized: "Launcher Shortcuts"), count: result.launcherMappings.count)
                     ForEach(result.launcherMappings) { mapping in
                         checkboxRow(
                             title: mapping.action.displayName,
-                            subtitle: "Key: \(mapping.key)",
+                            subtitle: String(localized: "Key: \(mapping.key)"),
                             icon: "arrow.up.forward.app",
                             isSelected: selectedLauncherIds.contains(mapping.id),
                             accessibilityIdentifier: "karabiner-import-launcher-\(mapping.id.uuidString.lowercased())"
@@ -499,7 +511,7 @@ struct KarabinerImportSheet: View {
         errorMessage = nil
 
         guard let data = loadData(source: importSource) else {
-            errorMessage = "Could not load configuration data"
+            errorMessage = String(localized: "Could not load configuration data")
             isLoading = false
             return
         }
@@ -544,7 +556,7 @@ struct KarabinerImportSheet: View {
         // Import selected collections
         for collection in result.collections where selectedCollectionIds.contains(collection.id) {
             if await !(kanataManager.addRuleCollection(collection)) {
-                errors.append("Collection '\(collection.name)' was not imported.")
+                errors.append(String(localized: "Collection '\(collection.name)' was not imported."))
             }
         }
 
@@ -558,7 +570,7 @@ struct KarabinerImportSheet: View {
                     }
                 }
             } catch {
-                errors.append("App keymaps: \(error.localizedDescription)")
+                errors.append(String(localized: "App keymaps: \(error.localizedDescription)"))
             }
         }
 
@@ -568,12 +580,12 @@ struct KarabinerImportSheet: View {
             do {
                 try await KarabinerConverterService.persistLauncherMappings(selectedLaunchers)
             } catch {
-                errors.append("Launcher mappings: \(error.localizedDescription)")
+                errors.append(String(localized: "Launcher mappings: \(error.localizedDescription)"))
             }
         }
 
         if !errors.isEmpty {
-            errorMessage = "Some items failed to import: \(errors.joined(separator: "; "))"
+            errorMessage = String(localized: "Some items failed to import: \(errors.joined(separator: "; "))")
         } else {
             dismiss()
         }

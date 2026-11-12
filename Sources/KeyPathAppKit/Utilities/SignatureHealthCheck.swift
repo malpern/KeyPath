@@ -81,16 +81,16 @@ enum SignatureHealthCheck {
     private static func showSignatureMismatchAlert() {
         #if canImport(AppKit)
             let alert = NSAlert()
-            alert.messageText = "KeyPath Needs to Restart"
-            alert.informativeText = """
+            alert.messageText = String(localized: "KeyPath Needs to Restart")
+            alert.informativeText = String(localized: """
             KeyPath has been updated on disk, but you're still running the old version. \
             Its keyboard runtime starts from the updated copy, so the two may not match.
 
             Please restart KeyPath to load the updated version.
-            """
+            """)
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "Restart Now")
-            alert.addButton(withTitle: "Later")
+            alert.addButton(withTitle: String(localized: "Restart Now"))
+            alert.addButton(withTitle: String(localized: "Later"))
 
             let response = alert.runModal()
             if response == .alertFirstButtonReturn {

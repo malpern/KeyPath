@@ -16,9 +16,9 @@ public enum SystemInspector {
             missing.append(.keyPathAccessibility)
             issues.append(WizardIssue(
                 identifier: .permission(.keyPathAccessibility), severity: .error, category: .permissions,
-                title: "Allow KeyPath to remap keys",
-                description: context.permissions.blockingIssue ?? "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name), then quit and reopen KeyPath.",
-                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Open \(AccessibilityPermissionPresentation.current.name) in System Settings"
+                title: String(localized: "Allow KeyPath to remap keys"),
+                description: context.permissions.blockingIssue ?? String(localized: "Enable KeyPath in \(AccessibilityPermissionPresentation.current.name), then quit and reopen KeyPath."),
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? String(localized: "Open \(AccessibilityPermissionPresentation.current.name) in System Settings")
             ))
         } else if context.permissions.accessibility.isReady,
                   context.permissions.runtimeKeyAccess.status == .denied
@@ -26,16 +26,17 @@ public enum SystemInspector {
             missing.append(.runtimeKeyAccess)
             issues.append(WizardIssue(
                 identifier: .permission(.runtimeKeyAccess), severity: .error, category: .permissions,
-                title: "Keyboard access still needs approval",
-                description: context.permissions.blockingIssue ?? "Quit and reopen KeyPath so it picks up \(AccessibilityPermissionPresentation.current.name).",
-                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? "Quit and reopen KeyPath"
+                title: String(localized: "Keyboard access still needs approval"),
+                description: context.permissions.blockingIssue ?? String(localized: "Quit and reopen KeyPath so it picks up \(AccessibilityPermissionPresentation.current.name)."),
+                autoFixAction: nil, userAction: context.permissions.blockingIssue ?? String(localized: "Quit and reopen KeyPath")
             ))
         }
         if !missing.isEmpty { return (.missingPermissions(missing: missing), issues) }
         if !context.components.requiredRuntimePayloadPresent {
             return (.missingComponents(missing: [.bundledKanataMissing]), [WizardIssue(
                 identifier: .component(.bundledKanataMissing), severity: .error, category: .installation,
-                title: "Bundled runtime missing", description: "Reinstall this KeyPath build.", autoFixAction: nil, userAction: "Reinstall KeyPath"
+                title: String(localized: "Bundled runtime missing"), description: String(localized: "Reinstall this KeyPath build."), autoFixAction: nil,
+                userAction: String(localized: "Reinstall KeyPath")
             )])
         }
         if !context.permissions.isSystemReady {
@@ -44,8 +45,8 @@ public enum SystemInspector {
         if context.services.kanataRuntimeReadiness.isReady { return (.active, []) }
         return (.serviceNotRunning, [WizardIssue(
             identifier: .daemon, severity: .error, category: .daemon,
-            title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
-            autoFixAction: .startSessionRuntime, userAction: "Start the keyboard service"
+            title: String(localized: "Start driverless remapping"), description: String(localized: "The session keyboard runtime is stopped or not ready."),
+            autoFixAction: .startSessionRuntime, userAction: String(localized: "Start the keyboard service")
         )])
     }
 
@@ -54,9 +55,9 @@ public enum SystemInspector {
     private static func sessionPermissionEvidenceUnavailable() -> (WizardSystemState, [WizardIssue]) {
         (.serviceNotRunning, [WizardIssue(
             identifier: .daemon, severity: .error, category: .daemon,
-            title: "Check keyboard access",
-            description: "Keyboard access has not been verified by the session runtime. Start or retry the keyboard service to check access.",
-            autoFixAction: .startSessionRuntime, userAction: "Start or retry the keyboard service"
+            title: String(localized: "Check keyboard access"),
+            description: String(localized: "Keyboard access has not been verified by the session runtime. Start or retry the keyboard service to check access."),
+            autoFixAction: .startSessionRuntime, userAction: String(localized: "Start or retry the keyboard service")
         )])
     }
 }

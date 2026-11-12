@@ -68,9 +68,9 @@ struct EmergencyStopDialog: View {
 
                         HStack(spacing: 16) {
                             EmergencyStopKeyButton(
-                                keyLabel: "Left Control",
+                                keyLabel: String(localized: "Left Control"),
                                 keySymbol: "⌃",
-                                description: "Bottom-left",
+                                description: String(localized: "Bottom-left", comment: "Keyboard position of the Left Control key"),
                                 isSmall: true
                             )
 
@@ -80,9 +80,9 @@ struct EmergencyStopDialog: View {
                                 .foregroundColor(.secondary)
 
                             EmergencyStopKeyButton(
-                                keyLabel: "Space",
+                                keyLabel: String(localized: "Space", comment: "Key name: the space bar"),
                                 keySymbol: "⎵",
-                                description: "Bottom center",
+                                description: String(localized: "Bottom center", comment: "Keyboard position of the space bar"),
                                 isSmall: true
                             )
 
@@ -92,9 +92,9 @@ struct EmergencyStopDialog: View {
                                 .foregroundColor(.secondary)
 
                             EmergencyStopKeyButton(
-                                keyLabel: "Escape",
+                                keyLabel: String(localized: "Escape", comment: "Key name"),
                                 keySymbol: "⎋",
-                                description: "Top-left",
+                                description: String(localized: "Top-left", comment: "Keyboard position of the Escape key"),
                                 isSmall: true
                             )
                         }
@@ -110,9 +110,9 @@ struct EmergencyStopDialog: View {
 
                     HStack(spacing: 24) {
                         EmergencyStopKeyButton(
-                            keyLabel: "Left Control",
+                            keyLabel: String(localized: "Left Control"),
                             keySymbol: "⌃",
-                            description: "Bottom-left corner",
+                            description: String(localized: "Bottom-left corner", comment: "Keyboard position of the Left Control key"),
                             isSmall: false
                         )
 
@@ -122,9 +122,9 @@ struct EmergencyStopDialog: View {
                             .padding(.vertical)
 
                         EmergencyStopKeyButton(
-                            keyLabel: "Space",
+                            keyLabel: String(localized: "Space", comment: "Key name: the space bar"),
                             keySymbol: "⎵",
-                            description: "Bottom center",
+                            description: String(localized: "Bottom center", comment: "Keyboard position of the space bar"),
                             isSmall: false
                         )
 
@@ -134,9 +134,9 @@ struct EmergencyStopDialog: View {
                             .padding(.vertical)
 
                         EmergencyStopKeyButton(
-                            keyLabel: "Escape",
+                            keyLabel: String(localized: "Escape", comment: "Key name"),
                             keySymbol: "⎋",
-                            description: "Top-left corner",
+                            description: String(localized: "Top-left corner", comment: "Keyboard position of the Escape key"),
                             isSmall: false
                         )
                     }

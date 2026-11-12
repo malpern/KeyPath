@@ -46,7 +46,7 @@ public final class SimpleModsService {
         let path = configPath
         applyEdit = { [weak kanataManager] transform in
             guard let kanataManager else {
-                return .failure(KeyPathError.configuration(.loadFailed(reason: "Configuration service unavailable")))
+                return .failure(KeyPathError.configuration(.loadFailed(reason: String(localized: "Configuration service unavailable"))))
             }
             return await kanataManager.editConfiguration(at: path, transform: transform)
         }
@@ -88,7 +88,7 @@ public final class SimpleModsService {
         AppLogger.shared.log("➕ [SimpleMods] Add mapping: \(fromKey) → \(toKey) (enabled=\(enabled))")
         // Check if already installed
         if installedMappings.contains(where: { $0.fromKey == fromKey && $0.toKey == toKey }) {
-            lastError = "Mapping already installed"
+            lastError = String(localized: "Mapping already installed")
             return
         }
 
@@ -181,14 +181,14 @@ public final class SimpleModsService {
         let result: SaveResult = if let applyEdit, let expectedContent {
             await applyEdit { content in
                 guard content == expectedContent else {
-                    throw KeyPathError.configuration(.loadFailed(reason: "The configuration changed outside this editor. Reload mappings before trying again."))
+                    throw KeyPathError.configuration(.loadFailed(reason: String(localized: "The configuration changed outside this editor. Reload mappings before trying again.")))
                 }
                 let rendered = try writer.renderBlock(mappings: desiredMappings, in: content)
                 renderedContent = rendered
                 return rendered
             }
         } else {
-            .failure(KeyPathError.configuration(.loadFailed(reason: "Load the configuration and connect its save service before editing mappings.")))
+            .failure(KeyPathError.configuration(.loadFailed(reason: String(localized: "Load the configuration and connect its save service before editing mappings."))))
         }
         if result.success { loadedContent = renderedContent }
         // A newer edit owns the optimistic list and status until it is saved.
@@ -197,27 +197,27 @@ public final class SimpleModsService {
         lastSaveResult = result
         if result.success {
             do { try load() }
-            catch { lastError = "Saved, but the configuration could not be refreshed: \(error.localizedDescription)" }
+            catch { lastError = String(localized: "Saved, but the configuration could not be refreshed: \(error.localizedDescription)") }
         } else {
             try? load()
             lastRollbackReason = nil
             lastRollbackDetails = nil
-            let cause = result.error?.localizedDescription ?? "The mappings could not be saved."
+            let cause = result.error?.localizedDescription ?? String(localized: "The mappings could not be saved.")
             switch result.recoveryResult {
             case .restoredPreviousRawConfig:
                 lastRollbackReason = cause
-                lastRollbackDetails = "The previous configuration file was restored."
+                lastRollbackDetails = String(localized: "The previous configuration file was restored.")
                 lastError = cause
             case .rawConfigRecoveryFailed:
                 lastError = cause
             case .restoredPreviousConfig:
                 lastRollbackReason = cause
-                lastRollbackDetails = "The previous configuration file was restored. Runtime recovery has not been verified."
+                lastRollbackDetails = String(localized: "The previous configuration file was restored. Runtime recovery has not been verified.")
                 lastError = cause
             case let .wroteMinimalSafeConfig(backupError):
-                lastError = "\(cause) The previous configuration could not be restored; a minimal safe file was written. \(backupError?.localizedDescription ?? "")"
+                lastError = String(localized: "\(cause) The previous configuration could not be restored; a minimal safe file was written. \(backupError?.localizedDescription ?? "")")
             case let .failed(backupError, fallbackError):
-                lastError = "\(cause) Configuration recovery failed: \(backupError?.localizedDescription ?? "") \(fallbackError.localizedDescription)"
+                lastError = String(localized: "\(cause) Configuration recovery failed: \(backupError?.localizedDescription ?? "") \(fallbackError.localizedDescription)")
             case .notAttempted:
                 lastError = cause
             case .restoredPreviousAppKeymapState, .appKeymapRecoveryFailed, .restoredPreviousRuleState, .ruleStateRecoveryFailed:

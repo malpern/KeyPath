@@ -259,8 +259,8 @@ struct OverlayDragHeader: View {
     private let layerPillGracePeriod: TimeInterval = 0.4
 
     private var layerDisplayName: String {
-        if isLauncherMode { return "Launcher" }
-        return currentLayerName.lowercased() == "base" ? "Base" : currentLayerName.capitalized
+        if isLauncherMode { return String(localized: "Launcher") }
+        return currentLayerName.lowercased() == "base" ? String(localized: "Base") : currentLayerName.capitalized
     }
 
     /// Whether we're in a non-base layer (including launcher mode)
@@ -480,14 +480,14 @@ struct OverlayDragHeader: View {
                         EmptyView()
                     case .starting:
                         kanataTransitionPill(
-                            "Starting…",
-                            helpText: "Kanata is starting",
+                            String(localized: "Starting…"),
+                            helpText: String(localized: "Kanata is starting"),
                             indicatorCornerRadius: indicatorCornerRadius
                         )
                     case .restarting:
                         kanataTransitionPill(
-                            "Restarting…",
-                            helpText: "Kanata is restarting",
+                            String(localized: "Restarting…"),
+                            helpText: String(localized: "Kanata is restarting"),
                             indicatorCornerRadius: indicatorCornerRadius
                         )
                     case .disconnected:
@@ -520,10 +520,10 @@ struct OverlayDragHeader: View {
 
     private func inputModePill(indicator: String, indicatorCornerRadius: CGFloat) -> some View {
         let modeName = switch indicator {
-        case "あ": "Hiragana"
-        case "ア": "Katakana"
-        case "A": "Alphanumeric"
-        default: "Japanese"
+        case "あ": String(localized: "Hiragana")
+        case "ア": String(localized: "Katakana")
+        case "A": String(localized: "Alphanumeric")
+        default: String(localized: "Japanese")
         }
 
         return Text(indicator)

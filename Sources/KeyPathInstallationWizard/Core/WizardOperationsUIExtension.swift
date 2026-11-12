@@ -39,10 +39,10 @@ extension WizardOperations {
             identifier: .validationTimeout,
             severity: .warning,
             category: .daemon,
-            title: "System check timed out",
-            description: "KeyPath couldn't finish checking system status. This can happen if the helper or services are unresponsive.",
+            title: String(localized: "System check timed out"),
+            description: String(localized: "KeyPath couldn't finish checking system status. This can happen if the helper or services are unresponsive."),
             autoFixAction: nil,
-            userAction: "Try restarting KeyPath."
+            userAction: String(localized: "Try restarting KeyPath.")
         )
         return SystemStateResult(
             state: .serviceNotRunning,

@@ -113,11 +113,11 @@ extension OverlayMapperSection {
 
         let success = await kanataManager.saveCustomRule(customRule, skipReload: false)
         if success {
-            viewModel.statusMessage = "✓ Saved"
+            viewModel.statusMessage = String(localized: "✓ Saved")
             SoundPlayer.shared.playSuccessSound()
             AppLogger.shared.log("✅ [OverlayMapper] Saved layer switch: \(inputKey) → layer:\(layer)")
         } else {
-            viewModel.statusMessage = "Failed to save"
+            viewModel.statusMessage = String(localized: "Failed to save")
             viewModel.statusIsError = true
         }
     }
@@ -168,7 +168,7 @@ extension OverlayMapperSection {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Choose an app to launch when this key is pressed"
+        panel.message = String(localized: "Choose an app to launch when this key is pressed")
 
         if panel.runModal() == .OK, let url = panel.url {
             let displayName = url.deletingPathExtension().lastPathComponent
@@ -236,35 +236,35 @@ extension OverlayMapperSection {
     private var healthGateTitle: String {
         switch healthIndicatorState {
         case .checking:
-            "System Not Ready"
+            String(localized: "System Not Ready")
         case let .unhealthy(issueCount):
-            issueCount == 1 ? "1 Issue Found" : "\(issueCount) Issues Found"
+            issueCount == 1 ? String(localized: "1 Issue Found") : String(localized: "\(issueCount) Issues Found")
         case .healthy, .dismissed:
-            "System Ready"
+            String(localized: "System Ready")
         }
     }
 
     private var healthGateMessage: String {
         switch healthIndicatorState {
         case .checking:
-            "Checking system health before enabling the mapper."
+            String(localized: "Checking system health before enabling the mapper.")
         case let .unhealthy(issueCount):
             issueCount == 1
-                ? "Fix the issue to enable quick remapping in the drawer."
-                : "Fix the issues to enable quick remapping in the drawer."
+                ? String(localized: "Fix the issue to enable quick remapping in the drawer.")
+                : String(localized: "Fix the issues to enable quick remapping in the drawer.")
         case .healthy, .dismissed:
-            "System health is good."
+            String(localized: "System health is good.")
         }
     }
 
     private var healthGateButtonTitle: String {
         switch healthIndicatorState {
         case .checking:
-            "Open Setup"
+            String(localized: "Open Setup")
         case .unhealthy:
-            "Fix Issues"
+            String(localized: "Fix Issues")
         case .healthy, .dismissed:
-            "Open Setup"
+            String(localized: "Open Setup")
         }
     }
 }

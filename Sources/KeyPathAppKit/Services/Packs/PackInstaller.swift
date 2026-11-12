@@ -50,12 +50,12 @@ public final class PackInstaller {
             case .noRuleCollectionsManager:
                 return "RuleCollectionsManager is not available. The app may not be fully initialised."
             case let .saveFailed(reason):
-                return "Could not save pack rules: \(reason)"
+                return String(localized: "Could not save pack rules: \(reason)")
             case let .mutuallyExclusive(conflicts):
                 let names = conflicts.map(\.name).joined(separator: ", ")
-                return "Conflicts with \(names). Turn that pack off first to enable this one."
+                return String(localized: "Conflicts with \(names). Turn that pack off first to enable this one.")
             case let .dependencyMissing(name, _):
-                return "\(name) isn't installed."
+                return String(localized: "\(name) isn't installed.")
             case let .needsReview(preview):
                 return preview.items.map(\.presentation.title).joined(separator: "; ")
             }
@@ -136,7 +136,7 @@ public final class PackInstaller {
             guard let collectionID = pack.associatedCollectionID else { return nil }
             let loaded = await manager.ruleCollectionStore.loadCollectionsDetailed()
             guard !loaded.wasFullReset, loaded.failedCollectionNames.isEmpty else {
-                throw InstallError.saveFailed("Rule collections could not be read completely")
+                throw InstallError.saveFailed(String(localized: "Rule collections could not be read completely"))
             }
             guard loaded.collections.contains(where: { $0.id == collectionID && $0.isEnabled }) else { return nil }
             let record = InstalledPackRecord(packID: pack.id, version: pack.version, installedAt: Date(), quickSettingValues: [:])
@@ -532,7 +532,7 @@ public final class PackInstaller {
                     guard let index = manager.ruleCollections.firstIndex(where: { $0.id == collectionID }),
                           case var .homeRowMods(config) = manager.ruleCollections[index].configuration
                     else {
-                        throw InstallError.saveFailed("The pack's timing collection is missing or cannot be edited. Your settings were not changed.")
+                        throw InstallError.saveFailed(String(localized: "The pack's timing collection is missing or cannot be edited. Your settings were not changed."))
                     }
                     config.timing.tapWindow = holdTimeout
                     config.timing.holdDelay = holdTimeout
@@ -576,7 +576,7 @@ public final class PackInstaller {
                                                  skipReload: skipReload, reloadHandler: reloadHandler, permit: permit)
         guard result.success else {
             if result.error is CancellationError { throw CancellationError() }
-            throw InstallError.saveFailed(result.error?.localizedDescription ?? "Pack change could not be committed")
+            throw InstallError.saveFailed(result.error?.localizedDescription ?? String(localized: "Pack change could not be committed"))
         }
     }
 
@@ -668,7 +668,7 @@ public final class PackInstaller {
         if pack.id == PackRegistry.kindaVim.id,
            manager.ruleCollections.contains(where: { $0.id == RuleCollectionIdentifier.kindaVim && $0.isEnabled })
         {
-            throw InstallError.mutuallyExclusive(conflicts: [(id: RuleCollectionIdentifier.kindaVim.uuidString, name: "Legacy KindaVim rules")])
+            throw InstallError.mutuallyExclusive(conflicts: [(id: RuleCollectionIdentifier.kindaVim.uuidString, name: String(localized: "Legacy KindaVim rules"))])
         }
         // Unchecked installs keep the old behaviour: conflicts first, then the app.
         let conflicts = await Self.installedPackConflicts(for: pack, tracker: installedPackTracker)
@@ -920,20 +920,22 @@ public final class PackInstaller {
 
         return await withCheckedContinuation { continuation in
             let alert = NSAlert()
-            alert.messageText = "\(packName) will configure \(managed.displayName)"
+            alert.messageText = String(localized: "\(packName) will configure \(managed.displayName)")
             alert.alertStyle = .informational
-            alert.addButton(withTitle: "Use Recommended")
-            alert.addButton(withTitle: "Keep My Settings")
+            alert.addButton(withTitle: String(localized: "Use Recommended"))
+            alert.addButton(withTitle: String(localized: "Keep My Settings"))
 
             if !diffs.isEmpty {
-                alert.informativeText = "Your current settings will be saved and can be restored when you uninstall \(packName)."
+                alert.informativeText = String(localized: "Your current settings will be saved and can be restored when you uninstall \(packName).")
                 alert.accessoryView = Self.buildComparisonView(
                     diffs: diffs,
-                    currentLabel: "Current",
-                    proposedLabel: "Recommended"
+                    currentLabel: String(localized: "Current"),
+                    proposedLabel: String(localized: "Recommended")
                 )
             } else {
-                alert.informativeText = "Your current \(managed.displayName) settings will be changed. Your current settings will be saved and can be restored when you uninstall \(packName)."
+                alert
+                    .informativeText =
+                    String(localized: "Your current \(managed.displayName) settings will be changed. Your current settings will be saved and can be restored when you uninstall \(packName).")
             }
 
             let response = alert.runModal()
@@ -959,7 +961,7 @@ public final class PackInstaller {
         guard snapshot.packID == pack.id, Set(ids).count == ids.count,
               Set(ids).isSubset(of: Set(pack.managedDefaults.map(\.collectionID)))
         else {
-            throw InstallError.saveFailed("Saved settings do not match this pack; no changes were made")
+            throw InstallError.saveFailed(String(localized: "Saved settings do not match this pack; no changes were made"))
         }
         for entry in snapshot.entries {
             _ = try JSONDecoder().decode(RuleCollectionConfiguration.self, from: entry.configurationJSON)
@@ -1011,20 +1013,20 @@ public final class PackInstaller {
             shouldRestore =
                 await withCheckedContinuation { continuation in
                     let alert = NSAlert()
-                    alert.messageText = "Restore Previous Settings?"
+                    alert.messageText = String(localized: "Restore Previous Settings?")
                     alert.alertStyle = .informational
-                    alert.addButton(withTitle: "Restore Previous")
-                    alert.addButton(withTitle: "Keep Current")
+                    alert.addButton(withTitle: String(localized: "Restore Previous"))
+                    alert.addButton(withTitle: String(localized: "Keep Current"))
 
                     if !allDiffs.isEmpty {
-                        alert.informativeText = "You modified settings after installing \(pack.name). Restore your previous configuration?"
+                        alert.informativeText = String(localized: "You modified settings after installing \(pack.name). Restore your previous configuration?")
                         alert.accessoryView = Self.buildComparisonView(
                             diffs: allDiffs,
-                            currentLabel: "Current",
-                            proposedLabel: "Previous"
+                            currentLabel: String(localized: "Current"),
+                            proposedLabel: String(localized: "Previous")
                         )
                     } else {
-                        alert.informativeText = "You modified settings after installing \(pack.name). Restore your previous configuration, or keep the current settings?"
+                        alert.informativeText = String(localized: "You modified settings after installing \(pack.name). Restore your previous configuration, or keep the current settings?")
                     }
 
                     let response = alert.runModal()

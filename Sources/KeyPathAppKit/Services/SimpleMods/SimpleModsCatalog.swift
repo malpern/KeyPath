@@ -11,83 +11,83 @@ public final class SimpleModsCatalog: Sendable {
         [
             // Navigation & Modifiers
             SimpleModPreset(
-                name: "Caps Lock → Escape",
-                description: "Maps Caps Lock to Escape key (useful for Vim users)",
-                category: "Navigation",
+                name: String(localized: "Caps Lock → Escape"),
+                description: String(localized: "Maps Caps Lock to Escape key (useful for Vim users)"),
+                category: String(localized: "Navigation"),
                 fromKey: "caps",
                 toKey: "esc"
             ),
             SimpleModPreset(
-                name: "Caps Lock → Control",
-                description: "Maps Caps Lock to Control key",
-                category: "Modifiers",
+                name: String(localized: "Caps Lock → Control"),
+                description: String(localized: "Maps Caps Lock to Control key"),
+                category: String(localized: "Modifiers"),
                 fromKey: "caps",
                 toKey: "lctl"
             ),
             SimpleModPreset(
-                name: "Left Command → Right Command",
-                description: "Swap left and right Command keys",
-                category: "Modifiers",
+                name: String(localized: "Left Command → Right Command"),
+                description: String(localized: "Swap left and right Command keys"),
+                category: String(localized: "Modifiers"),
                 fromKey: "lmet",
                 toKey: "rmet"
             ),
             SimpleModPreset(
-                name: "Right Command → Left Command",
-                description: "Swap right and left Command keys",
-                category: "Modifiers",
+                name: String(localized: "Right Command → Left Command"),
+                description: String(localized: "Swap right and left Command keys"),
+                category: String(localized: "Modifiers"),
                 fromKey: "rmet",
                 toKey: "lmet"
             ),
             SimpleModPreset(
-                name: "Left Option → Right Option",
-                description: "Swap left and right Option keys",
-                category: "Modifiers",
+                name: String(localized: "Left Option → Right Option"),
+                description: String(localized: "Swap left and right Option keys"),
+                category: String(localized: "Modifiers"),
                 fromKey: "lalt",
                 toKey: "ralt"
             ),
             SimpleModPreset(
-                name: "Right Option → Left Option",
-                description: "Swap right and left Option keys",
-                category: "Modifiers",
+                name: String(localized: "Right Option → Left Option"),
+                description: String(localized: "Swap right and left Option keys"),
+                category: String(localized: "Modifiers"),
                 fromKey: "ralt",
                 toKey: "lalt"
             ),
 
             // Media & Function Keys
             SimpleModPreset(
-                name: "F13 → Play/Pause",
-                description: "Maps F13 to media Play/Pause",
-                category: "Media",
+                name: String(localized: "F13 → Play/Pause"),
+                description: String(localized: "Maps F13 to media Play/Pause"),
+                category: String(localized: "Media"),
                 fromKey: "f13",
                 toKey: "playpause"
             ),
             SimpleModPreset(
-                name: "F14 → Volume Down",
-                description: "Maps F14 to Volume Down",
-                category: "Media",
+                name: String(localized: "F14 → Volume Down"),
+                description: String(localized: "Maps F14 to Volume Down"),
+                category: String(localized: "Media"),
                 fromKey: "f14",
                 toKey: "volup"
             ),
             SimpleModPreset(
-                name: "F15 → Volume Up",
-                description: "Maps F15 to Volume Up",
-                category: "Media",
+                name: String(localized: "F15 → Volume Up"),
+                description: String(localized: "Maps F15 to Volume Up"),
+                category: String(localized: "Media"),
                 fromKey: "f15",
                 toKey: "voldown"
             ),
 
             // Common Swaps
             SimpleModPreset(
-                name: "Backspace → Delete",
-                description: "Swap Backspace and Delete",
-                category: "Common",
+                name: String(localized: "Backspace → Delete"),
+                description: String(localized: "Swap Backspace and Delete"),
+                category: String(localized: "Common"),
                 fromKey: "bspc",
                 toKey: "del"
             ),
             SimpleModPreset(
-                name: "Delete → Backspace",
-                description: "Swap Delete and Backspace",
-                category: "Common",
+                name: String(localized: "Delete → Backspace"),
+                description: String(localized: "Swap Delete and Backspace"),
+                category: String(localized: "Common"),
                 fromKey: "del",
                 toKey: "bspc"
             )

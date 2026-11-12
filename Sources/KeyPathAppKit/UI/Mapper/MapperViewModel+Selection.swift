@@ -18,13 +18,13 @@ extension MapperViewModel {
 
     var shiftedOutputBlockingReason: String? {
         if selectedAppCondition != nil {
-            return "Shift output is only available for rules that apply everywhere."
+            return String(localized: "Shift output is only available for rules that apply everywhere.")
         }
         if selectedApp != nil || selectedSystemAction != nil || selectedURL != nil {
-            return "Shift output works only with keystroke output."
+            return String(localized: "Shift output works only with keystroke output.")
         }
         if advancedBehavior.hasAdvancedConfig {
-            return "Shift output isn't available with hold, combo, or multi-tap behaviors."
+            return String(localized: "Shift output isn't available with hold, combo, or multi-tap behaviors.")
         }
         return nil
     }

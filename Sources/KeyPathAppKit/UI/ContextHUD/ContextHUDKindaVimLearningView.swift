@@ -219,9 +219,9 @@ struct ContextHUDKindaVimLearningView: View {
 
     private var insertModeCommands: [CommandItem] {
         [
-            .init(keys: "Esc", meaning: "enter Normal mode"),
-            .init(keys: "Ctrl-[", meaning: "alternate Esc"),
-            .init(keys: "Leader hold", meaning: "open KeyPath motion keylist"),
+            .init(keys: "Esc", meaning: String(localized: "enter Normal mode", comment: "Vim command meaning, shown next to its keys")),
+            .init(keys: "Ctrl-[", meaning: String(localized: "alternate Esc", comment: "Vim command meaning, shown next to its keys")),
+            .init(keys: "Leader hold", meaning: String(localized: "open KeyPath motion keylist", comment: "Vim command meaning, shown next to its keys")),
         ]
     }
 }

@@ -41,7 +41,7 @@ actor QMKImportService {
 
         // Check response size (10MB limit)
         if data.count > 10 * 1024 * 1024 {
-            throw QMKImportError.invalidJSON("Response too large (max 10MB). Size: \(data.count / 1024 / 1024)MB")
+            throw QMKImportError.invalidJSON(String(localized: "Response too large (max 10MB). Size: \(data.count / 1024 / 1024)MB"))
         }
 
         return try parseQMKData(data, sourceURL: url.absoluteString, layoutVariant: layoutVariant, keyMappingType: keyMappingType)
@@ -62,7 +62,7 @@ actor QMKImportService {
         // Check file size before reading (10MB limit)
         let fileAttributes = try Foundation.FileManager().attributesOfItem(atPath: fileURL.path)
         if let fileSize = fileAttributes[.size] as? Int64, fileSize > 10 * 1024 * 1024 {
-            throw QMKImportError.invalidJSON("File too large (max 10MB). File size: \(fileSize / 1024 / 1024)MB")
+            throw QMKImportError.invalidJSON(String(localized: "File too large (max 10MB). File size: \(fileSize / 1024 / 1024)MB"))
         }
 
         let data: Data
@@ -74,7 +74,7 @@ actor QMKImportService {
 
         // Double-check data size (in case attributes check failed)
         if data.count > 10 * 1024 * 1024 {
-            throw QMKImportError.invalidJSON("File too large (max 10MB). File size: \(data.count / 1024 / 1024)MB")
+            throw QMKImportError.invalidJSON(String(localized: "File too large (max 10MB). File size: \(data.count / 1024 / 1024)MB"))
         }
 
         return try parseQMKData(data, sourceURL: nil, layoutVariant: layoutVariant, keyMappingType: keyMappingType)
@@ -92,7 +92,7 @@ actor QMKImportService {
         }
 
         guard !info.layouts.isEmpty else {
-            throw QMKImportError.noLayoutFound("No layout definitions found in JSON")
+            throw QMKImportError.noLayoutFound(String(localized: "No layout definitions found in JSON"))
         }
 
         // Choose keycode mapping function based on type
@@ -115,7 +115,7 @@ actor QMKImportService {
 
         // Use a safe name: fall back to "Imported Keyboard" if name is empty
         let safeName = info.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "Imported Keyboard"
+            ? String(localized: "Imported Keyboard")
             : info.name
 
         // Parse layout using QMKLayoutParser
@@ -125,7 +125,7 @@ actor QMKImportService {
             idOverride: idOverride,
             nameOverride: safeName
         ) else {
-            throw QMKImportError.parseError("Failed to parse layout from JSON. The layout may have 0 valid keys.")
+            throw QMKImportError.parseError(String(localized: "Failed to parse layout from JSON. The layout may have 0 valid keys."))
         }
 
         return layout
@@ -230,13 +230,13 @@ actor QMKImportService {
         var store = CustomLayoutStore.load(from: userDefaults)
 
         guard let index = store.layouts.firstIndex(where: { $0.id == layoutId }) else {
-            return .failure("Layout not found")
+            return .failure(String(localized: "Layout not found"))
         }
 
         let storedLayout = store.layouts[index]
 
         guard let kbPath = storedLayout.keyboardPath else {
-            return .failure("No keyboard path available for re-fetch")
+            return .failure(String(localized: "No keyboard path available for re-fetch"))
         }
 
         // Invalidate the cached keymap to force a fresh fetch
@@ -244,7 +244,7 @@ actor QMKImportService {
 
         // Attempt to fetch the keymap
         guard let keymapTokens = await QMKKeyboardDatabase.shared.fetchDefaultKeymap(keyboardPath: kbPath) else {
-            return .failure("Could not fetch keymap — GitHub may be rate-limited or the keymap is unavailable for this keyboard")
+            return .failure(String(localized: "Could not fetch keymap — GitHub may be rate-limited or the keymap is unavailable for this keyboard"))
         }
 
         // Update the stored layout with the new keymap tokens
@@ -386,15 +386,15 @@ enum QMKImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .invalidURL(message):
-            "Invalid URL: \(message)"
+            String(localized: "Invalid URL: \(message)")
         case let .networkError(message):
-            "Network error: \(message)"
+            String(localized: "Network error: \(message)")
         case let .invalidJSON(message):
-            "Invalid JSON: \(message)"
+            String(localized: "Invalid JSON: \(message)")
         case let .noLayoutFound(message):
-            "No layout found: \(message)"
+            String(localized: "No layout found: \(message)")
         case let .parseError(message):
-            "Parse error: \(message)"
+            String(localized: "Parse error: \(message)")
         }
     }
 }

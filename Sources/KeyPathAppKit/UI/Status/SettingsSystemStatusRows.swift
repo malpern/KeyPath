@@ -29,23 +29,23 @@ enum SettingsStatusSummaryRows {
         // managed Caps Lock in step with the rules, so the worker is the truth.
         var rows = [
             SettingsSystemStatusRowModel(
-                id: "caps-lock", title: "Caps Lock remapping", icon: "capslock",
+                id: "caps-lock", title: String(localized: "Caps Lock remapping"), icon: "capslock",
                 status: runtimeRunning && capsManaged ? .completed : .notStarted,
                 targetPage: nil, message: nil, settingsDestination: .openSettingsGeneral
             ),
             SettingsSystemStatusRowModel(
-                id: "launch-at-login", title: "Launch at login", icon: "power",
+                id: "launch-at-login", title: String(localized: "Launch at login"), icon: "power",
                 status: launchAtLoginStatus(launchAtLogin),
                 targetPage: nil,
-                message: launchAtLogin == .requiresApproval ? "Allow KeyPath in Login Items" : nil,
+                message: launchAtLogin == .requiresApproval ? String(localized: "Allow KeyPath in Login Items") : nil,
                 settingsDestination: .openSettingsGeneral
             )
         ]
         if appCopies > 1 {
             rows.append(SettingsSystemStatusRowModel(
-                id: "app-copies", title: "Multiple KeyPath copies", icon: "square.on.square",
+                id: "app-copies", title: String(localized: "Multiple KeyPath copies"), icon: "square.on.square",
                 status: .warning, targetPage: nil,
-                message: "\(appCopies) copies found. Review them in Repair/Remove.",
+                message: String(localized: "\(appCopies) copies found. Review them in Repair/Remove."),
                 settingsDestination: .openSettingsAdvanced
             ))
         }
@@ -89,7 +89,7 @@ enum SettingsSystemStatusRowsBuilder {
             return .notStarted
         }()
         let serviceMessage: String? = {
-            if intentionallyOff, wizardSystemState != .initializing { return "Turned off" }
+            if intentionallyOff, wizardSystemState != .initializing { return String(localized: "Turned off") }
             if serviceStatus != .completed {
                 return blockingPermissionIssue ?? daemonIssues.first?.title
             }
@@ -98,7 +98,7 @@ enum SettingsSystemStatusRowsBuilder {
         rows.append(
             SettingsSystemStatusRowModel(
                 id: "kanata-service",
-                title: "Keyboard remapping",
+                title: String(localized: "Keyboard remapping"),
                 icon: "app.badge.checkmark",
                 status: serviceStatus,
                 targetPage: .service,
@@ -197,12 +197,12 @@ struct SettingsSystemStatusRow: View {
 private extension InstallationStatus {
     var accessibilityValue: String {
         switch self {
-        case .notStarted: "not started"
-        case .inProgress: "in progress"
-        case .completed: "completed"
-        case .warning: "warning"
-        case .failed: "failed"
-        case .unverified: "unverified"
+        case .notStarted: String(localized: "not started", comment: "VoiceOver status value")
+        case .inProgress: String(localized: "in progress", comment: "VoiceOver status value")
+        case .completed: String(localized: "completed", comment: "VoiceOver status value")
+        case .warning: String(localized: "warning", comment: "VoiceOver status value")
+        case .failed: String(localized: "failed", comment: "VoiceOver status value")
+        case .unverified: String(localized: "unverified", comment: "VoiceOver status value")
         }
     }
 }

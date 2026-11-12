@@ -183,11 +183,11 @@ final class LauncherStore {
             await previous?.value
             defer { pendingMutationCount -= 1 }
             guard let manager else {
-                saveError = "The shortcut could not be saved. Reopen the launcher and try again."
+                saveError = String(localized: "The shortcut could not be saved. Reopen the launcher and try again.")
                 return
             }
             let saved = await manager.editLauncherConfiguration(edit)
-            saveError = saved ? nil : "The shortcut could not be saved. Your previous shortcuts were kept."
+            saveError = saved ? nil : String(localized: "The shortcut could not be saved. Your previous shortcuts were kept.")
             if let config = manager.ruleCollections.first(where: { $0.id == RuleCollectionIdentifier.launcher })?.configuration.launcherGridConfig {
                 mappings = config.mappings.filter { mapping in
                     if case let .launchApp(name, bundleId) = mapping.action {

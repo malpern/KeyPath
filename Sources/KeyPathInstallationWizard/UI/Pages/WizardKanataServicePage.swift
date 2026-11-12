@@ -80,7 +80,7 @@ public struct WizardKanataServicePage: View {
                 overlayIcon: serviceStatus.icon,
                 overlayColor: serviceStatus.color,
                 overlaySize: .large,
-                title: "KeyPath Runtime",
+                title: String(localized: "KeyPath Runtime"),
                 subtitle: statusMessage,
                 iconTapAction: { refreshStatus() }
             )
@@ -153,27 +153,58 @@ public struct WizardKanataServicePage: View {
         case stopped
     }
 
-    private func evaluateServiceCompletion(target: DesiredServiceState, actionName: String) {
+    /// A service action, with each completion message written as a whole sentence.
+    private enum ServiceAction {
+        case start
+        case restart
+        case stop
+
+        var succeededMessage: String {
+            switch self {
+            case .start: String(localized: "Kanata start succeeded")
+            case .restart: String(localized: "Kanata restart succeeded")
+            case .stop: String(localized: "Kanata stop succeeded")
+            }
+        }
+
+        var failedMessage: String {
+            switch self {
+            case .start: String(localized: "Kanata start failed. Try again.")
+            case .restart: String(localized: "Kanata restart failed. Try again.")
+            case .stop: String(localized: "Kanata stop failed. Try again.")
+            }
+        }
+
+        var didNotCompleteMessage: String {
+            switch self {
+            case .start: String(localized: "Kanata start did not complete. Try again.")
+            case .restart: String(localized: "Kanata restart did not complete. Try again.")
+            case .stop: String(localized: "Kanata stop did not complete. Try again.")
+            }
+        }
+    }
+
+    private func evaluateServiceCompletion(target: DesiredServiceState, actionName: ServiceAction) {
         switch target {
         case .running:
             switch serviceStatus {
             case .running:
-                actionStatus = .success(message: "\(actionName) succeeded")
+                actionStatus = .success(message: actionName.succeededMessage)
                 scheduleStatusClear()
             case let .failed(error):
                 actionStatus = .error(message: error)
             default:
-                actionStatus = .error(message: "\(actionName) did not complete. Try again.")
+                actionStatus = .error(message: actionName.didNotCompleteMessage)
             }
         case .stopped:
             switch serviceStatus {
             case .stopped:
-                actionStatus = .success(message: "\(actionName) succeeded")
+                actionStatus = .success(message: actionName.succeededMessage)
                 scheduleStatusClear()
             case .failed:
-                actionStatus = .error(message: "\(actionName) failed. Try again.")
+                actionStatus = .error(message: actionName.failedMessage)
             default:
-                actionStatus = .error(message: "\(actionName) did not complete. Try again.")
+                actionStatus = .error(message: actionName.didNotCompleteMessage)
             }
         }
     }
@@ -182,7 +213,7 @@ public struct WizardKanataServicePage: View {
     private func completeServiceAction(
         succeeded: Bool,
         target: DesiredServiceState,
-        actionName: String
+        actionName: ServiceAction
     ) async {
         isPerformingAction = false
         if !succeeded, case .running = target,
@@ -241,17 +272,17 @@ public struct WizardKanataServicePage: View {
     private var statusMessage: String {
         switch serviceStatus {
         case .running:
-            "KeyPath Runtime, powered by Kanata Engine, is running and ready to process keyboard events."
+            String(localized: "KeyPath Runtime, powered by Kanata Engine, is running and ready to process keyboard events.")
         case .stopped:
-            "Preparing your keyboard shortcuts…"
+            String(localized: "Preparing your keyboard shortcuts…")
         case let .failed(error):
             error
         case .starting:
-            "Starting KeyPath runtime…"
+            String(localized: "Starting KeyPath runtime…")
         case .stopping:
-            "KeyPath runtime is shutting down."
+            String(localized: "KeyPath runtime is shutting down.")
         case .unknown:
-            "Checking KeyPath runtime status… If this takes too long, click Start."
+            String(localized: "Checking KeyPath runtime status… If this takes too long, click Start.")
         }
     }
 
@@ -260,7 +291,7 @@ public struct WizardKanataServicePage: View {
     }
 
     private var nextStepButtonTitle: String {
-        issues.isEmpty ? "Return to Summary" : "Next Issue"
+        issues.isEmpty ? String(localized: "Return to Summary") : String(localized: "Next Issue")
     }
 
     // MARK: - Actions
@@ -272,14 +303,14 @@ public struct WizardKanataServicePage: View {
         }
         isPerformingAction = true
         serviceStatus = .starting
-        actionStatus = .inProgress(message: "Starting KeyPath runtime…")
+        actionStatus = .inProgress(message: String(localized: "Starting KeyPath runtime…"))
 
         Task { @MainActor in
             let succeeded = await kanataManager.startKanata(reason: "Wizard automatic startup")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .running,
-                actionName: "Kanata start"
+                actionName: .start
             )
         }
     }
@@ -291,14 +322,14 @@ public struct WizardKanataServicePage: View {
         }
         isPerformingAction = true
         serviceStatus = .stopping
-        actionStatus = .inProgress(message: "Restarting KeyPath runtime…")
+        actionStatus = .inProgress(message: String(localized: "Restarting KeyPath runtime…"))
 
         Task { @MainActor in
             let succeeded = await kanataManager.restartKanata(reason: "Wizard service restart button")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .running,
-                actionName: "Kanata restart"
+                actionName: .restart
             )
         }
     }
@@ -310,14 +341,14 @@ public struct WizardKanataServicePage: View {
         }
         isPerformingAction = true
         serviceStatus = .stopping
-        actionStatus = .inProgress(message: "Stopping KeyPath runtime…")
+        actionStatus = .inProgress(message: String(localized: "Stopping KeyPath runtime…"))
 
         Task { @MainActor in
             let succeeded = await kanataManager.stopKanata(reason: "Wizard service stop button")
             await completeServiceAction(
                 succeeded: succeeded,
                 target: .stopped,
-                actionName: "Kanata stop"
+                actionName: .stop
             )
         }
     }
@@ -382,7 +413,7 @@ public struct WizardKanataServicePage: View {
                 ) {
                     await MainActor.run {
                         serviceStatus = .failed(
-                            error: "Runtime startup did not finish. Click Restart to retry."
+                            error: String(localized: "Runtime startup did not finish. Click Restart to retry.")
                         )
                     }
                 }
@@ -419,7 +450,7 @@ public struct WizardKanataServicePage: View {
         case .running:
             break
         case let .failed(message):
-            let errorMessage = message ?? "Permission or service issue detected"
+            let errorMessage = message ?? String(localized: "Permission or service issue detected")
             derivedStatus = .failed(error: errorMessage)
         case .stopped:
             // If we previously thought it was running, align with evaluator
@@ -470,19 +501,19 @@ public struct WizardKanataServicePage: View {
             nil
         case .unknown:
             (
-                label: "Start",
+                label: String(localized: "Start"),
                 action: startService,
                 disabled: isPerformingAction
             )
         case .stopped:
             (
-                label: "Start",
+                label: String(localized: "Start"),
                 action: startService,
                 disabled: isPerformingAction
             )
         case .failed:
             (
-                label: "Restart",
+                label: String(localized: "Restart"),
                 action: restartService,
                 disabled: isPerformingAction
             )

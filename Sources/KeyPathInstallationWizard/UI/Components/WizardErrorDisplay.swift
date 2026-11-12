@@ -66,14 +66,14 @@ public struct WizardErrorDisplay: View {
             // Action buttons
             HStack(spacing: WizardDesign.Spacing.elementGap) {
                 if let onDismiss {
-                    WizardButton("Dismiss", style: .secondary) {
+                    WizardButton(String(localized: "Dismiss"), style: .secondary) {
                         onDismiss()
                     }
                     .accessibilityIdentifier("wizard-error-dismiss-button")
                 }
 
                 if let onRetry {
-                    WizardButton("Try Again", style: .primary) {
+                    WizardButton(String(localized: "Try Again"), style: .primary) {
                         onRetry()
                     }
                     .accessibilityIdentifier("wizard-error-retry-button")

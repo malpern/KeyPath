@@ -236,7 +236,7 @@ extension MapperViewModel {
         inputSequence = nil
         inputKeyCode = nil
         inputLabel = "..."
-        statusMessage = "Press keys (sequence supported)"
+        statusMessage = String(localized: "Press keys (sequence supported)")
         statusIsError = false
         startCapture(target: .input)
     }
@@ -254,7 +254,7 @@ extension MapperViewModel {
         // Clear system action/app so keycap shows recording state
         selectedSystemAction = nil
         selectedApp = nil
-        statusMessage = "Press keys (sequence supported)"
+        statusMessage = String(localized: "Press keys (sequence supported)")
         statusIsError = false
         startCapture(target: .output)
     }
@@ -272,7 +272,7 @@ extension MapperViewModel {
         isRecordingShiftedOutput = true
         shiftedOutputLabel = "..."
         shiftedOutputSequence = nil
-        statusMessage = "Press keys for Shift output"
+        statusMessage = String(localized: "Press keys for Shift output")
         statusIsError = false
         startCapture(target: .shiftedOutput)
     }
@@ -464,7 +464,7 @@ extension MapperViewModel {
         }
         guard let manager = kanataManager else {
             AppLogger.shared.errorUnlessQuietTest("❌ [MapperViewModel] Autosave skipped: no runtime coordinator configured")
-            statusMessage = "Couldn't save: the Mapper isn't connected to the runtime. Reopen the overlay."
+            statusMessage = String(localized: "Couldn't save: the Mapper isn't connected to the runtime. Reopen the overlay.")
             statusIsError = true
             return
         }

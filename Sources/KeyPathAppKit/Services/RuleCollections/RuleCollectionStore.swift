@@ -163,7 +163,7 @@ actor RuleCollectionStore {
             if let collection = element.value {
                 recovered.append(collection)
             } else {
-                let name = (index < partials.count ? partials[index].name : nil) ?? "Unknown (#\(index + 1))"
+                let name = (index < partials.count ? partials[index].name : nil) ?? String(localized: "Unknown (#\(index + 1))")
                 failedNames.append(name)
                 AppLogger.shared.log(
                     "⚠️ [RuleCollectionStore] Failed to decode collection '\(name)' — using catalog default"

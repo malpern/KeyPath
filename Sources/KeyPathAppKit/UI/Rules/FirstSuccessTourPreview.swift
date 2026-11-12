@@ -136,7 +136,7 @@ final class FirstSuccessTourPreviewWindowController: NSWindowController, NSWindo
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false
         )
-        window.title = "KeyPath Tour Preview"
+        window.title = String(localized: "KeyPath Tour Preview")
         window.contentMinSize = NSSize(width: 960, height: 695)
         window.center()
         super.init(window: window)

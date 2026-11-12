@@ -25,7 +25,7 @@ struct ExperimentalSettingsSection: View {
             // Quick Features Section
             SettingsCard {
                 VStack(alignment: .leading, spacing: 16) {
-                    SettingsSectionHeader(title: "Quick Features", icon: "keyboard.badge.ellipsis", color: .blue)
+                    SettingsSectionHeader(title: String(localized: "Quick Features"), icon: "keyboard.badge.ellipsis", color: .blue)
 
                     globalHotkeyToggle
                     Divider()
@@ -41,7 +41,7 @@ struct ExperimentalSettingsSection: View {
             // AI Config Section
             SettingsCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    SettingsSectionHeader(title: "AI Config Generation", icon: "sparkles", color: .purple)
+                    SettingsSectionHeader(title: String(localized: "AI Config Generation"), icon: "sparkles", color: .purple)
 
                     AIConfigGenerationSettingsSection()
                 }
@@ -60,7 +60,7 @@ struct ExperimentalSettingsSection: View {
             SettingsCard {
                 VStack(alignment: .leading, spacing: 12) {
                     SettingsSectionHeader(
-                        title: "Hide Overlay in Specific Apps",
+                        title: String(localized: "Hide Overlay in Specific Apps"),
                         icon: "eye.slash",
                         color: .indigo
                     )
@@ -121,11 +121,11 @@ struct ExperimentalSettingsSection: View {
             // Testing Section
             SettingsCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    SettingsSectionHeader(title: "Testing", icon: "ant.fill", color: .green)
+                    SettingsSectionHeader(title: String(localized: "Testing", comment: "Settings section header for test-only options"), icon: "ant.fill", color: .green)
 
                     SettingsToggleRow(
-                        title: "Accessibility Test Mode",
-                        help: "Makes overlay discoverable by automation tools (Peekaboo). Takes effect immediately.",
+                        title: String(localized: "Accessibility Test Mode"),
+                        help: String(localized: "Makes overlay discoverable by automation tools (Peekaboo). Takes effect immediately."),
                         isOn: Binding(get: { accessibilityTestMode }, set: { newValue in
                             accessibilityTestMode = newValue
                             services.preferences.accessibilityTestMode = newValue
@@ -137,7 +137,7 @@ struct ExperimentalSettingsSection: View {
             // Developer Feature Flags Section
             SettingsCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    SettingsSectionHeader(title: "Developer Feature Flags", icon: "flag.fill", color: .orange)
+                    SettingsSectionHeader(title: String(localized: "Developer Feature Flags"), icon: "flag.fill", color: .orange)
 
                     Text("These flags control experimental functionality. Changes may require app restart.")
                         .font(.caption)
@@ -153,7 +153,7 @@ struct ExperimentalSettingsSection: View {
 
     private var globalHotkeyToggle: some View {
         SettingsToggleRow(
-            title: "Global Hotkey", subtitle: "⌥⌘K to show/hide overlay, ⌥⌘L to reset & center",
+            title: String(localized: "Global Hotkey"), subtitle: String(localized: "⌥⌘K to show/hide overlay, ⌥⌘L to reset & center"),
             isOn: Binding(get: { GlobalHotkeyService.shared.isEnabled }, set: { GlobalHotkeyService.shared.isEnabled = $0 }),
             identifier: "settings-global-hotkey-toggle"
         )
@@ -162,8 +162,8 @@ struct ExperimentalSettingsSection: View {
     // MARK: - QMK Search Toggle
 
     private var qmkSearchToggle: some View {
-        SettingsToggleRow(title: "QMK Keyboard Search",
-                          help: "Search and import layouts from the QMK keyboard database",
+        SettingsToggleRow(title: String(localized: "QMK Keyboard Search"),
+                          help: String(localized: "Search and import layouts from the QMK keyboard database"),
                           isOn: $qmkSearchEnabled, identifier: "settings-qmk-search-toggle")
             .onChange(of: qmkSearchEnabled) { _, newValue in
                 UserDefaults.standard.set(newValue, forKey: LayoutPreferences.qmkSearchEnabledKey)
@@ -177,40 +177,40 @@ struct ExperimentalSettingsSection: View {
     private var featureFlagsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             featureFlagToggle(
-                title: "Simulator + Virtual Keys",
-                description: "Enable overlay labels via simulator",
+                title: String(localized: "Simulator + Virtual Keys"),
+                description: String(localized: "Enable overlay labels via simulator"),
                 isOn: $simulatorAndVirtualKeysEnabled,
                 onChange: { FeatureFlags.setSimulatorAndVirtualKeysEnabled($0) },
                 identifier: "feature-flag-simulator"
             )
 
             featureFlagToggle(
-                title: "Listen-Only Event Tap",
-                description: "CGEvent tap only listens (no modification)",
+                title: String(localized: "Listen-Only Event Tap"),
+                description: String(localized: "CGEvent tap only listens (no modification)"),
                 isOn: $captureListenOnlyEnabled,
                 onChange: { FeatureFlags.setCaptureListenOnlyEnabled($0) },
                 identifier: "feature-flag-listen-only"
             )
 
             featureFlagToggle(
-                title: "Uninstall for Testing",
-                description: "Reset TCC permissions & prefs on uninstall",
+                title: String(localized: "Uninstall for Testing"),
+                description: String(localized: "Reset TCC permissions & prefs on uninstall"),
                 isOn: $uninstallForTesting,
                 onChange: { FeatureFlags.setUninstallForTesting($0) },
                 identifier: "feature-flag-uninstall-testing"
             )
 
             featureFlagToggle(
-                title: "Context HUD List",
-                description: "Show compact key list window on layer activation",
+                title: String(localized: "Context HUD List"),
+                description: String(localized: "Show compact key list window on layer activation"),
                 isOn: $contextHUDListEnabled,
                 onChange: { FeatureFlags.setContextHUDListEnabled($0) },
                 identifier: "feature-flag-context-hud-list"
             )
 
             featureFlagToggle(
-                title: "Keyboard Attribution (log only)",
-                description: "Count which keyboard each key came from, in the log. Needs Input Monitoring. Applies when the engine next starts.",
+                title: String(localized: "Keyboard Attribution (log only)"),
+                description: String(localized: "Count which keyboard each key came from, in the log. Needs Input Monitoring. Applies when the engine next starts."),
                 isOn: $keyboardAttributionEnabled,
                 onChange: { enabled in
                     UserDefaults.standard.set(enabled, forKey: KeyboardAttributionMonitor.enabledKey)
@@ -247,7 +247,7 @@ struct ExperimentalSettingsSection: View {
                 Text("Learning Tips")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                InfoTip("Control when contextual tips are shown")
+                InfoTip(String(localized: "Control when contextual tips are shown"))
             }
 
             Spacer()
@@ -276,8 +276,8 @@ struct ExperimentalSettingsSection: View {
 
     private func addAppViaPicker() {
         let panel = NSOpenPanel()
-        panel.title = "Choose an app"
-        panel.prompt = "Choose"
+        panel.title = String(localized: "Choose an app")
+        panel.prompt = String(localized: "Choose", comment: "Open panel button: choose the selected app")
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowsMultipleSelection = false

@@ -17,7 +17,7 @@ extension RulesTabView {
         AppLogger.shared.log("🎚️ [Rules] handleCollectionToggle: '\(collection.name)' isOn=\(isOn) pack=\(packForCollection(collection)?.name ?? "nil") collectionID=\(collection.id)")
         if let owner = collectionOwnershipMap[collection.id] {
             settingsToastManager.showError(
-                "Part of \(owner.packName) — turn off the pack to change this"
+                String(localized: "Part of \(owner.packName) — turn off the pack to change this")
             )
             pendingToggles.removeValue(forKey: collection.id)
             return
@@ -47,7 +47,7 @@ extension RulesTabView {
                         pendingToggles.removeValue(forKey: collection.id)
                         refreshUnmetDependencies()
                         let depNames = unmet.map { PackRegistry.pack(id: $0.dependency.packID)?.name ?? $0.dependency.packID }
-                        settingsToastManager.showSuccess("Also enabled \(depNames.joined(separator: ", "))")
+                        settingsToastManager.showSuccess(String(localized: "Also enabled \(depNames.joined(separator: ", "))"))
                     }
                     return
                 } else {

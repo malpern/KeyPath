@@ -32,7 +32,7 @@ struct ActivityReportView: View {
             // Period picker
             Picker("Period", selection: $selectedPeriod) {
                 ForEach(ReportPeriod.allCases, id: \.self) { period in
-                    Text(period.rawValue).tag(period)
+                    Text(period.displayName).tag(period)
                 }
             }
             .pickerStyle(.segmented)
@@ -69,17 +69,17 @@ struct ActivityReportView: View {
                 // Summary
                 HStack {
                     StatCard(
-                        title: "Total Events",
+                        title: String(localized: "Total Events"),
                         value: "\(report.totalEvents)",
                         icon: "chart.bar"
                     )
                     StatCard(
-                        title: "Apps Used",
+                        title: String(localized: "Apps Used"),
                         value: "\(report.appUsage.count)",
                         icon: "app.badge"
                     )
                     StatCard(
-                        title: "Shortcuts",
+                        title: String(localized: "Shortcuts"),
                         value: "\(report.topShortcuts.count)",
                         icon: "keyboard"
                     )
@@ -88,7 +88,7 @@ struct ActivityReportView: View {
 
                 // App Usage
                 if !report.appUsage.isEmpty {
-                    ReportSection(title: "Top Apps", icon: "app.badge") {
+                    ReportSection(title: String(localized: "Top Apps"), icon: "app.badge") {
                         ForEach(report.appUsage.prefix(10)) { app in
                             HStack {
                                 Text(app.appName)
@@ -106,7 +106,7 @@ struct ActivityReportView: View {
 
                 // Top Shortcuts
                 if !report.topShortcuts.isEmpty {
-                    ReportSection(title: "Top Shortcuts", icon: "keyboard") {
+                    ReportSection(title: String(localized: "Top Shortcuts"), icon: "keyboard") {
                         ForEach(report.topShortcuts.prefix(10)) { shortcut in
                             HStack {
                                 Text(shortcut.shortcut)
@@ -124,7 +124,7 @@ struct ActivityReportView: View {
 
                 // KeyPath Actions
                 if !report.keyPathActions.isEmpty {
-                    ReportSection(title: "KeyPath Actions", icon: "bolt") {
+                    ReportSection(title: String(localized: "KeyPath Actions"), icon: "bolt") {
                         ForEach(report.keyPathActions.prefix(10)) { action in
                             HStack {
                                 Text(action.displayString)

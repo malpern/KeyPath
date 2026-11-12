@@ -18,18 +18,18 @@ enum TimingCopy {
         var primaryWindowLabel: String {
             switch self {
             case .releaseOrder:
-                "Typing grace period"
+                String(localized: "Typing grace period")
             default:
-                "Repeat-tap window"
+                String(localized: "Repeat-tap window")
             }
         }
 
         var primaryWindowExplanation: String {
             switch self {
             case .releaseOrder:
-                "After you press this key, another key released during this period makes it a hold."
+                String(localized: "After you press this key, another key released during this period makes it a hold.")
             default:
-                "After you press this key, another key can still change how it resolves during this period."
+                String(localized: "After you press this key, another key can still change how it resolves during this period.")
             }
         }
 
@@ -43,8 +43,8 @@ enum TimingCopy {
         }
     }
 
-    static let holdActivationDelay = "Hold activation delay"
-    static let holdActivationDelayExplanation = "How long to hold this key before its hold action activates."
+    static let holdActivationDelay = String(localized: "Hold activation delay")
+    static let holdActivationDelayExplanation = String(localized: "How long to hold this key before its hold action activates.")
     static let leaderHoldDelay = LocalizedStringResource(
         "Leader hold delay",
         bundle: KeyPathAppKitResources.bundle,
@@ -60,10 +60,10 @@ enum TimingCopy {
         bundle: KeyPathAppKitResources.bundle,
         comment: "Accessibility label for the custom Leader hold delay field."
     )
-    static let multiTapWindow = "Multi-tap window"
-    static let multiTapWindowExplanation = "After every tap, the window starts again. When it expires, KeyPath resolves the tap count."
-    static let activateHoldOnOtherKeyPress = "Activate hold when another key is pressed"
-    static let activateHoldOnOtherKeyRelease = "Activate hold after another key is released"
+    static let multiTapWindow = String(localized: "Multi-tap window")
+    static let multiTapWindowExplanation = String(localized: "After every tap, the window starts again. When it expires, KeyPath resolves the tap count.")
+    static let activateHoldOnOtherKeyPress = String(localized: "Activate hold when another key is pressed")
+    static let activateHoldOnOtherKeyRelease = String(localized: "Activate hold after another key is released")
 
     static func dualRoleVariant(
         activateHoldOnOtherKey: Bool,

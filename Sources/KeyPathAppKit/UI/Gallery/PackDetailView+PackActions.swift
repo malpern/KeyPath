@@ -150,7 +150,7 @@ extension PackDetailView {
             if !ok {
                 await MainActor.run {
                     withAnimation {
-                        errorMessage = "Couldn't save the change. Another rule may be conflicting on \(input.uppercased())."
+                        errorMessage = String(localized: "Couldn't save the change. Another rule may be conflicting on \(input.uppercased()).")
                     }
                 }
                 Task {

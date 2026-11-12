@@ -5,12 +5,12 @@ struct KeystrokePresetGridView: View {
     let onSelect: (String) -> Void
 
     static let presets: [(key: String, label: String, icon: String)] = [
-        ("esc", "Esc", "escape"),
-        ("enter", "Return", "return"),
-        ("bspc", "Backspace", "delete.backward"),
-        ("del", "Delete", "delete.forward"),
-        ("tab", "Tab", "arrow.right.to.line"),
-        ("spc", "Space", "space"),
+        ("esc", String(localized: "Esc", comment: "Key name: Escape, abbreviated"), "escape"),
+        ("enter", String(localized: "Return", comment: "Key name"), "return"),
+        ("bspc", String(localized: "Backspace", comment: "Key name"), "delete.backward"),
+        ("del", String(localized: "Delete", comment: "Key name"), "delete.forward"),
+        ("tab", String(localized: "Tab", comment: "Key name"), "arrow.right.to.line"),
+        ("spc", String(localized: "Space", comment: "Key name"), "space"),
         ("up", "↑", "arrow.up"),
         ("down", "↓", "arrow.down"),
         ("left", "←", "arrow.left"),

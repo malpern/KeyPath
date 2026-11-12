@@ -354,10 +354,10 @@ private struct AccessibilityManualFallbackCard: View {
     private func resetKeyPathRow() {
         AppLogger.shared.log("🔐 [WizardAccessibilityPage] Resetting KeyPath's own Accessibility row")
         guard PermissionRowReset.reset(.accessibility) else {
-            resetMessage = "macOS did not reset KeyPath's entry. Remove KeyPath with − in System Settings, then add it again."
+            resetMessage = String(localized: "macOS did not reset KeyPath's entry. Remove KeyPath with − in System Settings, then add it again.")
             return
         }
-        resetMessage = "Reset. Allow KeyPath when macOS asks, then turn it on in System Settings."
+        resetMessage = String(localized: "Reset. Allow KeyPath when macOS asks, then turn it on in System Settings.")
         let permissionRequests = wizardHost.permissionRequests
         Task { @MainActor in
             if let service = permissionRequests {

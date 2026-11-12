@@ -286,7 +286,7 @@ struct KeyboardSelectionGridView: View {
         {
             selectedLayoutId = builtInId
             searchText = ""
-            showImportToast("Selected built-in \(keyboard.name) layout", type: .success)
+            showImportToast(String(localized: "Selected built-in \(keyboard.name) layout"), type: .success)
             return
         }
 
@@ -299,7 +299,7 @@ struct KeyboardSelectionGridView: View {
                 let info = try JSONDecoder().decode(QMKLayoutParser.QMKKeyboardInfo.self, from: jsonData)
 
                 guard !info.layouts.isEmpty else {
-                    throw QMKImportError.noLayoutFound("No layout definitions found for '\(keyboard.name)'")
+                    throw QMKImportError.noLayoutFound(String(localized: "No layout definitions found for '\(keyboard.name)'"))
                 }
 
                 let layoutId = "custom-\(UUID().uuidString)"
@@ -328,11 +328,11 @@ struct KeyboardSelectionGridView: View {
                 ) {
                     result = positionResult
                 } else {
-                    throw QMKImportError.parseError("Failed to parse layout for '\(keyboard.name)'")
+                    throw QMKImportError.parseError(String(localized: "Failed to parse layout for '\(keyboard.name)'"))
                 }
 
                 // Generate a user-friendly name
-                let layoutName = "\(keyboard.name)\(keyboard.manufacturer.map { " by \($0)" } ?? "")"
+                let layoutName = keyboard.manufacturer.map { String(localized: "\(keyboard.name) by \($0)") } ?? keyboard.name
 
                 // Replace any existing QMK import (at most 1 at a time)
                 await QMKImportService.shared.replaceQMKImport(
@@ -353,30 +353,30 @@ struct KeyboardSelectionGridView: View {
                     if !result.isUsable {
                         let pct = Int(result.matchRatio * 100)
                         showImportToast(
-                            "Imported \(keyboard.name) — only \(pct)% of keys matched. Layout may not be usable.",
+                            String(localized: "Imported \(keyboard.name) — only \(pct)% of keys matched. Layout may not be usable."),
                             type: .error,
                             duration: 7.0
                         )
                     } else if cachedKeymapTokens == nil {
                         showImportToast(
-                            "Imported \(keyboard.name) with limited key labels — keymap not available for this keyboard.",
+                            String(localized: "Imported \(keyboard.name) with limited key labels — keymap not available for this keyboard."),
                             type: .warning,
                             duration: 7.0
                         )
                     } else if !result.isHighQuality {
                         let pct = Int(result.matchRatio * 100)
                         showImportToast(
-                            "Imported \(keyboard.name) — \(pct)% of keys matched. Some keys may not highlight correctly.",
+                            String(localized: "Imported \(keyboard.name) — \(pct)% of keys matched. Some keys may not highlight correctly."),
                             type: .warning,
                             duration: 7.0
                         )
                     } else {
-                        showImportToast("Imported \(keyboard.name)", type: .success)
+                        showImportToast(String(localized: "Imported \(keyboard.name)"), type: .success)
                     }
                 }
             } catch {
                 await MainActor.run {
-                    showImportToast("Failed to import: \(error.localizedDescription)", type: .error, duration: 5.0)
+                    showImportToast(String(localized: "Failed to import: \(error.localizedDescription)"), type: .error, duration: 5.0)
                 }
             }
         }
@@ -476,9 +476,9 @@ private struct SearchKeyboardRow: View {
     @State private var isHovering = false
 
     private var accessibilityLabel: String {
-        var parts: [String] = [keyboard.name, "keyboard"]
+        var parts: [String] = [keyboard.name, String(localized: "keyboard", comment: "Accessibility: item type in a keyboard list row")]
         if let manufacturer = keyboard.manufacturer {
-            parts.append("by \(manufacturer)")
+            parts.append(String(localized: "by \(manufacturer)", comment: "Accessibility: keyboard manufacturer in a keyboard list row"))
         }
         if !keyboard.tags.isEmpty {
             parts.append(keyboard.tags.prefix(3).joined(separator: " "))

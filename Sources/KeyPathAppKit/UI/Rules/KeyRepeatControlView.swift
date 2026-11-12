@@ -24,7 +24,7 @@ struct KeyRepeatControlView: View {
     @State private var showingAddCustom = false
     @State private var newKeyText = ""
     @State private var selectedPreset: KeyRepeatControlConfig.Preset?
-    @State private var testText = "Hold an arrow key or delete here to feel the speed. Then try holding a letter to compare."
+    @State private var testText = String(localized: "Hold an arrow key or delete here to feel the speed. Then try holding a letter to compare.")
     @State private var showingSettings = false
 
     private static let arrowKeys: Set<String> = ["left", "right", "up", "down"]
@@ -116,22 +116,22 @@ struct KeyRepeatControlView: View {
     private var heroHeadline: String {
         switch selectedPreset {
         case .balanced, .none:
-            "Arrow keys and delete\nrepeat 3× faster."
+            String(localized: "Arrow keys and delete\nrepeat 3× faster.")
         case .fastNavigation:
-            "Arrow keys and delete\nrepeat 4× faster."
+            String(localized: "Arrow keys and delete\nrepeat 4× faster.")
         case .careful:
-            "Arrow keys and delete\nrepeat 2× faster."
+            String(localized: "Arrow keys and delete\nrepeat 2× faster.")
         }
     }
 
     private var heroSubhead: String {
         switch selectedPreset {
         case .balanced, .none:
-            "Regular keys stay steady.\nNo ghost characters under load."
+            String(localized: "Regular keys stay steady.\nNo ghost characters under load.")
         case .fastNavigation:
-            "Everything is faster.\nBuilt for rapid code navigation."
+            String(localized: "Everything is faster.\nBuilt for rapid code navigation.")
         case .careful:
-            "Longer delays prevent accidents.\nGreat for new keyboard layouts."
+            String(localized: "Longer delays prevent accidents.\nGreat for new keyboard layouts.")
         }
     }
 

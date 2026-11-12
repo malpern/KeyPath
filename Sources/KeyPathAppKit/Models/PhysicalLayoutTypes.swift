@@ -30,7 +30,12 @@ enum LayoutCategory: String, CaseIterable, Identifiable {
     }
 
     var displayName: String {
-        rawValue
+        switch self {
+        case .usStandard: String(localized: "US Standard")
+        case .international: String(localized: "International")
+        case .ergonomic: String(localized: "Ergonomic / Split")
+        case .custom: String(localized: "Custom")
+        }
     }
 }
 

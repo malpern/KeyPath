@@ -41,12 +41,12 @@ struct LayoutTracerRootView: View {
             Button("OK", role: .cancel) {}
                 .accessibilityIdentifier("layoutTracer.exportError.ok")
         } message: {
-            Text(documentError ?? "Unknown error")
+            Text(documentError ?? String(localized: "Unknown error"))
         }
         .sheet(item: $saveSheetMode) { mode in
             LayoutSaveSheet(
-                title: mode == .save ? "Save Layout" : "Save Layout As",
-                confirmTitle: mode == .save ? "Save" : "Continue",
+                title: mode == .save ? String(localized: "Save Layout") : String(localized: "Save Layout As"),
+                confirmTitle: mode == .save ? String(localized: "Save") : String(localized: "Continue"),
                 layoutID: document.layoutID,
                 layoutName: document.layoutName
             ) { layoutID, layoutName in

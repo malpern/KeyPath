@@ -27,60 +27,70 @@ enum AdmissionVerdictPresenter {
         switch verdict.reason {
         case let .conflict(key, layer, parties, details):
             let names = parties.map { displayName($0, name) }
-            let who = names.count == 2 ? "\(names[0]) and \(names[1])" : names.joined(separator: ", ")
-            let what = details.isEmpty ? "" : " (\(details.joined(separator: "; ")))"
+            let who = names.count == 2
+                ? String(localized: "\(names[0]) and \(names[1])", comment: "Two rule names joined, e.g. 'Vim Navigation and Home Row Mods'")
+                : names.joined(separator: ", ")
+            let label = keyLabel(key)
+            let explanation = details.isEmpty
+                ? String(localized: "\(who) both map \(label) on the \(layer) layer. Only one can win.")
+                : String(localized: "\(who) both map \(label) on the \(layer) layer (\(details.joined(separator: "; "))). Only one can win.")
             return AdmissionPresentation(
-                title: "Key conflict on \(keyLabel(key))",
-                explanation: "\(who) both map \(keyLabel(key)) on the \(layer) layer\(what). Only one can win.",
+                title: String(localized: "Key conflict on \(label)"),
+                explanation: explanation,
                 options: verdict.fixes.map { option($0, name) }
             )
         case let .unmetNeed(need):
             return AdmissionPresentation(
-                title: "\(subject) can't run here",
-                explanation: "\(subject) \(describe(need)).",
+                title: String(localized: "\(subject) can't run here"),
+                explanation: explain(need, subject: subject),
                 options: verdict.fixes.map { option($0, name) }
             )
         case let .reservedKey(key):
             if case let .moveCapsIntermediate(candidates)? = verdict.fixes.first, let next = candidates.first {
                 return AdmissionPresentation(
-                    title: "Caps Lock will use \(next.uppercased())",
-                    explanation: "\(subject) uses \(key.uppercased()), which KeyPath had reserved for Caps Lock. Caps Lock will use \(next.uppercased()) instead.",
+                    title: String(localized: "Caps Lock will use \(next.uppercased())"),
+                    explanation: String(localized: "\(subject) uses \(key.uppercased()), which KeyPath had reserved for Caps Lock. Caps Lock will use \(next.uppercased()) instead."),
                     options: []
                 )
             }
             return AdmissionPresentation(
-                title: "\(key.uppercased()) is reserved for Caps Lock",
-                explanation: "\(subject) uses \(key.uppercased()), and every alternative (F13–F20) is already taken.",
+                title: String(localized: "\(key.uppercased()) is reserved for Caps Lock"),
+                explanation: String(localized: "\(subject) uses \(key.uppercased()), and every alternative (F13–F20) is already taken."),
                 options: verdict.fixes.map { option($0, name) }
             )
         case let .capsLockHeldByOtherApp(app):
             return AdmissionPresentation(
-                title: "\(app) already remaps Caps Lock",
-                explanation: "\(subject) needs Caps Lock, but \(app) is remapping it. Turn that off first.",
+                title: String(localized: "\(app) already remaps Caps Lock"),
+                explanation: String(localized: "\(subject) needs Caps Lock, but \(app) is remapping it. Turn that off first."),
                 options: []
             )
         case let .packConflict(otherPackID, description):
             let other = name(.pack(otherPackID))
             return AdmissionPresentation(
-                title: "\(subject) and \(other) can't both be installed",
+                title: String(localized: "\(subject) and \(other) can't both be installed"),
                 explanation: description,
                 options: verdict.fixes.map { option($0, name) }
             )
         }
     }
 
-    static func describe(_ need: RuleEnvironmentNeed) -> String {
+    /// One whole sentence per need, so each translates as a sentence.
+    static func explain(_ need: RuleEnvironmentNeed, subject: String) -> String {
         switch need {
-        case let .emits(key): "sends \(keyLabel(key)), which the current backend can't send"
-        case .capsLockInput: "needs Caps Lock as an input"
-        case .deviceTargeting: "targets specific keyboards, which isn't supported in driverless mode"
-        case let .externalApp(app, _): "needs \(app) installed"
+        case let .emits(key):
+            String(localized: "\(subject) sends \(keyLabel(key)), which the current backend can't send.")
+        case .capsLockInput:
+            String(localized: "\(subject) needs Caps Lock as an input.")
+        case .deviceTargeting:
+            String(localized: "\(subject) targets specific keyboards, which isn't supported in driverless mode.")
+        case let .externalApp(app, _):
+            String(localized: "\(subject) needs \(app) installed.")
         }
     }
 
     /// Media keys and Caps Lock by their names; everything else as Kanata says it.
     static func keyLabel(_ kanataKey: String) -> String {
-        if kanataKey.lowercased() == "caps" { return "Caps Lock" }
+        if kanataKey.lowercased() == "caps" { return String(localized: "Caps Lock") }
         return LayerMappingBuilder.mediaKeyDisplayLabel(kanataKey) ?? kanataKey
     }
 
@@ -93,13 +103,13 @@ enum AdmissionVerdictPresenter {
         switch fix {
         case let .disable(subject):
             if case .pack = subject {
-                return .init(subject: subject, label: "Remove \(displayName(subject, name))", fix: fix)
+                return .init(subject: subject, label: String(localized: "Remove \(displayName(subject, name))"), fix: fix)
             }
-            return .init(subject: subject, label: "Turn off \(displayName(subject, name))", fix: fix)
+            return .init(subject: subject, label: String(localized: "Turn off \(displayName(subject, name))"), fix: fix)
         case let .installApp(app, _):
-            return .init(subject: .named(app), label: "Install \(app)", fix: fix)
+            return .init(subject: .named(app), label: String(localized: "Install \(app)"), fix: fix)
         case let .moveCapsIntermediate(candidates):
-            return .init(subject: .named("caps"), label: "Use \((candidates.first ?? "").uppercased()) for Caps Lock", fix: fix)
+            return .init(subject: .named("caps"), label: String(localized: "Use \((candidates.first ?? "").uppercased()) for Caps Lock"), fix: fix)
         }
     }
 }

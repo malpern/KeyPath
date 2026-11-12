@@ -100,7 +100,7 @@ extension RuleCollectionsManager {
                 return ReloadResult(
                     success: restarted,
                     response: nil,
-                    errorMessage: restarted ? nil : "Kanata could not restart with the selected keyboards",
+                    errorMessage: restarted ? nil : String(localized: "Kanata could not restart with the selected keyboards"),
                     protocol: nil,
                     disposition: restarted ? .applied : .rejected
                 )
@@ -276,7 +276,7 @@ extension RuleCollectionsManager {
             var preferenceRecoveryDetail = ""
             if let leaderPreferenceBefore {
                 if preferencesService.leaderKeyPreference != leaderPreferenceBefore.value {
-                    preferenceRecoveryDetail = " A newer leader-key preference was preserved."
+                    preferenceRecoveryDetail = " " + String(localized: "A newer leader-key preference was preserved.")
                 }
             }
             if let keymapBefore {
@@ -290,7 +290,7 @@ extension RuleCollectionsManager {
             }
             refreshLayerIndicatorState()
             if let error = result.error, !(error is CancellationError) {
-                let message = failureContext.map { "Could not save \($0): \(error.localizedDescription)" } ?? error.localizedDescription
+                let message = failureContext.map { String(localized: "Could not save \($0): \(error.localizedDescription)") } ?? error.localizedDescription
                 onError?(message + preferenceRecoveryDetail)
                 SoundManager.shared.playErrorSound()
             }

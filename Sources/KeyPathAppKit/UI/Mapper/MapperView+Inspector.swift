@@ -116,7 +116,7 @@ struct MapperInspectorPanel: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(enabled ? "\(pack.name) is active — tap to configure" : pack.tagline)
+        .help(enabled ? String(localized: "\(pack.name) is active — tap to configure") : pack.tagline)
         .accessibilityIdentifier("pack-suggestion-row-\(pack.id)")
     }
 
@@ -147,18 +147,18 @@ struct MapperInspectorPanel: View {
 
     /// Display-friendly label for the current input (⇪, D, ⌘, etc.).
     private var inputDisplayLabel: String {
-        guard let token = currentInputKanataToken else { return "this key" }
+        guard let token = currentInputKanataToken else { return String(localized: "this key") }
         switch token {
-        case "caps": return "⇪ Caps Lock"
-        case "lmet", "rmet": return "⌘ Command"
-        case "lalt", "ralt": return "⌥ Option"
-        case "lctl", "rctl": return "⌃ Control"
-        case "lsft", "rsft": return "⇧ Shift"
-        case "spc": return "Space"
-        case "ret": return "Return"
-        case "esc": return "Escape"
-        case "tab": return "Tab"
-        case "bspc": return "Delete"
+        case "caps": return String(localized: "⇪ Caps Lock")
+        case "lmet", "rmet": return String(localized: "⌘ Command")
+        case "lalt", "ralt": return String(localized: "⌥ Option")
+        case "lctl", "rctl": return String(localized: "⌃ Control")
+        case "lsft", "rsft": return String(localized: "⇧ Shift")
+        case "spc": return String(localized: "Space")
+        case "ret": return String(localized: "Return")
+        case "esc": return String(localized: "Escape")
+        case "tab": return String(localized: "Tab")
+        case "bspc": return String(localized: "Delete")
         default: return token.count == 1 ? token.uppercased() : token
         }
     }
@@ -175,7 +175,7 @@ struct MapperInspectorPanel: View {
 
             InspectorButton(
                 icon: "app.dashed",
-                title: "Any App",
+                title: String(localized: "Any App"),
                 isSelected: viewModel.selectedAppCondition == nil
             ) {
                 viewModel.clearAppCondition()
@@ -255,7 +255,7 @@ struct MapperInspectorPanel: View {
         } else {
             InspectorButton(
                 icon: "app.badge",
-                title: "Only in...",
+                title: String(localized: "Only in..."),
                 isSelected: false
             ) {
                 showingAppPickerSheet = true
@@ -278,7 +278,7 @@ struct MapperInspectorPanel: View {
 
             InspectorButton(
                 icon: "keyboard",
-                title: "Any Device",
+                title: String(localized: "Any Device"),
                 isSelected: viewModel.selectedDeviceCondition == nil
             ) {
                 viewModel.selectedDeviceCondition = nil
@@ -337,7 +337,7 @@ struct MapperInspectorPanel: View {
             }) { device in
                 InspectorButton(
                     icon: device.sfSymbolName,
-                    title: "Only on \(device.displayName)",
+                    title: String(localized: "Only on \(device.displayName)"),
                     isSelected: false
                 ) {
                     viewModel.selectedDeviceCondition = DeviceConditionInfo(
@@ -368,7 +368,7 @@ struct MapperInspectorPanel: View {
             // Key output (default)
             InspectorButton(
                 icon: "keyboard",
-                title: "Send Keystroke",
+                title: String(localized: "Send Keystroke"),
                 isSelected: viewModel.selectedApp == nil && viewModel.selectedSystemAction == nil && viewModel.selectedURL == nil
             ) {
                 // Clear special outputs, allow normal key recording
@@ -380,7 +380,7 @@ struct MapperInspectorPanel: View {
             // App launcher
             InspectorButton(
                 icon: "app.badge",
-                title: "Launch App",
+                title: String(localized: "Launch App"),
                 isSelected: viewModel.selectedApp != nil
             ) {
                 viewModel.pickAppForOutput()
@@ -389,7 +389,7 @@ struct MapperInspectorPanel: View {
             // URL
             InspectorButton(
                 icon: "link",
-                title: "Open Link",
+                title: String(localized: "Open Link"),
                 isSelected: viewModel.selectedURL != nil
             ) {
                 viewModel.showURLInputDialog()

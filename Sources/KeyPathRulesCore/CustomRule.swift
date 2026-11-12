@@ -105,7 +105,7 @@ public extension CustomRule {
         {
             return trimmedNotes
         }
-        return "Maps \(input) to \(action.displayName)"
+        return String(localized: "Maps \(input) to \(action.displayName)")
     }
 
     func asKeyMapping() -> KeyMapping {

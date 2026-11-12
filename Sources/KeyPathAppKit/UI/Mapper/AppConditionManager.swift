@@ -62,8 +62,8 @@ public final class AppConditionManager {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = "Select an application for this rule's condition"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Select an application for this rule's condition")
+        panel.prompt = String(localized: "Select")
 
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }

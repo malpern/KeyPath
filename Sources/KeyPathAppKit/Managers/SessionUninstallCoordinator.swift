@@ -67,10 +67,10 @@ final class SessionUninstallCoordinator: WizardUninstalling {
 
     func performUninstall(deleteConfig: Bool) async -> WizardUninstallResult {
         guard deleteConfig else {
-            return WizardUninstallResult(success: false, failureReason: "Driverless uninstall requires a settings backup and does not remove shared system components.")
+            return WizardUninstallResult(success: false, failureReason: String(localized: "Driverless uninstall requires a settings backup and does not remove shared system components."))
         }
         guard app.pathExtension == "app", Bundle(url: app)?.bundleIdentifier == "com.keypath.KeyPath" else {
-            return WizardUninstallResult(success: false, failureReason: "Run Uninstall from the installed KeyPath app.")
+            return WizardUninstallResult(success: false, failureReason: String(localized: "Run Uninstall from the installed KeyPath app."))
         }
         let paths = [".config/keypath", "Library/Application Support/KeyPath", "Library/Caches/com.keypath.KeyPath"]
         // Removing a child of a linked parent would remove external data, not
@@ -81,7 +81,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
                 if (try? files.attributesOfItem(atPath: parent.path)[.type]) as? FileAttributeType == .typeSymbolicLink {
                     return WizardUninstallResult(
                         success: false,
-                        failureReason: "Settings are inside a linked folder (\(parent.path)). Nothing was removed. Move KeyPath's settings to a local folder before uninstalling."
+                        failureReason: String(localized: "Settings are inside a linked folder (\(parent.path)). Nothing was removed. Move KeyPath's settings to a local folder before uninstalling.")
                     )
                 }
                 parent.deleteLastPathComponent()
@@ -89,7 +89,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
         }
         guard await prepare() else {
             await resume()
-            return WizardUninstallResult(success: false, failureReason: "Keyboard cleanup could not be verified. Nothing was removed. Try again after releasing all keys.")
+            return WizardUninstallResult(success: false, failureReason: String(localized: "Keyboard cleanup could not be verified. Nothing was removed. Try again after releasing all keys."))
         }
         // prepare stops only the worker the live app tracks. Orphans of an
         // earlier app process, or probes it abandoned, would otherwise keep
@@ -99,10 +99,10 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             break
         case .stillRunning:
             await resume()
-            return WizardUninstallResult(success: false, failureReason: "A KeyPath keyboard process did not stop. Nothing was removed. Restart your Mac, then try again.")
+            return WizardUninstallResult(success: false, failureReason: String(localized: "A KeyPath keyboard process did not stop. Nothing was removed. Restart your Mac, then try again."))
         case .unverified:
             await resume()
-            return WizardUninstallResult(success: false, failureReason: "KeyPath could not check which of its processes are running. Nothing was removed. Try again.")
+            return WizardUninstallResult(success: false, failureReason: String(localized: "KeyPath could not check which of its processes are running. Nothing was removed. Try again."))
         }
 
         let backup = home.appendingPathComponent("Downloads/KeyPath-Uninstall-Backup-\(UUID().uuidString)", isDirectory: true)
@@ -124,7 +124,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             try receipt.write(to: backup.appendingPathComponent("README.txt"), atomically: true, encoding: .utf8)
         } catch {
             await resume()
-            return WizardUninstallResult(success: false, failureReason: "Backup failed; nothing was removed. \(error.localizedDescription)")
+            return WizardUninstallResult(success: false, failureReason: String(localized: "Backup failed; nothing was removed. \(error.localizedDescription)"))
         }
 
         do {
@@ -149,7 +149,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             }
             defaults.removePersistentDomain(forName: domain)
             guard defaults.synchronize() else {
-                throw NSError(domain: "KeyPathUninstall", code: 1, userInfo: [NSLocalizedDescriptionKey: "Preferences could not be saved."])
+                throw NSError(domain: "KeyPathUninstall", code: 1, userInfo: [NSLocalizedDescriptionKey: String(localized: "Preferences could not be saved.")])
             }
             try trash(app)
             guard !files.fileExists(atPath: app.path) else {
@@ -160,12 +160,12 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             // are gone, so there is nothing to resume watching or starting.
             let finalSweep = await stopSessionWorkers()
             guard finalSweep == .noneRunning else {
-                let state = finalSweep == .stillRunning
-                    ? "a KeyPath keyboard process is still running. Restart your Mac to stop it."
-                    : "KeyPath could not check that its processes stopped. Restart your Mac to be sure."
+                let failureReason = finalSweep == .stillRunning
+                    ? String(localized: "KeyPath was removed, but a KeyPath keyboard process is still running. Restart your Mac to stop it. Your backup is at \(backup.path).")
+                    : String(localized: "KeyPath was removed, but KeyPath could not check that its processes stopped. Restart your Mac to be sure. Your backup is at \(backup.path).")
                 return WizardUninstallResult(
                     success: false,
-                    failureReason: "KeyPath was removed, but \(state) Your backup is at \(backup.path).",
+                    failureReason: failureReason,
                     logs: ["Backup saved to \(backup.path)"]
                 )
             }
@@ -174,7 +174,7 @@ final class SessionUninstallCoordinator: WizardUninstalling {
             await resume()
             return WizardUninstallResult(
                 success: false,
-                failureReason: "Uninstall could not finish. Your backup is at \(backup.path). \(error.localizedDescription)",
+                failureReason: String(localized: "Uninstall could not finish. Your backup is at \(backup.path). \(error.localizedDescription)"),
                 logs: ["Backup saved to \(backup.path)"]
             )
         }

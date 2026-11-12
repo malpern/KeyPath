@@ -25,15 +25,15 @@ public enum KeyLabelStyle: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .symbols: "Symbols"
-        case .text: "Text"
+        case .symbols: String(localized: "Symbols")
+        case .text: String(localized: "Text")
         }
     }
 
     public var description: String {
         switch self {
-        case .symbols: "⌫ ⇥ ⇪ ⇧ ↩ — matches 2026+ MacBooks"
-        case .text: "delete tab caps shift return — classic US style"
+        case .symbols: String(localized: "⌫ ⇥ ⇪ ⇧ ↩ — matches 2026+ MacBooks")
+        case .text: String(localized: "delete tab caps shift return — classic US style")
         }
     }
 }
@@ -50,15 +50,15 @@ public enum UnmappedLayerKeyStyle: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .baseLayer: "Base layer"
-        case .dimmed: "Dimmed"
+        case .baseLayer: String(localized: "Base layer")
+        case .dimmed: String(localized: "Dimmed")
         }
     }
 
     public var description: String {
         switch self {
-        case .baseLayer: "Unmapped keys look like the base layer"
-        case .dimmed: "Unmapped keys dim so mappings stand out"
+        case .baseLayer: String(localized: "Unmapped keys look like the base layer")
+        case .dimmed: String(localized: "Unmapped keys dim so mappings stand out")
         }
     }
 }
@@ -69,11 +69,11 @@ enum CommunicationProtocol: String, CaseIterable {
     case tcp
 
     var displayName: String {
-        "TCP (Reliable)"
+        String(localized: "TCP (Reliable)")
     }
 
     var description: String {
-        "Reliable TCP protocol for config reloading (no authentication required - see ADR-013)"
+        String(localized: "Reliable TCP protocol for config reloading (no authentication required - see ADR-013)")
     }
 }
 
@@ -86,10 +86,10 @@ enum ContextHUDDisplayMode: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .overlayOnly: "Overlay Only"
-        case .hudOnly: "HUD Only"
-        case .both: "Both"
-        case .none: "Nothing"
+        case .overlayOnly: String(localized: "Overlay Only")
+        case .hudOnly: String(localized: "HUD Only")
+        case .both: String(localized: "Both")
+        case .none: String(localized: "Nothing")
         }
     }
 }
@@ -103,15 +103,15 @@ public enum ContextHUDTriggerMode: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .holdToShow: "Hold to Show"
-        case .tapToToggle: "Tap to Toggle"
+        case .holdToShow: String(localized: "Hold to Show")
+        case .tapToToggle: String(localized: "Tap to Toggle")
         }
     }
 
     public var description: String {
         switch self {
-        case .holdToShow: "Appears while holding, dismisses on release"
-        case .tapToToggle: "Tap to show, tap again or press Esc to dismiss"
+        case .holdToShow: String(localized: "Appears while holding, dismisses on release")
+        case .tapToToggle: String(localized: "Tap to show, tap again or press Esc to dismiss")
         }
     }
 }
@@ -125,10 +125,10 @@ public enum ContextHUDHoldDelayPreset: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .short: "Short"
-        case .medium: "Medium"
-        case .long: "Long"
-        case .custom: "Custom"
+        case .short: String(localized: "Short")
+        case .medium: String(localized: "Medium")
+        case .long: String(localized: "Long")
+        case .custom: String(localized: "Custom")
         }
     }
 
@@ -150,20 +150,20 @@ public enum KindaVimLeaderHUDMode: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .contextualCoach: "Contextual Coach + Cheatsheet"
-        case .cheatSheetOnly: "Cheatsheet Only"
-        case .off: "Use Standard Key List"
+        case .contextualCoach: String(localized: "Contextual Coach + Cheatsheet")
+        case .cheatSheetOnly: String(localized: "Cheatsheet Only")
+        case .off: String(localized: "Use Standard Key List")
         }
     }
 
     public var description: String {
         switch self {
         case .contextualCoach:
-            "Mode-aware tips plus a compact command reference."
+            String(localized: "Mode-aware tips plus a compact command reference.")
         case .cheatSheetOnly:
-            "Show quick command reference without coaching tips."
+            String(localized: "Show quick command reference without coaching tips.")
         case .off:
-            "Use the regular layer key list for leader hold."
+            String(localized: "Use the regular layer key list for leader hold.")
         }
     }
 }
@@ -672,7 +672,7 @@ final class PreferencesService: @unchecked Sendable {
 
     /// Get current communication configuration as string for logging
     var communicationConfigDescription: String {
-        "Engine control over the worker's Unix-domain socket, owner-checked (ADR-046)"
+        String(localized: "Engine control over the worker's Unix-domain socket, owner-checked (ADR-046)")
     }
 }
 

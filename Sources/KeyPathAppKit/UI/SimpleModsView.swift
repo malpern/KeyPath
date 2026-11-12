@@ -66,7 +66,7 @@ struct SimpleModsView: View {
     private var tabSelector: some View {
         HStack(spacing: 0) {
             TabButton(
-                title: "Installed",
+                title: String(localized: "Installed", comment: "Tab title: installed mappings"),
                 badge: service.installedMappings.count,
                 isSelected: selectedTab == .installed
             ) {
@@ -74,7 +74,7 @@ struct SimpleModsView: View {
             }
 
             TabButton(
-                title: "Available",
+                title: String(localized: "Available", comment: "Tab title: available presets"),
                 badge: service.availablePresets.count,
                 isSelected: selectedTab == .available
             ) {
@@ -102,7 +102,7 @@ struct SimpleModsView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     CategoryButton(
-                        title: "All",
+                        title: String(localized: "All", comment: "Category filter: show all categories"),
                         isSelected: selectedCategory == nil
                     ) {
                         selectedCategory = nil
@@ -156,8 +156,8 @@ struct SimpleModsView: View {
             VStack(spacing: 12) {
                 EmptyStateView(
                     icon: "keyboard",
-                    title: "No mappings installed",
-                    message: "Add mappings from the Available tab to get started."
+                    title: String(localized: "No mappings installed"),
+                    message: String(localized: "Add mappings from the Available tab to get started.")
                 )
 
                 Button(
@@ -189,8 +189,8 @@ struct SimpleModsView: View {
         if filteredAvailablePresets.isEmpty {
             EmptyStateView(
                 icon: "checkmark.circle",
-                title: "All presets installed",
-                message: "All available mappings are already in your config."
+                title: String(localized: "All presets installed"),
+                message: String(localized: "All available mappings are already in your config.")
             )
         } else {
             ForEach(filteredAvailablePresets) { preset in
@@ -231,7 +231,7 @@ struct SimpleModsView: View {
             try service.load()
             previousMappingCount = service.installedMappings.count
         } catch {
-            uiError = "Failed to load mappings: \(error.localizedDescription)"
+            uiError = String(localized: "Failed to load mappings: \(error.localizedDescription)")
         }
     }
 
@@ -239,7 +239,7 @@ struct SimpleModsView: View {
         if let error = newValue {
             if let rollbackReason = service.lastRollbackReason {
                 let details = service.lastRollbackDetails ?? ""
-                let fullMessage = "❌ Configuration Error\n\(rollbackReason)\n\nDetails:\n\(details)"
+                let fullMessage = String(localized: "❌ Configuration Error\n\(rollbackReason)\n\nDetails:\n\(details)")
                 showToast(fullMessage, isError: true)
             } else {
                 showToast("❌ \(error)", isError: true)
@@ -257,18 +257,18 @@ struct SimpleModsView: View {
         if service.lastError == nil, service.lastRollbackReason == nil {
             if newCount > oldCount, selectedTab == .available {
                 selectedTab = .installed
-                showToast("✅ Mapping added successfully", isError: false)
+                showToast(String(localized: "✅ Mapping added successfully"), isError: false)
             } else if newCount < oldCount {
-                showToast("✅ Mapping removed successfully", isError: false)
+                showToast(String(localized: "✅ Mapping removed successfully"), isError: false)
             }
         }
     }
 
     private func handleRollbackChange(_: String?, _ rollbackReason: String?) {
         if let reason = rollbackReason {
-            let details = service.lastRollbackDetails ?? "No additional details available"
+            let details = service.lastRollbackDetails ?? String(localized: "No additional details available")
             let fullMessage =
-                "❌ Configuration Error\n\(reason)\n\nChanges have been rolled back.\n\n\(details)"
+                String(localized: "❌ Configuration Error\n\(reason)\n\nChanges have been rolled back.\n\n\(details)")
             showToast(fullMessage, isError: true)
         }
     }
@@ -622,8 +622,8 @@ private struct ConflictMappingDialog: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 16) {
-                mappingCard(title: "Existing", toKey: existingTo)
-                mappingCard(title: "New", toKey: newTo)
+                mappingCard(title: String(localized: "Existing", comment: "Conflict card: the mapping that is already there"), toKey: existingTo)
+                mappingCard(title: String(localized: "New", comment: "Conflict card: the mapping being added"), toKey: newTo)
             }
 
             HStack(spacing: 12) {

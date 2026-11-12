@@ -31,7 +31,7 @@ extension RulesTabView {
     /// Generate a dynamic description for collections
     func dynamicCollectionDescription(for collection: RuleCollection) -> String {
         if let reason = RuleCollectionCatalog.driverlessUnavailableReason(for: collection.id) { return reason }
-        if collection.id == RuleCollectionIdentifier.macFunctionKeys { return "F1–F12 for app shortcuts. Media and brightness remapping is unavailable." }
+        if collection.id == RuleCollectionIdentifier.macFunctionKeys { return String(localized: "F1–F12 for app shortcuts. Media and brightness remapping is unavailable.") }
 
         if case .launcherGrid = collection.configuration {
             return dynamicLauncherDescription(for: collection)
@@ -50,7 +50,7 @@ extension RulesTabView {
         let tapLabel = config.tapOptions.first { $0.output == tapOutput }?.label ?? tapOutput
         let holdLabel = config.holdOptions.first { $0.output == holdOutput }?.label ?? holdOutput
 
-        return KeyboardConceptCopy.activationHint("Tap for \(tapLabel), or hold for \(holdLabel)")
+        return KeyboardConceptCopy.activationHint(String(localized: "Tap for \(tapLabel), or hold for \(holdLabel)"))
     }
 
     /// Generate a dynamic description for launcher collections
@@ -78,19 +78,19 @@ extension RulesTabView {
     func dynamicLauncherActivationHint(for collection: RuleCollection) -> String {
         guard case let .launcherGrid(config) = collection.configuration else {
             return collection.activationHint.map(KeyboardConceptCopy.activationHint)
-                ?? KeyboardConceptCopy.activationHint("Hold Hyper, then press a shortcut key")
+                ?? KeyboardConceptCopy.activationHint(String(localized: "Hold Hyper, then press a shortcut key"))
         }
 
         switch config.activationMode {
         case .holdHyper:
             switch config.hyperTriggerMode {
             case .hold:
-                return KeyboardConceptCopy.activationHint("Hold Hyper, then press a shortcut key")
+                return KeyboardConceptCopy.activationHint(String(localized: "Hold Hyper, then press a shortcut key"))
             case .tap:
-                return KeyboardConceptCopy.activationHint("Tap Hyper to turn the launcher on or off, then press a shortcut key")
+                return KeyboardConceptCopy.activationHint(String(localized: "Tap Hyper to turn the launcher on or off, then press a shortcut key"))
             }
         case .leaderSequence:
-            return KeyboardConceptCopy.activationHint("Hold \(currentLeaderKeyDisplay), then press L, then a shortcut key")
+            return KeyboardConceptCopy.activationHint(String(localized: "Hold \(currentLeaderKeyDisplay), then press L, then a shortcut key"))
         }
     }
 
@@ -103,14 +103,14 @@ extension RulesTabView {
             return dynamicTapHoldActivationHint(for: collection)
         }
         if case .autoShiftSymbols = collection.configuration {
-            return KeyboardConceptCopy.activationHint("Hold a supported key to type its shifted symbol")
+            return KeyboardConceptCopy.activationHint(String(localized: "Hold a supported key to type its shifted symbol"))
         }
         if let wsMode = collection.windowSnappingActivationMode {
             switch wsMode {
             case .leader:
-                return KeyboardConceptCopy.activationHint("Hold \(currentLeaderKeyDisplay), then press W, then an action key")
+                return KeyboardConceptCopy.activationHint(String(localized: "Hold \(currentLeaderKeyDisplay), then press W, then an action key"))
             case .quickLauncher:
-                return KeyboardConceptCopy.activationHint("Hold Hyper, then press W, then an action key")
+                return KeyboardConceptCopy.activationHint(String(localized: "Hold Hyper, then press W, then an action key"))
             }
         }
         return collection.activationHint.map(KeyboardConceptCopy.activationHint)
@@ -122,7 +122,7 @@ extension RulesTabView {
             return nil
         }
 
-        return "\(config.enabledKeys.count) supported keys · Hold delay \(config.timeoutMs) ms"
+        return String(localized: "\(config.enabledKeys.count) supported keys · Hold delay \(config.timeoutMs) ms")
     }
 
     /// Generate a dynamic name for picker-style collections
@@ -130,7 +130,7 @@ extension RulesTabView {
         if collection.id == RuleCollectionIdentifier.homeRowMods,
            TypingFeelMapping.usesTopRow(collection.configuration.homeRowModsConfig?.enabledKeys ?? [])
         {
-            return "Top Row Mods"
+            return String(localized: "Top Row Mods")
         }
 
         guard case let .singleKeyPicker(config) = collection.configuration else {

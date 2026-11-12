@@ -77,7 +77,7 @@ struct AppConditionPickerSheet: View {
                         .frame(width: 24, height: 24)
                         .foregroundStyle(.secondary)
                 }
-                Text(app.localizedName ?? "Unknown")
+                Text(app.localizedName ?? String(localized: "Unknown"))
                     .font(.body)
                     .foregroundStyle(.primary)
                 Spacer()

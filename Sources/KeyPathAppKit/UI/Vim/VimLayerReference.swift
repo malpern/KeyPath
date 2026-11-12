@@ -63,8 +63,8 @@ enum VimKeyNameStyle: String, CaseIterable, Identifiable, Sendable {
 
     var displayName: String {
         switch self {
-        case .plain: "Plain"
-        case .vim: "Vim terms"
+        case .plain: String(localized: "Plain", comment: "Vim key-name style: plain words")
+        case .vim: String(localized: "Vim terms", comment: "Vim key-name style: Vim's own words")
         }
     }
 
@@ -122,48 +122,64 @@ enum VimLayerReference {
     }
 
     private static let curated: [String: Curated] = [
-        "h": Curated(title: "Left", vim: VimTerms(keycap: "←", title: "Left")),
-        "j": Curated(title: "Down", vim: VimTerms(keycap: "↓", title: "Down")),
-        "k": Curated(title: "Up", vim: VimTerms(keycap: "↑", title: "Up")),
-        "l": Curated(title: "Right", vim: VimTerms(keycap: "→", title: "Right")),
-        "0": Curated(title: "Line start", vim: VimTerms(keycap: "0", title: "Start of line")),
-        "4": Curated(title: "Line end", capLabel: "$", listLabel: "$", vim: VimTerms(keycap: "$", title: "End of line")),
-        "a": Curated(title: "Append", shiftTitle: "Append at line end",
-                     vim: VimTerms(keycap: "append", title: "Append", shiftTitle: "Append at end of line")),
-        "g": Curated(title: "Top of document", listLabel: "gg", shiftTitle: "Bottom of document",
-                     vim: VimTerms(keycap: "gg", title: "Go to first line", shiftTitle: "Go to last line")),
-        "/": Curated(title: "Find", vim: VimTerms(keycap: "search", title: "Search")),
-        "n": Curated(title: "Next match", shiftTitle: "Previous match",
-                     vim: VimTerms(keycap: "next", title: "Next match", shiftTitle: "Previous match")),
-        "y": Curated(title: "Copy", vim: VimTerms(keycap: "yank", title: "Yank")),
-        "p": Curated(title: "Paste", vim: VimTerms(keycap: "put", title: "Put")),
-        "x": Curated(title: "Delete character", vim: VimTerms(keycap: "del", title: "Delete character")),
-        "r": Curated(title: "Redo", vim: VimTerms(keycap: "redo", title: "Redo")),
-        "d": Curated(title: "Delete previous word", ctrlTitle: "Page down",
-                     vim: VimTerms(keycap: "db", title: "Delete word back", ctrlTitle: "Half page down")),
-        "u": Curated(title: "Undo", ctrlTitle: "Page up",
-                     vim: VimTerms(keycap: "undo", title: "Undo", ctrlTitle: "Half page up")),
-        "o": Curated(title: "New line below", shiftTitle: "New line above",
-                     vim: VimTerms(keycap: "open", title: "Open line below", shiftTitle: "Open line above")),
+        "h": Curated(title: String(localized: "Left"), vim: VimTerms(keycap: "←", title: String(localized: "Left"))),
+        "j": Curated(title: String(localized: "Down"), vim: VimTerms(keycap: "↓", title: String(localized: "Down"))),
+        "k": Curated(title: String(localized: "Up"), vim: VimTerms(keycap: "↑", title: String(localized: "Up"))),
+        "l": Curated(title: String(localized: "Right"), vim: VimTerms(keycap: "→", title: String(localized: "Right"))),
+        "0": Curated(title: String(localized: "Line start"), vim: VimTerms(keycap: "0", title: String(localized: "Start of line"))),
+        "4": Curated(title: String(localized: "Line end"), capLabel: "$", listLabel: "$", vim: VimTerms(keycap: "$", title: String(localized: "End of line"))),
+        "a": Curated(title: String(localized: "Append"), shiftTitle: String(localized: "Append at line end"),
+                     vim: VimTerms(keycap: "append", title: String(localized: "Append"), shiftTitle: String(localized: "Append at end of line"))),
+        "g": Curated(title: String(localized: "Top of document"), listLabel: "gg", shiftTitle: String(localized: "Bottom of document"),
+                     vim: VimTerms(keycap: "gg", title: String(localized: "Go to first line"), shiftTitle: String(localized: "Go to last line"))),
+        "/": Curated(title: String(localized: "Find"), vim: VimTerms(keycap: "search", title: String(localized: "Search"))),
+        "n": Curated(title: String(localized: "Next match"), shiftTitle: String(localized: "Previous match"),
+                     vim: VimTerms(keycap: "next", title: String(localized: "Next match"), shiftTitle: String(localized: "Previous match"))),
+        "y": Curated(title: String(localized: "Copy"), vim: VimTerms(keycap: "yank", title: String(localized: "Yank"))),
+        "p": Curated(title: String(localized: "Paste"), vim: VimTerms(keycap: "put", title: String(localized: "Put"))),
+        "x": Curated(title: String(localized: "Delete character"), vim: VimTerms(keycap: "del", title: String(localized: "Delete character"))),
+        "r": Curated(title: String(localized: "Redo"), vim: VimTerms(keycap: "redo", title: String(localized: "Redo"))),
+        "d": Curated(title: String(localized: "Delete previous word"), ctrlTitle: String(localized: "Page down"),
+                     vim: VimTerms(keycap: "db", title: String(localized: "Delete word back"), ctrlTitle: String(localized: "Half page down"))),
+        "u": Curated(title: String(localized: "Undo"), ctrlTitle: String(localized: "Page up"),
+                     vim: VimTerms(keycap: "undo", title: String(localized: "Undo"), ctrlTitle: String(localized: "Half page up"))),
+        "o": Curated(title: String(localized: "New line below"), shiftTitle: String(localized: "New line above"),
+                     vim: VimTerms(keycap: "open", title: String(localized: "Open line below"), shiftTitle: String(localized: "Open line above"))),
         // Word motions (Neovim Terminal)
-        "w": Curated(title: "Next word", vim: VimTerms(keycap: "word", title: "Word forward")),
-        "b": Curated(title: "Previous word", vim: VimTerms(keycap: "back", title: "Word back")),
-        "e": Curated(title: "End of word", vim: VimTerms(keycap: "end", title: "End of word"))
+        "w": Curated(title: String(localized: "Next word"), vim: VimTerms(keycap: "word", title: String(localized: "Word forward"))),
+        "b": Curated(title: String(localized: "Previous word"), vim: VimTerms(keycap: "back", title: String(localized: "Word back"))),
+        "e": Curated(title: String(localized: "End of word"), vim: VimTerms(keycap: "end", title: String(localized: "End of word")))
     ]
 
-    private static let capTitles: [String: String] = [
-        "Line start": "Start", "Line end": "End", "Top of document": "Top",
-        "Bottom of document": "Bottom", "Delete character": "Delete", "Delete previous word": "Del ←",
-        "New line below": "Open", "New line above": "Open ↑", "Next match": "Next",
-        "Previous match": "Prev", "Append": "After", "Append at line end": "At end",
-        "Page down": "Pg ↓", "Page up": "Pg ↑",
-        "Next word": "Word →", "Previous word": "← Word", "End of word": "Wd end",
+    /// Keyed by the (localized) full title, so a lookup matches whatever `curated` produced.
+    /// Built with `uniquingKeysWith` because two English titles may share one translation.
+    private static let capTitles: [String: String] = Dictionary([
+        (String(localized: "Line start"), String(localized: "Start", comment: "Vim keycap: start of line")),
+        (String(localized: "Line end"), String(localized: "End", comment: "Vim keycap: end of line")),
+        (String(localized: "Top of document"), String(localized: "Top", comment: "Vim keycap: top of document")),
+        (String(localized: "Bottom of document"), String(localized: "Bottom", comment: "Vim keycap: bottom of document")),
+        (String(localized: "Delete character"), String(localized: "Delete", comment: "Vim keycap: delete character")),
+        (String(localized: "Delete previous word"), String(localized: "Del ←", comment: "Vim keycap: delete previous word")),
+        (String(localized: "New line below"), String(localized: "Open", comment: "Vim keycap: new line below")),
+        (String(localized: "New line above"), String(localized: "Open ↑", comment: "Vim keycap: new line above")),
+        (String(localized: "Next match"), String(localized: "Next", comment: "Vim keycap: next search match")),
+        (String(localized: "Previous match"), String(localized: "Prev", comment: "Vim keycap: previous search match")),
+        (String(localized: "Append"), String(localized: "After", comment: "Vim keycap: append after cursor")),
+        (String(localized: "Append at line end"), String(localized: "At end", comment: "Vim keycap: append at end of line")),
+        (String(localized: "Page down"), String(localized: "Pg ↓", comment: "Vim keycap: page down")),
+        (String(localized: "Page up"), String(localized: "Pg ↑", comment: "Vim keycap: page up")),
+        (String(localized: "Next word"), String(localized: "Word →", comment: "Vim keycap: next word")),
+        (String(localized: "Previous word"), String(localized: "← Word", comment: "Vim keycap: previous word")),
+        (String(localized: "End of word"), String(localized: "Wd end", comment: "Vim keycap: end of word")),
         // Vim-terms variants: Vim's own notation for the shifted and Control forms.
-        "Go to first line": "gg", "Go to last line": "G", "Append at end of line": "A",
-        "Open line above": "O", "Half page down": "⌃d", "Half page up": "⌃u",
-        "Start of line": "0", "End of line": "$", "Delete word back": "db", "Open line below": "open",
-        "Word forward": "word", "Word back": "back", "Yank": "yank", "Put": "put", "Search": "search"
-    ]
+        (String(localized: "Go to first line"), "gg"), (String(localized: "Go to last line"), "G"),
+        (String(localized: "Append at end of line"), "A"), (String(localized: "Open line above"), "O"),
+        (String(localized: "Half page down"), "⌃d"), (String(localized: "Half page up"), "⌃u"),
+        (String(localized: "Start of line"), "0"), (String(localized: "End of line"), "$"),
+        (String(localized: "Delete word back"), "db"), (String(localized: "Open line below"), "open"),
+        (String(localized: "Word forward"), "word"), (String(localized: "Word back"), "back"),
+        (String(localized: "Yank"), "yank"), (String(localized: "Put"), "put"), (String(localized: "Search"), "search")
+    ], uniquingKeysWith: { first, _ in first })
 
     /// Short form for a keycap, where a full title like "Delete previous word" would truncate.
     static func capTitle(for title: String) -> String {
@@ -215,14 +231,14 @@ enum VimLayerReference {
         let shift = mapping.shiftedOutput.map { output in
             VimLayerReferenceEntry.Variant(
                 label: "⇧" + (known?.shiftLabel ?? capLabel.uppercased()),
-                title: vim?.shiftTitle ?? known?.shiftTitle ?? "Shifted: \(symbols(for: output))",
+                title: vim?.shiftTitle ?? known?.shiftTitle ?? String(localized: "Shifted: \(symbols(for: output))"),
                 sends: symbols(for: output)
             )
         }
         let ctrl = mapping.ctrlOutput.map { output in
             VimLayerReferenceEntry.Variant(
                 label: "⌃" + capLabel,
-                title: vim?.ctrlTitle ?? known?.ctrlTitle ?? "With Control: \(symbols(for: output))",
+                title: vim?.ctrlTitle ?? known?.ctrlTitle ?? String(localized: "With Control: \(symbols(for: output))"),
                 sends: symbols(for: output)
             )
         }
@@ -265,8 +281,8 @@ enum VimLayerReference {
             }
             let keys: [String: String] = [
                 "left": "←", "right": "→", "up": "↑", "down": "↓", "ret": "↩",
-                "bspc": "⌫", "del": "⌦", "pgup": "Page Up", "pgdn": "Page Down",
-                "esc": "⎋", "tab": "⇥", "spc": "Space"
+                "bspc": "⌫", "del": "⌦", "pgup": String(localized: "Page Up"), "pgdn": String(localized: "Page Down"),
+                "esc": "⎋", "tab": "⇥", "spc": String(localized: "Space", comment: "Key name: the space bar")
             ]
             let key = keys[text] ?? (text.count == 1 ? text.uppercased() : text)
             return prefix + key

@@ -17,15 +17,13 @@ public enum AppConfigError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case let .validationFailed(errors):
-            "App config validation failed: \(errors.joined(separator: "; "))"
+            String(localized: "App config validation failed: \(errors.joined(separator: "; "))")
         case let .writeFailed(path, underlying):
-            "Failed to write app config to \(path): \(underlying)"
+            String(localized: "Failed to write app config to \(path): \(underlying)")
         case .validationUnavailable:
-            "Config validation service unavailable"
+            String(localized: "Config validation service unavailable")
         case let .duplicateKeys(duplicates):
-            "Duplicate keys in app keymap(s): "
-                + duplicates.map { "\($0.app) maps \($0.keys.joined(separator: ", ")) more than once" }
-                .joined(separator: "; ")
+            String(localized: "Duplicate keys in app keymap(s): \(duplicates.map { String(localized: "\($0.app) maps \($0.keys.joined(separator: ", ")) more than once") }.joined(separator: "; "))")
         }
     }
 
@@ -34,15 +32,15 @@ public enum AppConfigError: LocalizedError, Equatable {
         switch self {
         case let .validationFailed(errors):
             if errors.isEmpty {
-                return "Config validation failed"
+                return String(localized: "Config validation failed")
             }
-            return errors.first ?? "Config validation failed"
+            return errors.first ?? String(localized: "Config validation failed")
         case let .writeFailed(path, _):
-            return "Could not save config to \(path)"
+            return String(localized: "Could not save config to \(path)")
         case .validationUnavailable:
-            return "Validation service unavailable"
+            return String(localized: "Validation service unavailable")
         case let .duplicateKeys(duplicates):
-            guard let first = duplicates.first else { return "Duplicate keys in an app keymap" }
+            guard let first = duplicates.first else { return String(localized: "Duplicate keys in an app keymap") }
             return "\(first.app) maps \(first.keys.joined(separator: ", ")) more than once — each key can have only one action per app."
         }
     }
@@ -210,7 +208,11 @@ public enum AppConfigGenerator {
             guard matchesManagedContent(existing, expected: content) else {
                 throw AppConfigError
                     .validationFailed(
-                        errors: ["Your app-specific configuration was preserved. The visual editor cannot safely reproduce it. Editing requires an explicit conversion with a backup first."]
+                        errors: [
+                            String(
+                                localized: "Your app-specific configuration was preserved. The visual editor cannot safely reproduce it. Editing requires an explicit conversion with a backup first."
+                            )
+                        ]
                     )
             }
             return

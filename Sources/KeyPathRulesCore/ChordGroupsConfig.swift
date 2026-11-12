@@ -410,11 +410,11 @@ public enum ChordCategory: String, Codable, Sendable, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .navigation: "Navigation"
-        case .editing: "Editing"
-        case .symbols: "Symbols"
-        case .modifiers: "Modifiers"
-        case .custom: "Custom"
+        case .navigation: String(localized: "Navigation")
+        case .editing: String(localized: "Editing")
+        case .symbols: String(localized: "Symbols")
+        case .modifiers: String(localized: "Modifiers")
+        case .custom: String(localized: "Custom")
         }
     }
 
@@ -460,13 +460,13 @@ public enum ChordSpeed: String, CaseIterable, Codable, Sendable {
     public var description: String {
         switch self {
         case .lightning:
-            "150 ms · Fastest fallback; requires the most precise press"
+            String(localized: "150 ms · Fastest fallback; requires the most precise press")
         case .fast:
-            "250 ms · Quick fallback with a tight, practiced press"
+            String(localized: "250 ms · Quick fallback with a tight, practiced press")
         case .moderate:
-            "400 ms · More time to finish the chord; fallback waits longer"
+            String(localized: "400 ms · More time to finish the chord; fallback waits longer")
         case .deliberate:
-            "600 ms · Most forgiving press; fallback waits longest"
+            String(localized: "600 ms · Most forgiving press; fallback waits longest")
         }
     }
 
@@ -503,11 +503,11 @@ public struct ChordConflict: Identifiable, Sendable {
 
         switch type {
         case .sameKeys:
-            return "\(keys1) maps to both '\(chord1.action.kanataOutput)' and '\(chord2.action.kanataOutput)'"
+            return String(localized: "\(keys1) maps to both '\(chord1.action.kanataOutput)' and '\(chord2.action.kanataOutput)'")
         case .overlapping:
-            return "\(keys1) overlaps with \(keys2)"
+            return String(localized: "\(keys1) overlaps with \(keys2)")
         case .timeout:
-            return "Timing conflict between \(keys1) and \(keys2)"
+            return String(localized: "Timing conflict between \(keys1) and \(keys2)")
         }
     }
 }
@@ -525,11 +525,11 @@ public struct CrossGroupConflict: Identifiable, Sendable {
 
     public var description: String {
         let groupNames = groups.map(\.name).joined(separator: ", ")
-        return "Key '\(key)' is used by multiple groups: \(groupNames). First group in list will win."
+        return String(localized: "Key '\(key)' is used by multiple groups: \(groupNames). First group in list will win.")
     }
 
     /// Suggested resolution: which group should own this key?
     public var suggestion: String {
-        "Consider using different keys for each group, or merge groups if they serve similar purposes."
+        String(localized: "Consider using different keys for each group, or merge groups if they serve similar purposes.")
     }
 }

@@ -82,8 +82,8 @@ struct VallackSystemPackContent: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    layerTab(id: "home", icon: "keyboard", label: "Home")
-                    layerTab(id: "nav", icon: "arrow.up.and.down.and.arrow.left.and.right", label: "Navigation")
+                    layerTab(id: "home", icon: "keyboard", label: String(localized: "Home"))
+                    layerTab(id: "nav", icon: "arrow.up.and.down.and.arrow.left.and.right", label: String(localized: "Navigation"))
                 }
 
                 VStack(spacing: 0) {
@@ -160,8 +160,8 @@ struct VallackSystemPackContent: View {
 
                 SystemPackComponentCard(
                     icon: "hand.tap",
-                    title: "Layer Activation",
-                    summary: "Hold either index finger to enter nav",
+                    title: String(localized: "Layer Activation"),
+                    summary: String(localized: "Hold either index finger to enter nav"),
                     isExpanded: expandedComponent == "toggles",
                     onToggle: { toggleExpanded("toggles") },
                     content: AnyView(activatorCardContent)
@@ -169,8 +169,8 @@ struct VallackSystemPackContent: View {
 
                 SystemPackComponentCard(
                     icon: "keyboard",
-                    title: "Top Row Modifiers",
-                    summary: "Tap for letters, hold for ⌃ ⌥ ⌘",
+                    title: String(localized: "Top Row Modifiers"),
+                    summary: String(localized: "Tap for letters, hold for ⌃ ⌥ ⌘"),
                     isExpanded: expandedComponent == "mods",
                     onToggle: { toggleExpanded("mods") },
                     content: AnyView(modsCardContent)
@@ -178,8 +178,8 @@ struct VallackSystemPackContent: View {
 
                 SystemPackComponentCard(
                     icon: "arrow.up.and.down.and.arrow.left.and.right",
-                    title: "Navigation Mappings",
-                    summary: "\(navCollection?.mappings.count ?? 0) keys — arrows, clipboard, tabs",
+                    title: String(localized: "Navigation Mappings"),
+                    summary: String(localized: "\(navCollection?.mappings.count ?? 0) keys — arrows, clipboard, tabs"),
                     isExpanded: expandedComponent == "nav",
                     onToggle: { toggleExpanded("nav") },
                     content: AnyView(navCardContent)
@@ -309,12 +309,12 @@ struct VallackSystemPackContent: View {
                 .foregroundStyle(.secondary)
             MappingTableContent(
                 mappings: [
-                    ("q", "⌃", nil, nil, "Control", false, "✋ Left hand", true, UUID(uuidString: "00000000-0000-0000-0000-000000000101")!, nil),
-                    ("w", "⌥", nil, nil, "Option", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000102")!, nil),
-                    ("e", "⌘", nil, nil, "Command", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000103")!, nil),
-                    ("u", "⌘", nil, nil, "Command", true, "🤚 Right hand", true, UUID(uuidString: "00000000-0000-0000-0000-000000000104")!, nil),
-                    ("i", "⌥", nil, nil, "Option", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000105")!, nil),
-                    ("o", "⌃", nil, nil, "Control", false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000106")!, nil)
+                    ("q", "⌃", nil, nil, String(localized: "Control"), false, String(localized: "✋ Left hand"), true, UUID(uuidString: "00000000-0000-0000-0000-000000000101")!, nil),
+                    ("w", "⌥", nil, nil, String(localized: "Option"), false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000102")!, nil),
+                    ("e", "⌘", nil, nil, String(localized: "Command"), false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000103")!, nil),
+                    ("u", "⌘", nil, nil, String(localized: "Command"), true, String(localized: "🤚 Right hand"), true, UUID(uuidString: "00000000-0000-0000-0000-000000000104")!, nil),
+                    ("i", "⌥", nil, nil, String(localized: "Option"), false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000105")!, nil),
+                    ("o", "⌃", nil, nil, String(localized: "Control"), false, nil, true, UUID(uuidString: "00000000-0000-0000-0000-000000000106")!, nil)
                 ]
             )
         }

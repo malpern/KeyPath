@@ -182,10 +182,10 @@ extension ServiceLifecycleCoordinator {
                             sessionCapsNotice = nil
                             sessionCapsPaused = SessionCapsRuntimeSupport.selectedKeyboardOnly()
                                 ? Self.capsPausedMessage(
-                                    disconnected: SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock",
+                                    disconnected: SessionCapsSelectionStore.savedName ?? String(localized: "The keyboard chosen for Caps Lock"),
                                     setupOff: false
                                 )
-                                : "Caps Lock rules could not start on a connected keyboard. Your other rules keep working. Check keyboard details in Settings > General."
+                                : String(localized: "Caps Lock rules could not start on a connected keyboard. Your other rules keep working. Check keyboard details in Settings > General.")
                         }
                         if !SessionCapsRuntimeSupport.selectedKeyboardOnly(),
                            let coverage = report.capsCoverage,
@@ -241,7 +241,7 @@ extension ServiceLifecycleCoordinator {
                                         uid: getuid(), cleanedUp: cleanedUp)
             {
                 sessionWakeRetryGeneration = generation
-                onWarning?("Waiting for your keyboard to become ready.")
+                onWarning?(String(localized: "Waiting for your keyboard to become ready."))
                 onStateChanged?()
                 return false
             }
@@ -249,10 +249,10 @@ extension ServiceLifecycleCoordinator {
                                                   pid: application.processIdentifier,
                                                   generation: generation, cleanedUp: cleanedUp) { return false }
             let failure = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
-            if sessionStartIsCurrent(generation) { onError?("Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")") }
+            if sessionStartIsCurrent(generation) { onError?(String(localized: "Driverless runtime could not start: \(failure ?? "no current tap and TCP evidence")")) }
         } catch {
             if didLaunch { _ = await stopSessionRuntime() }
-            if sessionStartIsCurrent(generation) { onError?("Driverless runtime launch failed: \(error.localizedDescription)") }
+            if sessionStartIsCurrent(generation) { onError?(String(localized: "Driverless runtime launch failed: \(error.localizedDescription)")) }
         }
         onStateChanged?()
         return false
@@ -304,7 +304,7 @@ extension ServiceLifecycleCoordinator {
             }
             guard application.isTerminated else {
                 scheduleSessionCleanup(application, nonce: nonce)
-                onError?("Keyboard cleanup is still finishing. Wait a moment and try again.")
+                onError?(String(localized: "Keyboard cleanup is still finishing. Wait a moment and try again."))
                 return false
             }
         }
@@ -456,7 +456,7 @@ extension ServiceLifecycleCoordinator {
                 let coverageWarning = report.capsCoverage.flatMap(Self.capsCoverageWarning)
                 let warning = report.managedCapsGeneration == expectedNonce ? coverageWarning
                     : (coverageWarning ?? sessionCapsPaused
-                        ?? "Caps Lock rules are waiting for a compatible keyboard. Your other rules keep working.")
+                        ?? String(localized: "Caps Lock rules are waiting for a compatible keyboard. Your other rules keep working."))
                 if warning != sessionCapsPaused {
                     sessionCapsPaused = warning
                     onWarning?(warning)
@@ -484,7 +484,7 @@ extension ServiceLifecycleCoordinator {
                     onStateChanged?()
                 }
             }
-            onWarning?("Remapping is paused during secure typing.")
+            onWarning?(String(localized: "Remapping is paused during secure typing."))
             while IsSecureEventInputEnabled() {
                 guard sessionStartIsCurrent(generation), sessionApplication === application,
                       sessionNonce == expectedNonce else { return false }
@@ -510,7 +510,7 @@ extension ServiceLifecycleCoordinator {
             if restart == .keyboardDisconnected {
                 // The leased instance is gone and took its mapping with it; the
                 // restore above retired the record. Keep every other rule running.
-                sessionCapsDisconnectedName = SessionCapsSelectionStore.savedName ?? "The keyboard chosen for Caps Lock"
+                sessionCapsDisconnectedName = SessionCapsSelectionStore.savedName ?? String(localized: "The keyboard chosen for Caps Lock")
                 // Kept so the same keyboard at the same port gets the choice back.
                 SessionCapsSelectionStore.setDisplaced(UserDefaults.standard.data(forKey: SessionCapsRuntimeSupport.selectionKey),
                                                        name: SessionCapsSelectionStore.savedName)
@@ -528,8 +528,8 @@ extension ServiceLifecycleCoordinator {
             AppLogger.shared.warnUnlessQuietTest("[SessionRuntime] Session ended without a terminal report")
         }
         let recovery = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
-            ?? "Quit and reopen KeyPath to recover."
-        onError?("Driverless remapping stopped. Original keyboard input remains available. \(recovery)")
+            ?? String(localized: "Quit and reopen KeyPath to recover.")
+        onError?(String(localized: "Driverless remapping stopped. Original keyboard input remains available. \(recovery)"))
         onStateChanged?()
         return false
     }
@@ -585,7 +585,7 @@ extension ServiceLifecycleCoordinator {
         // Starting/cleaning a replacement must not cancel the task running this loop.
         // Stop, Quit and newer starts still invalidate its intent generation.
         sessionSupervisionTask = nil
-        onWarning?("Remapping will resume when your keyboard session is ready.")
+        onWarning?(String(localized: "Remapping will resume when your keyboard session is ready."))
         onStateChanged?()
         let recoveryStarted = Date()
         var lastBlocker: String?
@@ -666,9 +666,9 @@ extension ServiceLifecycleCoordinator {
     static func heldKeysWarning(_ keys: [CGKeyCode]) -> String {
         let names = keys.map { "\u{201C}\(KanataKeyCodeMap.overlayName(for: $0))\u{201D}" }
         if names.count == 1 {
-            return "Remapping is waiting because macOS reports the \(names[0]) key as held down. Press and release it to resume."
+            return String(localized: "Remapping is waiting because macOS reports the \(names[0]) key as held down. Press and release it to resume.")
         }
-        return "Remapping is waiting because macOS reports these keys as held down: \(names.joined(separator: ", ")). Press and release each one to resume."
+        return String(localized: "Remapping is waiting because macOS reports these keys as held down: \(names.joined(separator: ", ")). Press and release each one to resume.")
     }
 
     static func canRetryWakeStartup(_ report: SessionRuntimeReport?, nonce: String,
@@ -711,9 +711,9 @@ extension ServiceLifecycleCoordinator {
         AppLogger.shared.error("[SessionRuntime] Terminal failure: \(failure)")
         switch failure {
         case "missing-current-process-permission":
-            return "Enable \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings, then quit and reopen KeyPath."
+            return String(localized: "Enable \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings, then quit and reopen KeyPath.")
         case "tap-disabled-by-user-input", "tap-disabled-observed", "modifying-tap-unavailable", "modifying-tap-not-enabled":
-            return "Check \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings. If access is disabled, enable it, then quit and reopen KeyPath."
+            return String(localized: "Check \(AccessibilityPermissionPresentation.current.name) for KeyPath in System Settings. If access is disabled, enable it, then quit and reopen KeyPath.")
         case "managed-caps-activation-refused: capsAlreadyMapped":
             // The worker saw a Caps row it did not write. Read that row, as
             // Settings does, so both name the same owner and key.
@@ -724,15 +724,17 @@ extension ServiceLifecycleCoordinator {
                 raycast: SessionCapsRuntimeSupport.raycastHyperKey()
             )
         case "managed-caps-activation-refused: intermediateCollision":
-            return "Another app started using KeyPath\u{2019}s Caps Lock key. Quit and reopen KeyPath so it can choose another key."
+            return String(localized: "Another app started using KeyPath\u{2019}s Caps Lock key. Quit and reopen KeyPath so it can choose another key.")
         case SessionCapsRuntimeSupport.keyboardDisconnectedReason:
-            return "The keyboard chosen for Caps Lock was disconnected. Choose a keyboard again in Settings > General."
+            return String(localized: "The keyboard chosen for Caps Lock was disconnected. Choose a keyboard again in Settings > General.")
         case SessionCapsRuntimeSupport.ownershipLostReason:
-            return "KeyPath could no longer verify its Caps Lock mapping on the chosen keyboard, so it stopped and restored it. If another app changed Caps Lock, or a second identical keyboard is connected, fix that, then quit and reopen KeyPath."
+            return String(
+                localized: "KeyPath could no longer verify its Caps Lock mapping on the chosen keyboard, so it stopped and restored it. If another app changed Caps Lock, or a second identical keyboard is connected, fix that, then quit and reopen KeyPath."
+            )
         case "tap-disabled-by-timeout":
-            return "macOS stopped keyboard capture because it timed out. Quit and reopen KeyPath to recover."
+            return String(localized: "macOS stopped keyboard capture because it timed out. Quit and reopen KeyPath to recover.")
         default:
-            return "Quit and reopen KeyPath to recover."
+            return String(localized: "Quit and reopen KeyPath to recover.")
         }
     }
 
@@ -741,7 +743,7 @@ extension ServiceLifecycleCoordinator {
         sessionSupervisionTask = nil
         let stopped = await stopSessionRuntime()
         if expectedGeneration == sessionIntentGeneration {
-            onError?("Driverless remapping stopped after its heartbeat was lost. Restart to recover.")
+            onError?(String(localized: "Driverless remapping stopped after its heartbeat was lost. Restart to recover."))
         }
         return stopped
     }
@@ -766,7 +768,7 @@ extension ServiceLifecycleCoordinator {
             sessionRecoveryRefusal = nil
             return true
         } catch {
-            let reason = "Caps mapping could not be restored safely. Restart was refused; its recovery record was retained."
+            let reason = String(localized: "Caps mapping could not be restored safely. Restart was refused; its recovery record was retained.")
             if sessionRecoveryRefusal != reason {
                 sessionRecoveryRefusal = reason
                 onError?(reason)
@@ -905,7 +907,7 @@ extension ServiceLifecycleCoordinator {
                                       occupied: occupied, foreignCapsOwner: nil))
         guard admission.managedCaps else {
             if case let .invalid(reason) = admission.result {
-                sessionCapsPaused = "Caps Lock rules are off: \(reason). Your other rules keep working."
+                sessionCapsPaused = String(localized: "Caps Lock rules are off: \(reason). Your other rules keep working.")
             }
             return nil
         }
@@ -950,15 +952,18 @@ extension ServiceLifecycleCoordinator {
             // The worker then runs paused. Keep the reason past the start,
             // which clears errors, so Status and the warning still say it.
             if case let .invalid(reason) = admission.result {
-                sessionCapsPaused = "Caps Lock rules are off: \(reason). Your other rules keep working."
+                sessionCapsPaused = String(localized: "Caps Lock rules are off: \(reason). Your other rules keep working.")
             }
             return nil
         }
         if let lost = sessionCapsDisconnectedName {
             // Automatic setup found exactly one other keyboard (see
             // guides/driverless-caps-lock.md); say where Caps rules went.
-            sessionCapsNotice = "\(lost) was disconnected. Caps Lock rules now apply to "
-                + (SessionCapsSelectionStore.savedName.map { "\($0)." } ?? "your other keyboard.")
+            sessionCapsNotice = if let newName = SessionCapsSelectionStore.savedName {
+                String(localized: "\(lost) was disconnected. Caps Lock rules now apply to \(newName).")
+            } else {
+                String(localized: "\(lost) was disconnected. Caps Lock rules now apply to your other keyboard.")
+            }
             sessionCapsDisconnectedName = nil
         }
         let selection = current.with(intermediateUsage: admission.intermediateUsage)
@@ -995,13 +1000,17 @@ extension ServiceLifecycleCoordinator {
 
     nonisolated static func capsCoverageWarning(_ coverage: SessionRuntimeReport.CapsCoverage) -> String? {
         if coverage.inventoryUnavailable == true {
-            return "KeyPath cannot check newly connected keyboards for Caps Lock rules right now. Existing keyboard rules keep working; check Settings > General."
+            return String(localized: "KeyPath cannot check newly connected keyboards for Caps Lock rules right now. Existing keyboard rules keep working; check Settings > General.")
         }
         if coverage.covered < coverage.eligible {
-            return "Caps Lock rules work on \(coverage.covered) of \(coverage.eligible) selected keyboards. Check keyboard details in Settings > General. Your other rules keep working."
+            return String(
+                localized: "Caps Lock rules work on \(coverage.covered) of \(coverage.eligible) selected keyboards. Check keyboard details in Settings > General. Your other rules keep working."
+            )
         }
         if coverage.withheld > 0 {
-            return "Caps Lock rules could not be verified on \(coverage.withheld) connected keyboard\(coverage.withheld == 1 ? "" : "s"). Check Settings > General. Your other rules keep working."
+            return coverage.withheld == 1
+                ? String(localized: "Caps Lock rules could not be verified on 1 connected keyboard. Check Settings > General. Your other rules keep working.")
+                : String(localized: "Caps Lock rules could not be verified on \(coverage.withheld) connected keyboards. Check Settings > General. Your other rules keep working.")
         }
         return nil
     }
@@ -1051,9 +1060,10 @@ extension ServiceLifecycleCoordinator {
     /// user turned Caps Lock setup off: Settings already says so.
     static func capsPausedMessage(disconnected: String?, setupOff: Bool) -> String? {
         guard !setupOff else { return nil }
-        let rest = "Caps Lock rules are paused; your other rules keep working. Choose a keyboard in Settings > General to turn them back on."
-        guard let disconnected else { return rest }
-        return "\(disconnected) was disconnected. " + rest
+        guard let disconnected else {
+            return String(localized: "Caps Lock rules are paused; your other rules keep working. Choose a keyboard in Settings > General to turn them back on.")
+        }
+        return String(localized: "\(disconnected) was disconnected. Caps Lock rules are paused; your other rules keep working. Choose a keyboard in Settings > General to turn them back on.")
     }
 
     /// The worker's last report, current or not, for incident diagnostics.

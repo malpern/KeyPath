@@ -265,7 +265,7 @@ struct OverlayKeyboardView: View {
     }
 
     var keyboardAccessibilityLabel: String {
-        "Keyboard overlay, \(layout.name), layer \(currentLayerName)"
+        String(localized: "Keyboard overlay, \(layout.name), layer \(currentLayerName)")
     }
 
     var body: some View {

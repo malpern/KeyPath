@@ -7,7 +7,7 @@ L10N_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 L10N_CATALOG="$L10N_ROOT/Sources/KeyPathAppKit/Resources/Localizable.xcstrings"
 # Modules whose user-visible strings belong in the catalog. The CLI prints
 # English by design and is not listed.
-L10N_MODULES="KeyPathAppKit KeyPathInstallationWizard KeyPathInsights KeyPathLayoutTracerKit KeyPathWizardCore KeyPathPermissions KeyPathRulesCore"
+L10N_MODULES="KeyPathAppKit KeyPathCore KeyPathInstallationWizard KeyPathInsights KeyPathLayoutTracerKit KeyPathWizardCore KeyPathPermissions KeyPathRulesCore"
 
 # Prints the .stringsdata files the compiler wrote for L10N_MODULES under a
 # SwiftPM build folder (default .build). Every Debug build writes them.

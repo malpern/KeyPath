@@ -210,7 +210,7 @@ public final class UpdateService: NSObject {
     public func checkForUpdates() {
         if usesManualDownloads {
             preparationError = openDownloadPage(Self.downloadURL)
-                ? nil : "Couldn't open the downloads page. Visit github.com/malpern/KeyPath/releases."
+                ? nil : String(localized: "Couldn't open the downloads page. Visit github.com/malpern/KeyPath/releases.")
             return
         }
         AppLogger.shared.log("🔍 [UpdateService] Manual update check requested")
@@ -461,10 +461,10 @@ extension UpdateService {
             setUpdatePreparation?(false)
         }
         if !prepared, pendingInstallHandler === handler {
-            let reason = "Update paused because keyboard cleanup could not be verified. Resolve the runtime issue in Settings, then choose Check for Updates to retry."
+            let reason = String(localized: "Update paused because keyboard cleanup could not be verified. Resolve the runtime issue in Settings, then choose Check for Updates to retry.")
             preparationError = reason
             AppLogger.shared.error("⚠️ [UpdateService] \(reason)")
-            UserNotificationService.shared.notifyConfigEvent("Update paused", body: reason, key: "update.runtime-cleanup")
+            UserNotificationService.shared.notifyConfigEvent(String(localized: "Update paused"), body: reason, key: "update.runtime-cleanup")
         }
     }
 

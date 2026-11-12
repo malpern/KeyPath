@@ -88,7 +88,7 @@ struct LayoutCategorySection: View {
                                     switch result {
                                     case let .success(tokenCount):
                                         refreshTrigger = UUID()
-                                        onToast?("Keymap refreshed — \(tokenCount) keys mapped", .success)
+                                        onToast?(String(localized: "Keymap refreshed — \(tokenCount) keys mapped"), .success)
                                     case let .failure(message):
                                         onToast?(message, .warning)
                                     }

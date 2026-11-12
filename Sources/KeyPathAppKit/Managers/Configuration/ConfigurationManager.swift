@@ -42,7 +42,7 @@ final class ConfigurationManager {
 
     func validateConfigFile() async -> (isValid: Bool, errors: [String]) {
         guard Foundation.FileManager().fileExists(atPath: configPath) else {
-            return (false, ["Config file does not exist at: \(configPath)"])
+            return (false, [String(localized: "Config file does not exist at: \(configPath)")])
         }
 
         // Use CLI validation (TCP-only mode)

@@ -250,7 +250,7 @@ struct ExpandableCollectionRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("rules-summary-icon-button-\(collectionId)")
-            .accessibilityLabel(onTapRow != nil ? "Open \(name) settings" : (isExpanded ? "Collapse \(name)" : "Expand \(name)"))
+            .accessibilityLabel(onTapRow != nil ? String(localized: "Open \(name) settings") : (isExpanded ? String(localized: "Collapse \(name)") : String(localized: "Expand \(name)")))
             .accessibilityValue(effectiveEnabled ? "on" : "off")
 
             // Rest of row → opens detail window (or expands if no pack)
@@ -306,7 +306,7 @@ struct ExpandableCollectionRow: View {
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("rules-summary-expand-button-\(collectionId)")
-            .accessibilityLabel(onTapRow != nil ? "Open \(name) settings" : (isExpanded ? "Collapse \(name)" : "Expand \(name)"))
+            .accessibilityLabel(onTapRow != nil ? String(localized: "Open \(name) settings") : (isExpanded ? String(localized: "Collapse \(name)") : String(localized: "Expand \(name)")))
             .accessibilityHint(activationAccessibilityHint ?? "")
             .accessibilityValue(effectiveEnabled ? "on" : "off")
 
@@ -649,7 +649,7 @@ struct ExpandableCollectionRow: View {
                         // Section: "Everywhere" rules (if we have app-specific rules too, show header)
                         if !mappings.isEmpty, !appKeymaps.isEmpty {
                             RulesSectionHeaderCompact(
-                                title: "Everywhere",
+                                title: String(localized: "Everywhere"),
                                 systemImage: "globe"
                             )
                         }

@@ -154,11 +154,11 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             var settings: [DisplaySetting] = []
             if let tap = config.selectedTapOutput {
                 let label = config.tapOptions.first { $0.output == tap }?.label ?? tap
-                settings.append(DisplaySetting(label: "Tap Action", value: label))
+                settings.append(DisplaySetting(label: String(localized: "Tap Action"), value: label))
             }
             if let hold = config.selectedHoldOutput {
                 let label = config.holdOptions.first { $0.output == hold }?.label ?? hold
-                settings.append(DisplaySetting(label: "Hold Action", value: label))
+                settings.append(DisplaySetting(label: String(localized: "Hold Action"), value: label))
             }
             return settings
 
@@ -166,8 +166,8 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             var settings: [DisplaySetting] = []
             let sortedKeys = config.enabledKeys.sorted()
             settings.append(DisplaySetting(
-                label: "Modifier Keys",
-                value: sortedKeys.isEmpty ? "None" : sortedKeys.joined(separator: ", ").uppercased()
+                label: String(localized: "Modifier Keys"),
+                value: sortedKeys.isEmpty ? String(localized: "None") : sortedKeys.joined(separator: ", ").uppercased()
             ))
             let modSummary = sortedKeys.compactMap { key in
                 config.modifierAssignments[key].map { mod in
@@ -175,11 +175,11 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
                 }
             }.joined(separator: ", ")
             if !modSummary.isEmpty {
-                settings.append(DisplaySetting(label: "Layout", value: modSummary))
+                settings.append(DisplaySetting(label: String(localized: "Layout"), value: modSummary))
             }
             settings.append(DisplaySetting(
-                label: "Hold Timing",
-                value: "\(config.timing.tapWindow) ms"
+                label: String(localized: "Hold Timing"),
+                value: String(localized: "\(config.timing.tapWindow) ms")
             ))
             return settings
 
@@ -187,14 +187,14 @@ public enum RuleCollectionConfiguration: Codable, Equatable, Sendable {
             var settings: [DisplaySetting] = []
             let sortedKeys = config.enabledKeys.sorted()
             settings.append(DisplaySetting(
-                label: "Toggle Keys",
-                value: sortedKeys.isEmpty ? "None" : sortedKeys.joined(separator: ", ").uppercased()
+                label: String(localized: "Toggle Keys"),
+                value: sortedKeys.isEmpty ? String(localized: "None") : sortedKeys.joined(separator: ", ").uppercased()
             ))
             let layerSummary = sortedKeys.compactMap { key in
                 config.layerAssignments[key].map { "\(key.uppercased())→\($0)" }
             }.joined(separator: ", ")
             if !layerSummary.isEmpty {
-                settings.append(DisplaySetting(label: "Layers", value: layerSummary))
+                settings.append(DisplaySetting(label: String(localized: "Layers"), value: layerSummary))
             }
             return settings
 
@@ -541,7 +541,7 @@ public enum LauncherActivationMode: String, Codable, Equatable, Sendable {
     public var displayName: String {
         switch self {
         case .holdHyper: "Hyper"
-        case .leaderSequence: "Leader → L"
+        case .leaderSequence: String(localized: "Leader → L")
         }
     }
 }
@@ -556,16 +556,16 @@ public enum HyperTriggerMode: String, Codable, Equatable, Sendable {
     /// Display name for UI
     public var displayName: String {
         switch self {
-        case .tap: "Tap"
-        case .hold: "Hold"
+        case .tap: String(localized: "Tap")
+        case .hold: String(localized: "Hold")
         }
     }
 
     /// Description for UI
     public var description: String {
         switch self {
-        case .tap: "Tap Hyper to toggle the launcher on/off"
-        case .hold: "Hold Hyper to show launcher, release to hide"
+        case .tap: String(localized: "Tap Hyper to toggle the launcher on/off")
+        case .hold: String(localized: "Hold Hyper to show launcher, release to hide")
         }
     }
 }
@@ -901,12 +901,12 @@ public struct KeyRepeatOverride: Codable, Equatable, Sendable, Identifiable {
 
     /// Display label for UI (e.g. "bspc" → "⌫ Delete")
     public static let displayLabels: [String: String] = [
-        "bspc": "⌫ Delete",
-        "del": "⌦ Fwd Delete",
-        "left": "← Left",
-        "right": "→ Right",
-        "up": "↑ Up",
-        "down": "↓ Down",
+        "bspc": String(localized: "⌫ Delete"),
+        "del": String(localized: "⌦ Fwd Delete"),
+        "left": String(localized: "← Left"),
+        "right": String(localized: "→ Right"),
+        "up": String(localized: "↑ Up"),
+        "down": String(localized: "↓ Down"),
     ]
 
     public var displayLabel: String {
@@ -963,17 +963,17 @@ public struct KeyRepeatControlConfig: Codable, Equatable, Sendable {
 
         public var label: String {
             switch self {
-            case .balanced: "Balanced"
-            case .fastNavigation: "Fast Navigation"
-            case .careful: "Careful"
+            case .balanced: String(localized: "Balanced")
+            case .fastNavigation: String(localized: "Fast Navigation")
+            case .careful: String(localized: "Careful")
             }
         }
 
         public var description: String {
             switch self {
-            case .balanced: "Default"
-            case .fastNavigation: "Max speed"
-            case .careful: "Prevent accidents"
+            case .balanced: String(localized: "Default")
+            case .fastNavigation: String(localized: "Max speed")
+            case .careful: String(localized: "Prevent accidents")
             }
         }
 
@@ -1020,8 +1020,8 @@ public enum WindowSnappingActivationMode: String, Codable, Equatable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .leader: "Leader Key"
-        case .quickLauncher: "Quick Launcher"
+        case .leader: String(localized: "Leader Key")
+        case .quickLauncher: String(localized: "Quick Launcher")
         }
     }
 }

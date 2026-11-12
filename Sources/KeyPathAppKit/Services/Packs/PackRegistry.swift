@@ -84,18 +84,20 @@ public enum PackRegistry {
     public static let homeRowArrows = Pack(
         id: "com.keypath.pack.home-row-arrows",
         version: "1.0.0",
-        name: "Home Row Arrows",
-        tagline: "Hold F for arrow keys — your fingers never leave the home row",
+        name: String(localized: "Home Row Arrows"),
+        tagline: String(localized: "Hold F for arrow keys — your fingers never leave the home row"),
         shortDescription:
-        "Hold F and your right hand becomes arrow keys. Tap F normally to type. I/J/K/L for arrows in an inverted-T layout you already know from your arrow keys.\n\nH and ; give you Home and End for jumping to the start or end of a line. U and O are Page Up and Page Down.",
+        String(
+            localized: "Hold F and your right hand becomes arrow keys. Tap F normally to type. I/J/K/L for arrows in an inverted-T layout you already know from your arrow keys.\n\nH and ; give you Home and End for jumping to the start or end of a line. U and O are Page Up and Page Down."
+        ),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
         iconSecondarySymbol: "f.cursive",
         quickSettings: [],
         bindings: [
             PackBindingTemplate(input: "f", output: "f", holdOutput: "layer:home-arrows",
-                                title: "F · tap / Arrows · hold"),
+                                title: String(localized: "F · tap / Arrows · hold")),
         ],
         associatedCollectionID: RuleCollectionIdentifier.homeRowArrows,
         suggestedForKeys: ["f", "i", "j", "k", "l"],
@@ -103,17 +105,17 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.home-row-mods",
                 kind: .conflictsWith,
-                description: "Both use F as a hold key — Home Row Mods assigns F to Command, Home Row Arrows assigns F to a navigation layer"
+                description: String(localized: "Both use F as a hold key — Home Row Mods assigns F to Command, Home Row Arrows assigns F to a navigation layer")
             ),
             PackDependency(
                 packID: "com.keypath.pack.vallack-system",
                 kind: .conflictsWith,
-                description: "Vallack Nav also uses F as a hold key for navigation — use one or the other"
+                description: String(localized: "Vallack Nav also uses F as a hold key for navigation — use one or the other")
             ),
             PackDependency(
                 packID: "com.keypath.pack.key-repeat-control",
                 kind: .enhancedBy,
-                description: "Fast Navigation makes your Home Row Arrows repeat 3× faster for quick cursor movement"
+                description: String(localized: "Fast Navigation makes your Home Row Arrows repeat 3× faster for quick cursor movement")
             ),
         ]
     )
@@ -123,12 +125,12 @@ public enum PackRegistry {
     public static let capsLockToEscape = Pack(
         id: "com.keypath.pack.caps-lock-to-escape",
         version: "1.0.0",
-        name: "Caps Lock Remap",
-        tagline: "Make Caps Lock actually useful with tap and hold actions",
+        name: String(localized: "Caps Lock Remap"),
+        tagline: String(localized: "Make Caps Lock actually useful with tap and hold actions"),
         shortDescription:
-        "Tap Caps Lock for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). One key, two jobs — pick your combo below.",
+        String(localized: "Tap Caps Lock for a quick action (Escape, Backspace, or Hyper). Hold it for a modifier (Hyper, Control, Shift, or Meh). One key, two jobs — pick your combo below."),
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "capslock",
         iconSecondarySymbol: "escape",
         quickSettings: [],
@@ -136,7 +138,7 @@ public enum PackRegistry {
             PackBindingTemplate(
                 input: "caps",
                 output: "esc",
-                title: "Caps Lock → Escape"
+                title: String(localized: "Caps Lock → Escape")
             )
         ],
         associatedCollectionID: RuleCollectionIdentifier.capsLockRemap
@@ -150,18 +152,18 @@ public enum PackRegistry {
     public static let homeRowMods = Pack(
         id: "com.keypath.pack.home-row-mods",
         version: "1.0.0",
-        name: "Home Row Mods",
-        tagline: "Every shortcut under your fingers — no reaching for modifier keys",
+        name: String(localized: "Home Row Mods"),
+        tagline: String(localized: "Every shortcut under your fingers — no reaching for modifier keys"),
         shortDescription:
-        "Tap home row keys normally. Hold them for ⌘ ⇧ ⌥ ⌃ — every shortcut stays under your fingers. Adjust the hold timing to match your typing speed.",
+        String(localized: "Tap home row keys normally. Hold them for ⌘ ⇧ ⌥ ⌃ — every shortcut stays under your fingers. Adjust the hold timing to match your typing speed."),
         longDescription: "",
-        category: "Ergonomics",
+        category: String(localized: "Ergonomics"),
         iconSymbol: "keyboard",
         iconSecondarySymbol: nil,
         quickSettings: [
             PackQuickSetting(
                 id: "holdTimeout",
-                label: "Hold timing",
+                label: String(localized: "Hold timing"),
                 kind: .slider(
                     defaultValue: 180,
                     min: 120,
@@ -174,22 +176,22 @@ public enum PackRegistry {
         bindings: [
             // CAGS left: A=Ctrl, S=Opt, D=Shift, F=Cmd
             PackBindingTemplate(input: "a", output: "a", holdOutput: "lctl",
-                                title: "A · tap / Control · hold"),
+                                title: String(localized: "A · tap / Control · hold")),
             PackBindingTemplate(input: "s", output: "s", holdOutput: "lalt",
-                                title: "S · tap / Option · hold"),
+                                title: String(localized: "S · tap / Option · hold")),
             PackBindingTemplate(input: "d", output: "d", holdOutput: "lsft",
-                                title: "D · tap / Shift · hold"),
+                                title: String(localized: "D · tap / Shift · hold")),
             PackBindingTemplate(input: "f", output: "f", holdOutput: "lmet",
-                                title: "F · tap / Command · hold"),
+                                title: String(localized: "F · tap / Command · hold")),
             // CAGS right mirror: J=Cmd, K=Shift, L=Opt, ;=Ctrl
             PackBindingTemplate(input: "j", output: "j", holdOutput: "rmet",
-                                title: "J · tap / Command · hold"),
+                                title: String(localized: "J · tap / Command · hold")),
             PackBindingTemplate(input: "k", output: "k", holdOutput: "rsft",
-                                title: "K · tap / Shift · hold"),
+                                title: String(localized: "K · tap / Shift · hold")),
             PackBindingTemplate(input: "l", output: "l", holdOutput: "ralt",
-                                title: "L · tap / Option · hold"),
+                                title: String(localized: "L · tap / Option · hold")),
             PackBindingTemplate(input: "scln", output: "scln", holdOutput: "rctl",
-                                title: "; · tap / Control · hold")
+                                title: String(localized: "; · tap / Control · hold"))
         ],
         associatedCollectionID: RuleCollectionIdentifier.homeRowMods
     )
@@ -202,16 +204,16 @@ public enum PackRegistry {
     public static let escapeRemap = Pack(
         id: "com.keypath.pack.escape-remap",
         version: "1.0.0",
-        name: "Escape Remap",
-        tagline: "Move Escape to a closer key like Caps Lock or Backtick",
+        name: String(localized: "Escape Remap"),
+        tagline: String(localized: "Move Escape to a closer key like Caps Lock or Backtick"),
         shortDescription:
-        "Remap Escape to something you'll use more — Caps Lock, Backtick, or Tab. Pairs naturally with Caps Lock Remap so both keys stay useful.",
+        String(localized: "Remap Escape to something you'll use more — Caps Lock, Backtick, or Tab. Pairs naturally with Caps Lock Remap so both keys stay useful."),
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "escape",
         quickSettings: [],
         bindings: [
-            PackBindingTemplate(input: "esc", output: "caps", title: "Escape Remap")
+            PackBindingTemplate(input: "esc", output: "caps", title: String(localized: "Escape Remap"))
         ],
         associatedCollectionID: RuleCollectionIdentifier.escapeRemap
     )
@@ -221,23 +223,25 @@ public enum PackRegistry {
     public static let deleteEnhancement = Pack(
         id: "com.keypath.pack.delete-enhancement",
         version: "1.0.0",
-        name: "Delete Enhancement",
-        tagline: "Forward-delete, delete word, and delete line without reaching",
+        name: String(localized: "Delete Enhancement"),
+        tagline: String(localized: "Forward-delete, delete word, and delete line without reaching"),
         shortDescription:
-        "Hold your Leader key + Delete for forward delete, delete word, or delete to line start. Regular Delete still works normally.\n\nRequires Vim Navigation or another Leader pack.",
+        String(
+            localized: "Hold your Leader key + Delete for forward delete, delete word, or delete to line start. Regular Delete still works normally.\n\nRequires Vim Navigation or another Leader pack."
+        ),
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "delete.left",
         quickSettings: [],
         bindings: [
-            PackBindingTemplate(input: "bspc", output: "del", title: "Delete Enhancement")
+            PackBindingTemplate(input: "bspc", output: "del", title: String(localized: "Delete Enhancement"))
         ],
         associatedCollectionID: RuleCollectionIdentifier.deleteRemap,
         dependencies: [
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Adds Leader key layer activation when Vim Navigation is enabled"
+                description: String(localized: "Adds Leader key layer activation when Vim Navigation is enabled")
             ),
         ]
     )
@@ -247,16 +251,16 @@ public enum PackRegistry {
     public static let backupCapsLock = Pack(
         id: "com.keypath.pack.backup-caps-lock",
         version: "1.0.0",
-        name: "Backup Caps Lock",
-        tagline: "Press both Shift keys together to toggle Caps Lock",
+        name: String(localized: "Backup Caps Lock"),
+        tagline: String(localized: "Press both Shift keys together to toggle Caps Lock"),
         shortDescription:
-        "Get Caps Lock back by pressing both Shift keys together. Useful when Caps Lock Remap gives that key a new job.",
+        String(localized: "Get Caps Lock back by pressing both Shift keys together. Useful when Caps Lock Remap gives that key a new job."),
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "shift",
         quickSettings: [],
         bindings: [
-            PackBindingTemplate(input: "lsft-rsft", output: "caps", title: "Backup Caps Lock")
+            PackBindingTemplate(input: "lsft-rsft", output: "caps", title: String(localized: "Backup Caps Lock"))
         ],
         associatedCollectionID: RuleCollectionIdentifier.backupCapsLock,
         suggestedForKeys: ["caps", "lsft", "rsft"],
@@ -264,7 +268,7 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.caps-lock-to-escape",
                 kind: .enhancedBy,
-                description: "Most useful when Caps Lock is remapped to something else"
+                description: String(localized: "Most useful when Caps Lock is remapped to something else")
             ),
         ]
     )
@@ -280,12 +284,12 @@ public enum PackRegistry {
     public static let vimNavigation = Pack(
         id: "com.keypath.pack.vim-navigation",
         version: "1.0.0",
-        name: "Vim Navigation",
-        tagline: "Hold Space for hjkl arrows and Vim motions",
+        name: String(localized: "Vim Navigation"),
+        tagline: String(localized: "Hold Space for hjkl arrows and Vim motions"),
         shortDescription:
-        "Hold Space for Vim-style navigation: H/J/K/L for arrows, Y/P for copy/paste, U for undo, / for find. Release Space to type normally.",
+        String(localized: "Hold Space for Vim-style navigation: H/J/K/L for arrows, Y/P for copy/paste, U for undo, / for find. Release Space to type normally."),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "arrow.up.and.down.and.arrow.left.and.right",
         quickSettings: [],
         bindings: [],
@@ -309,12 +313,12 @@ public enum PackRegistry {
     public static let windowSnapping = Pack(
         id: "com.keypath.pack.window-snapping",
         version: "1.0.0",
-        name: "Window Snapping",
-        tagline: "Snap, move, and tile windows with Leader → w",
+        name: String(localized: "Window Snapping"),
+        tagline: String(localized: "Snap, move, and tile windows with Leader → w"),
         shortDescription:
-        "Snap windows to halves, corners, or full screen — all from the keyboard. Hold Space → W, then pick a position.\n\nRequires Vim Navigation and Accessibility permission.",
+        String(localized: "Snap windows to halves, corners, or full screen — all from the keyboard. Hold Space → W, then pick a position.\n\nRequires Vim Navigation and Accessibility permission."),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "rectangle.split.2x2",
         quickSettings: [],
         bindings: [],
@@ -324,12 +328,12 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Required for Leader Key activation mode (default)"
+                description: String(localized: "Required for Leader Key activation mode (default)")
             ),
             PackDependency(
                 packID: "com.keypath.pack.quick-launcher",
                 kind: .enhancedBy,
-                description: "Required for Quick Launcher activation mode"
+                description: String(localized: "Required for Quick Launcher activation mode")
             ),
         ]
     )
@@ -343,12 +347,12 @@ public enum PackRegistry {
     public static let missionControl = Pack(
         id: "com.keypath.pack.mission-control",
         version: "1.0.0",
-        name: "Mission Control",
-        tagline: "Leader + single key for Exposé, Desktops, Notifications",
+        name: String(localized: "Mission Control"),
+        tagline: String(localized: "Leader + single key for Exposé, Desktops, Notifications"),
         shortDescription:
-        "Mission Control, Exposé, Show Desktop, and Notification Center — each one key away. Switch desktops with , and . keys.\n\nRequires Vim Navigation or another Leader pack.",
+        String(localized: "Mission Control, Exposé, Show Desktop, and Notification Center — each one key away. Switch desktops with , and . keys.\n\nRequires Vim Navigation or another Leader pack."),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "rectangle.3.group",
         quickSettings: [],
         bindings: [],
@@ -358,7 +362,7 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Adds Leader key layer activation when Vim Navigation is enabled"
+                description: String(localized: "Adds Leader key layer activation when Vim Navigation is enabled")
             ),
         ]
     )
@@ -377,22 +381,22 @@ public enum PackRegistry {
     public static let autoShiftSymbols = Pack(
         id: "com.keypath.pack.auto-shift-symbols",
         version: "1.0.0",
-        name: "Auto Shift Symbols",
-        tagline: "Type shifted symbols without pressing Shift — just hold the key",
+        name: String(localized: "Auto Shift Symbols"),
+        tagline: String(localized: "Type shifted symbols without pressing Shift — just hold the key"),
         shortDescription:
-        "Hold any symbol key slightly longer to type its shifted variant — no Shift key needed. Tap for the symbol, hold for the shifted version.",
+        String(localized: "Hold any symbol key slightly longer to type its shifted variant — no Shift key needed. Tap for the symbol, hold for the shifted version."),
         longDescription: "",
-        category: "Ergonomics",
+        category: String(localized: "Ergonomics"),
         iconSymbol: "arrow.up.square",
         quickSettings: [],
         bindings: [
-            PackBindingTemplate(input: "-", output: "-", holdOutput: "S--", title: "- · tap / _ · hold"),
-            PackBindingTemplate(input: "=", output: "=", holdOutput: "S-=", title: "= · tap / + · hold"),
-            PackBindingTemplate(input: "'", output: "'", holdOutput: "S-'", title: "' · tap / \" · hold"),
-            PackBindingTemplate(input: ";", output: ";", holdOutput: "S-;", title: "; · tap / : · hold"),
-            PackBindingTemplate(input: ",", output: ",", holdOutput: "S-,", title: ", · tap / < · hold"),
-            PackBindingTemplate(input: ".", output: ".", holdOutput: "S-.", title: ". · tap / > · hold"),
-            PackBindingTemplate(input: "/", output: "/", holdOutput: "S-/", title: "/ · tap / ? · hold")
+            PackBindingTemplate(input: "-", output: "-", holdOutput: "S--", title: String(localized: "- · tap / _ · hold")),
+            PackBindingTemplate(input: "=", output: "=", holdOutput: "S-=", title: String(localized: "= · tap / + · hold")),
+            PackBindingTemplate(input: "'", output: "'", holdOutput: "S-'", title: String(localized: "' · tap / \" · hold")),
+            PackBindingTemplate(input: ";", output: ";", holdOutput: "S-;", title: String(localized: "; · tap / : · hold")),
+            PackBindingTemplate(input: ",", output: ",", holdOutput: "S-,", title: String(localized: ", · tap / < · hold")),
+            PackBindingTemplate(input: ".", output: ".", holdOutput: "S-.", title: String(localized: ". · tap / > · hold")),
+            PackBindingTemplate(input: "/", output: "/", holdOutput: "S-/", title: String(localized: "/ · tap / ? · hold"))
         ],
         associatedCollectionID: RuleCollectionIdentifier.autoShiftSymbols
     )
@@ -408,12 +412,12 @@ public enum PackRegistry {
     public static let numpadLayer = Pack(
         id: "com.keypath.pack.numpad-layer",
         version: "1.0.0",
-        name: "Numpad",
-        tagline: "Turn your right hand into a numpad",
+        name: String(localized: "Numpad"),
+        tagline: String(localized: "Turn your right hand into a numpad"),
         shortDescription:
-        "Your right hand becomes a numpad, left hand gets operators. Hold Space → ; to activate.\n\nRequires Vim Navigation or another Leader pack.",
+        String(localized: "Your right hand becomes a numpad, left hand gets operators. Hold Space → ; to activate.\n\nRequires Vim Navigation or another Leader pack."),
         longDescription: "",
-        category: "Layers",
+        category: String(localized: "Layers"),
         iconSymbol: "number.square",
         quickSettings: [],
         bindings: [],
@@ -423,7 +427,7 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Adds Leader key layer activation when Vim Navigation is enabled"
+                description: String(localized: "Adds Leader key layer activation when Vim Navigation is enabled")
             ),
         ]
     )
@@ -443,12 +447,14 @@ public enum PackRegistry {
     public static let symbolLayer = Pack(
         id: "com.keypath.pack.symbol-layer",
         version: "1.0.0",
-        name: "Symbol",
-        tagline: "Programming symbols under your home row",
+        name: String(localized: "Symbol"),
+        tagline: String(localized: "Programming symbols under your home row"),
         shortDescription:
-        "Brackets, operators, and shifted symbols all under your home row. Hold Space → S to activate. Choose from preset layouts.\n\nRequires Vim Navigation or another Leader pack.",
+        String(
+            localized: "Brackets, operators, and shifted symbols all under your home row. Hold Space → S to activate. Choose from preset layouts.\n\nRequires Vim Navigation or another Leader pack."
+        ),
         longDescription: "",
-        category: "Layers",
+        category: String(localized: "Layers"),
         iconSymbol: "textformat.abc.dottedunderline",
         quickSettings: [],
         bindings: [
@@ -468,7 +474,7 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Adds Leader key layer activation when Vim Navigation is enabled"
+                description: String(localized: "Adds Leader key layer activation when Vim Navigation is enabled")
             ),
         ]
     )
@@ -485,12 +491,12 @@ public enum PackRegistry {
     public static let funLayer = Pack(
         id: "com.keypath.pack.fun-layer",
         version: "1.0.0",
-        name: "Function",
-        tagline: "Right hand becomes F-keys, left hand is media/brightness",
+        name: String(localized: "Function"),
+        tagline: String(localized: "Right hand becomes F-keys, left hand is media/brightness"),
         shortDescription:
-        "F-keys on your right hand, media controls on your left — play/pause, volume, brightness. Hold Space → F to activate.\n\nRequires Vim Navigation or another Leader pack.",
+        String(localized: "F-keys on your right hand, media controls on your left — play/pause, volume, brightness. Hold Space → F to activate.\n\nRequires Vim Navigation or another Leader pack."),
         longDescription: "",
-        category: "Layers",
+        category: String(localized: "Layers"),
         iconSymbol: "f.cursive",
         quickSettings: [],
         bindings: [],
@@ -500,7 +506,7 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Adds Leader key layer activation when Vim Navigation is enabled"
+                description: String(localized: "Adds Leader key layer activation when Vim Navigation is enabled")
             ),
         ]
     )
@@ -519,11 +525,11 @@ public enum PackRegistry {
     public static let launcher = Pack(
         id: "com.keypath.pack.quick-launcher",
         version: "1.0.0",
-        name: "Quick Launcher",
-        tagline: "Turn one key into an app and website launcher",
+        name: String(localized: "Quick Launcher"),
+        tagline: String(localized: "Turn one key into an app and website launcher"),
         shortDescription: KeyboardConceptCopy.launcherPackDescription,
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "arrow.up.forward.app",
         quickSettings: [],
         bindings: [],
@@ -532,7 +538,7 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Required when using Leader → L activation mode"
+                description: String(localized: "Required when using Leader → L activation mode")
             ),
         ],
         managedDefaults: [
@@ -595,7 +601,7 @@ public enum PackRegistry {
                     selectedTapOutput: "esc",
                     selectedHoldOutput: "hyper"
                 )),
-                displayName: "Caps Lock Remap"
+                displayName: String(localized: "Caps Lock Remap")
             ),
         ]
     )
@@ -616,11 +622,11 @@ public enum PackRegistry {
     public static let leaderKey = Pack(
         id: "com.keypath.pack.leader-key",
         version: "1.0.0",
-        name: "Leader Key",
-        tagline: "Choose the key that starts your layer shortcuts",
+        name: String(localized: "Leader Key"),
+        tagline: String(localized: "Choose the key that starts your layer shortcuts"),
         shortDescription: KeyboardConceptCopy.leaderPackDescription,
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "hand.point.up.left",
         quickSettings: [],
         bindings: [],
@@ -630,7 +636,7 @@ public enum PackRegistry {
             PackDependency(
                 packID: "com.keypath.pack.vim-navigation",
                 kind: .enhancedBy,
-                description: "Leader Key sets which key activates the nav layer — needs a nav provider like Vim Navigation"
+                description: String(localized: "Leader Key sets which key activates the nav layer — needs a nav provider like Vim Navigation")
             ),
         ]
     )
@@ -640,12 +646,14 @@ public enum PackRegistry {
     public static let keyRepeatControl = Pack(
         id: "com.keypath.pack.key-repeat-control",
         version: "1.0.0",
-        name: "Fast Navigation",
-        tagline: "Arrow keys and delete at 3x speed",
+        name: String(localized: "Fast Navigation"),
+        tagline: String(localized: "Arrow keys and delete at 3x speed"),
         shortDescription:
-        "Your arrow keys move through text at the same sluggish speed as every other key. Fast Navigation makes them 3× faster — jump through code, scroll spreadsheets, edit text at the speed your brain actually works.\n\nDelete gets faster too. Regular typing stays steady so you don't get accidental repeats.",
+        String(
+            localized: "Your arrow keys move through text at the same sluggish speed as every other key. Fast Navigation makes them 3× faster — jump through code, scroll spreadsheets, edit text at the speed your brain actually works.\n\nDelete gets faster too. Regular typing stays steady so you don't get accidental repeats."
+        ),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "hare",
         quickSettings: [],
         bindings: [],
@@ -657,12 +665,14 @@ public enum PackRegistry {
     public static let vallackSystem = Pack(
         id: "com.keypath.pack.vallack-system",
         version: "1.0.0",
-        name: "Home Row Navigation System",
-        tagline: "Your fingers stay put, the keyboard changes",
+        name: String(localized: "Home Row Navigation System"),
+        tagline: String(localized: "Your fingers stay put, the keyboard changes"),
         shortDescription:
-        "Navigate, copy, paste, and switch tabs without your fingers leaving the home row. Inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards) — hold an index finger to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space.",
+        String(
+            localized: "Navigate, copy, paste, and switch tabs without your fingers leaving the home row. Inspired by [Ben Vallack](https://www.youtube.com/@BenVallacksKeyboards) — hold an index finger to transform your keyboard into a navigation surface, with modifiers on the top row so nothing competes for space."
+        ),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "rectangle.stack.badge.play",
         quickSettings: [],
         bindings: [],
@@ -670,12 +680,12 @@ public enum PackRegistry {
         managedDefaults: [
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.vallackNavigation,
-                displayName: "Navigation Layer"
+                displayName: String(localized: "Navigation Layer")
             ),
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.homeRowMods,
                 defaultConfiguration: .homeRowMods(HomeRowModsConfig.vallackDefault),
-                displayName: "Top-Row Modifiers"
+                displayName: String(localized: "Top-Row Modifiers")
             ),
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.homeRowLayerToggles,
@@ -686,13 +696,13 @@ public enum PackRegistry {
                     toggleMode: .whileHeld,
                     oppositeHandMode: .press
                 )),
-                displayName: "Index-Finger Layer Toggles"
+                displayName: String(localized: "Index-Finger Layer Toggles")
             ),
             ManagedCollectionDefault(
                 collectionID: RuleCollectionIdentifier.homeRowArrows,
                 enableOnInstall: false,
                 disableOnInstall: true,
-                displayName: "Home Row Arrows"
+                displayName: String(localized: "Home Row Arrows")
             ),
         ]
     )
@@ -719,21 +729,23 @@ public enum PackRegistry {
     public static let chordGroups = Pack(
         id: "com.keypath.pack.chord-groups",
         version: "1.0.0",
-        name: "Chord Groups",
-        tagline: "Press two keys at once for instant actions",
+        name: String(localized: "Chord Groups"),
+        tagline: String(localized: "Press two keys at once for instant actions"),
         shortDescription:
-        "Multi-key chords let you trigger actions by pressing adjacent keys simultaneously — no modifier keys needed. Includes Ben Vallack's home row navigation and editing presets.",
+        String(
+            localized: "Multi-key chords let you trigger actions by pressing adjacent keys simultaneously — no modifier keys needed. Includes Ben Vallack's home row navigation and editing presets."
+        ),
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "keyboard.badge.ellipsis",
         quickSettings: [],
         bindings: [
-            PackBindingTemplate(input: "s+d", output: "esc", title: "S+D → Escape"),
-            PackBindingTemplate(input: "d+f", output: "enter", title: "D+F → Enter"),
+            PackBindingTemplate(input: "s+d", output: "esc", title: String(localized: "S+D → Escape")),
+            PackBindingTemplate(input: "d+f", output: "enter", title: String(localized: "D+F → Enter")),
             PackBindingTemplate(input: "j+k", output: "up", title: "J+K → Up"),
-            PackBindingTemplate(input: "k+l", output: "down", title: "K+L → Down"),
-            PackBindingTemplate(input: "a+s", output: "bspc", title: "A+S → Backspace"),
-            PackBindingTemplate(input: "e+r", output: "C-z", title: "E+R → Undo"),
+            PackBindingTemplate(input: "k+l", output: "down", title: String(localized: "K+L → Down")),
+            PackBindingTemplate(input: "a+s", output: "bspc", title: String(localized: "A+S → Backspace")),
+            PackBindingTemplate(input: "e+r", output: "C-z", title: String(localized: "E+R → Undo")),
         ],
         associatedCollectionID: RuleCollectionIdentifier.chordGroups
     )
@@ -743,12 +755,14 @@ public enum PackRegistry {
     public static let neovimTerminal = Pack(
         id: "com.keypath.pack.neovim-terminal",
         version: "1.0.0",
-        name: "Neovim Terminal",
-        tagline: "Vim motions in your terminal — words, lines, and search",
+        name: String(localized: "Neovim Terminal"),
+        tagline: String(localized: "Vim motions in your terminal — words, lines, and search"),
         shortDescription:
-        "Hold Leader for Neovim-style motions inside approved terminal apps: h/j/k/l arrows, w/b word jumps, 0/$ line ends, undo, yank, and put. App-scoped — it activates only in terminals and coexists with the other Navigation rules.",
+        String(
+            localized: "Hold Leader for Neovim-style motions inside approved terminal apps: h/j/k/l arrows, w/b word jumps, 0/$ line ends, undo, yank, and put. App-scoped — it activates only in terminals and coexists with the other Navigation rules."
+        ),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "terminal",
         quickSettings: [],
         // Intentionally empty: table-style packs (Vim Navigation, Mission
@@ -764,12 +778,14 @@ public enum PackRegistry {
     public static let sequences = Pack(
         id: "com.keypath.pack.sequences",
         version: "1.0.0",
-        name: "Sequences",
-        tagline: "Press keys one after another to trigger layers and actions",
+        name: String(localized: "Sequences"),
+        tagline: String(localized: "Press keys one after another to trigger layers and actions"),
         shortDescription:
-        "Build multi-key sequences like Leader → W → M that activate layers or run actions. Like chords, but ordered — keys are pressed in succession instead of together. Starts empty; add your own sequences in the editor.",
+        String(
+            localized: "Build multi-key sequences like Leader → W → M that activate layers or run actions. Like chords, but ordered — keys are pressed in succession instead of together. Starts empty; add your own sequences in the editor."
+        ),
         longDescription: "",
-        category: "Productivity",
+        category: String(localized: "Productivity"),
         iconSymbol: "arrow.right.arrow.left.circle",
         quickSettings: [],
         bindings: [],
@@ -782,11 +798,13 @@ public enum PackRegistry {
         id: "com.keypath.pack.kindavim",
         version: "1.0.0",
         name: "KindaVim",
-        tagline: "Vim-style navigation for any macOS app via KindaVim.app",
+        tagline: String(localized: "Vim-style navigation for any macOS app via KindaVim.app"),
         shortDescription:
-        "Shows your KindaVim mode (Normal, Insert, Visual) in the overlay header. The overlay adapts — Vim hints in Normal mode, clean keyboard in Insert.\n\nDisplay only — no key remapping. Requires KindaVim.app.",
+        String(
+            localized: "Shows your KindaVim mode (Normal, Insert, Visual) in the overlay header. The overlay adapts — Vim hints in Normal mode, clean keyboard in Insert.\n\nDisplay only — no key remapping. Requires KindaVim.app."
+        ),
         longDescription: "",
-        category: "Navigation",
+        category: String(localized: "Navigation"),
         iconSymbol: "keyboard.macwindow",
         quickSettings: [],
         bindings: [],
@@ -798,7 +816,7 @@ public enum PackRegistry {
         ],
         dependencies: [
             PackDependency(packID: "com.keypath.pack.vim-navigation", kind: .conflictsWith,
-                           description: "Both want to own h/j/k/l: KindaVim shows the app's own modes, Vim Navigation remaps the keys."),
+                           description: String(localized: "Both want to own h/j/k/l: KindaVim shows the app's own modes, Vim Navigation remaps the keys.")),
         ],
         // Not inferable from rules: the pack shows another app's mode.
         requires: [.externalApp(name: "KindaVim", path: "/Applications/kindaVim.app")]
@@ -809,12 +827,12 @@ public enum PackRegistry {
     public static let keystrokeHistory = Pack(
         id: "com.keypath.pack.keystroke-history",
         version: "1.0.0",
-        name: "Keystroke History",
-        tagline: "See what your keyboard is actually doing",
+        name: String(localized: "Keystroke History"),
+        tagline: String(localized: "See what your keyboard is actually doing"),
         shortDescription:
-        "A live timeline of every keypress, tap-hold decision, and layer change. Great for tuning timing and debugging remaps.",
+        String(localized: "A live timeline of every keypress, tap-hold decision, and layer change. Great for tuning timing and debugging remaps."),
         longDescription: "",
-        category: "Debug",
+        category: String(localized: "Debug"),
         iconSymbol: "clock.arrow.trianglehead.counterclockwise.rotate.90",
         quickSettings: [],
         bindings: [],

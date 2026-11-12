@@ -8,7 +8,7 @@ import KeyPathPermissions
 /// its own focused type. `RuntimeCoordinator` delegates all reload calls here.
 @MainActor
 final class ConfigReloadCoordinator {
-    private static let runtimeIntentChangedMessage = "Runtime state changed; configuration remains saved"
+    private static let runtimeIntentChangedMessage = String(localized: "Runtime state changed; configuration remains saved")
 
     // MARK: - Dependencies
 
@@ -108,7 +108,7 @@ final class ConfigReloadCoordinator {
            let startRuntimeForExplicitApply
         {
             guard !Task.isCancelled else {
-                return ReloadResult(success: false, response: nil, errorMessage: "Apply cancelled", protocol: nil, disposition: .pending)
+                return ReloadResult(success: false, response: nil, errorMessage: String(localized: "Apply cancelled"), protocol: nil, disposition: .pending)
             }
             let started = await startRuntimeForExplicitApply()
             expectedIntent = runtimeIntentGeneration()
@@ -117,7 +117,7 @@ final class ConfigReloadCoordinator {
                   expectedIntent == runtimeIntentGeneration()
             else {
                 return ReloadResult(success: false, response: nil,
-                                    errorMessage: healthStatus.reason ?? "Session startup did not establish readiness",
+                                    errorMessage: healthStatus.reason ?? String(localized: "Session startup did not establish readiness"),
                                     protocol: nil, disposition: .pending)
             }
         }
@@ -134,7 +134,7 @@ final class ConfigReloadCoordinator {
             return ReloadResult(
                 success: false,
                 response: nil,
-                errorMessage: healthStatus.reason ?? "Kanata service is starting; retry shortly",
+                errorMessage: healthStatus.reason ?? String(localized: "Kanata service is starting; retry shortly"),
                 protocol: nil,
                 disposition: .pending
             )
@@ -174,7 +174,7 @@ final class ConfigReloadCoordinator {
                 return ReloadResult(
                     success: false,
                     response: tcpResult.response,
-                    errorMessage: "Kanata is restarting; reload will retry shortly",
+                    errorMessage: String(localized: "Kanata is restarting; reload will retry shortly"),
                     protocol: .tcp,
                     disposition: .pending
                 )
@@ -323,7 +323,7 @@ final class ConfigReloadCoordinator {
             break
         }
 
-        let message = "Kanata did not become ready after restarting; config reload was not applied"
+        let message = String(localized: "Kanata did not become ready after restarting; config reload was not applied")
         AppLogger.shared.warnUnlessQuietTest("⚠️ [Reload] \(message)")
         NotificationCenter.default.post(
             name: .configReloadFailed,
@@ -347,7 +347,7 @@ final class ConfigReloadCoordinator {
         case .pending, .failed:
             return .pending
         case .rejected:
-            let message = result.errorMessage ?? "Config reload was rejected"
+            let message = result.errorMessage ?? String(localized: "Config reload was rejected")
             AppLogger.shared.warnUnlessQuietTest("⚠️ [Reload] Deferred config reload rejected: \(message)")
             NotificationCenter.default.post(
                 name: .configReloadFailed,
@@ -401,7 +401,7 @@ final class ConfigReloadCoordinator {
             ) : nil
         let validation = sessionValidationOverride?() ?? (result: admission!.result, managedCaps: admission!.managedCaps)
         guard case .valid = validation.result else {
-            return .failure(error: "This configuration is unsupported by the session runtime or contains an error", response: "")
+            return .failure(error: String(localized: "This configuration is unsupported by the session runtime or contains an error"), response: "")
         }
         // A rule that now uses the running intermediate key needs the session
         // to restart on another one; a reload would hand that key to Caps.
@@ -419,7 +419,7 @@ final class ConfigReloadCoordinator {
                 return .networkError(Self.runtimeIntentChangedMessage)
             }
             guard let restartForManagedCapsChange else {
-                return .failure(error: "Changing the Caps runtime mode requires a session restart", response: "")
+                return .failure(error: String(localized: "Changing the Caps runtime mode requires a session restart"), response: "")
             }
             let restartGeneration = runtimeIntentGeneration() &+ 1
             let restarted = await restartForManagedCapsChange()
@@ -429,7 +429,7 @@ final class ConfigReloadCoordinator {
                 || validation.managedCaps && currentCapsPaused()
             else {
                 return .failure(error: managedCapsRestartFailureReason?(restartGeneration)
-                    ?? "The session did not restart in the required Caps runtime mode", response: "")
+                    ?? String(localized: "The session did not restart in the required Caps runtime mode"), response: "")
             }
             return .success(response: "Session restarted for Caps runtime mode change")
         }
@@ -456,7 +456,7 @@ final class ConfigReloadCoordinator {
             return .networkError(Self.runtimeIntentChangedMessage)
         }
         guard currentManagedCaps() == validation.managedCaps || staysPaused && currentCapsPaused() else {
-            return .failure(error: "The Caps runtime mode changed during reload; retry after the session settles", response: "")
+            return .failure(error: String(localized: "The Caps runtime mode changed during reload; retry after the session settles"), response: "")
         }
         AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
         let res = await engineClient.reloadConfig()

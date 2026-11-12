@@ -19,21 +19,21 @@ public final class KanataConfigMigrationService {
         public var errorDescription: String? {
             switch self {
             case let .sourceNotFound(path):
-                "Source config file not found: \(path)"
+                String(localized: "Source config file not found: \(path)")
             case let .destinationExists(path):
-                "Destination already exists: \(path)"
+                String(localized: "Destination already exists: \(path)")
             case let .copyFailed(path, error):
-                "Failed to copy config from \(path): \(error.localizedDescription)"
+                String(localized: "Failed to copy config from \(path): \(error.localizedDescription)")
             case let .symlinkFailed(path, error):
-                "Failed to create symlink from \(path): \(error.localizedDescription)"
+                String(localized: "Failed to create symlink from \(path): \(error.localizedDescription)")
             case let .readFailed(path, error):
-                "Failed to read config from \(path): \(error.localizedDescription)"
+                String(localized: "Failed to read config from \(path): \(error.localizedDescription)")
             case let .writeFailed(path, error):
-                "Failed to write config to \(path): \(error.localizedDescription)"
+                String(localized: "Failed to write config to \(path): \(error.localizedDescription)")
             case let .backupFailed(path, error):
-                "Failed to create backup at \(path): \(error.localizedDescription)"
+                String(localized: "Failed to create backup at \(path): \(error.localizedDescription)")
             case .includeAlreadyPresent:
-                "Include line already present in config"
+                String(localized: "Include line already present in config")
             }
         }
     }

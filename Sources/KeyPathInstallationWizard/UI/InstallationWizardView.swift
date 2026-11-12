@@ -186,7 +186,7 @@ public struct InstallationWizardView: View {
             Button("Cancel", role: .cancel) {}
                 .accessibilityIdentifier("wizard-check-cancel")
         } message: {
-            Text(asyncOperationManager.lastError?.localizedDescription ?? "Please try again.")
+            Text(asyncOperationManager.lastError?.localizedDescription ?? String(localized: "Please try again."))
         }
         .alert("Close Setup Wizard?", isPresented: $showingCloseConfirmation) {
             closeConfirmationButtons
@@ -287,10 +287,10 @@ public struct InstallationWizardView: View {
 
     private var closeConfirmationMessage: some View {
         let criticalCount = stateMachine.wizardIssues.filter { $0.severity == .critical }.count
-        return Text(
-            "There \(criticalCount == 1 ? "is" : "are") \(criticalCount) critical \(criticalCount == 1 ? "issue" : "issues") "
-                + "that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?"
-        )
+        let message = criticalCount == 1
+            ? String(localized: "There is 1 critical issue that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?")
+            : String(localized: "There are \(criticalCount) critical issues that may prevent KeyPath from working properly. Are you sure you want to close the setup wizard?")
+        return Text(message)
     }
 
     // MARK: - Event Handlers

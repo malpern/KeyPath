@@ -101,7 +101,7 @@ extension KanataConfiguration {
             aliasDefinitions.append(AliasDefinition(
                 aliasName: aliasName,
                 definition: definition,
-                comment: "tap: \(tapOutput)  hold: \(pref.targetLayer.displayName) layer"
+                comment: "tap: \(tapOutput)  hold: \(pref.targetLayer.configName) layer"
             ))
 
             let entry = LayerEntry(
@@ -113,7 +113,7 @@ extension KanataConfiguration {
             let metadata = [
                 "  ;; === Primary Leader Key (System Preference) ===",
                 "  ;; Input: \(pref.key)",
-                "  ;; Activates: \(pref.targetLayer.displayName)"
+                "  ;; Activates: \(pref.targetLayer.configName)"
             ]
             activatorBlocks.append(CollectionBlock(metadata: metadata, entries: [entry]))
         }
@@ -224,7 +224,7 @@ extension KanataConfiguration {
                 aliasDefinitions.append(AliasDefinition(
                     aliasName: aliasName,
                     definition: definition,
-                    comment: "tap: \(tapOutput)  hold: \(activator.targetLayer.displayName) layer"
+                    comment: "tap: \(tapOutput)  hold: \(activator.targetLayer.configName) layer"
                 ))
 
                 // Determine where to place the activator

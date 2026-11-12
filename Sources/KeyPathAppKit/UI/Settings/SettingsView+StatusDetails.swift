@@ -16,11 +16,11 @@ extension StatusSettingsTabView {
 
         var accessibilityValue: String {
             switch self {
-            case .success: "success"
-            case .warning: "warning"
-            case .critical: "critical"
-            case .checking: "checking"
-            case .disabled: "disabled"
+            case .success: String(localized: "success", comment: "VoiceOver status value")
+            case .warning: String(localized: "warning", comment: "VoiceOver status value")
+            case .critical: String(localized: "critical", comment: "VoiceOver status value")
+            case .checking: String(localized: "checking", comment: "VoiceOver status value")
+            case .disabled: String(localized: "disabled", comment: "VoiceOver status value")
             }
         }
     }
@@ -108,9 +108,9 @@ extension StatusSettingsTabView {
 
     var systemHealthMessage: String {
         if isIntentionallyDisabled {
-            return "KeyPath is Off"
+            return String(localized: "KeyPath is Off")
         }
-        guard let context = systemContext else { return "Checking status…" }
+        guard let context = systemContext else { return String(localized: "Checking status…") }
         if !context.services.kanataRunning {
             return kanataServiceStatus
         }
@@ -119,20 +119,20 @@ extension StatusSettingsTabView {
             if let snapshot = permissionSnapshot {
                 let evaluation = permissionGaps(in: snapshot)
                 if evaluation.missingOrDenied.isEmpty, !evaluation.unknown.isEmpty {
-                    return "Permissions Unverified"
+                    return String(localized: "Permissions Unverified")
                 }
             }
-            return "Permissions Required"
+            return String(localized: "Permissions Required")
         }
         if kanataManager.capsPausedMessage != nil {
-            return "Caps Lock Needs Attention"
+            return String(localized: "Caps Lock Needs Attention")
         }
-        return overallHealthLevel == .success ? "Everything's Working" : "Setup Needed"
+        return overallHealthLevel == .success ? String(localized: "Everything's Working") : String(localized: "Setup Needed")
     }
 
     var kanataServiceStatus: String {
-        guard let context = systemContext else { return "Checking…" }
-        return context.services.kanataRunning ? "Service Running" : "Service Stopped"
+        guard let context = systemContext else { return String(localized: "Checking…") }
+        return context.services.kanataRunning ? String(localized: "Service Running") : String(localized: "Service Stopped")
     }
 
     var primaryIssueDetail: StatusDetail? {
@@ -161,15 +161,15 @@ extension StatusSettingsTabView {
 
     /// A stopped runtime says why when it knows, instead of only how to start it.
     static func stoppedMessage(lastError: String?) -> String {
-        guard let lastError, !lastError.isEmpty else { return "Runtime is stopped. Use the switch above to turn it on." }
-        return "Runtime is stopped. \(lastError)"
+        guard let lastError, !lastError.isEmpty else { return String(localized: "Runtime is stopped. Use the switch above to turn it on.") }
+        return String(localized: "Runtime is stopped. \(lastError)")
     }
 
     var serviceStatusDetail: StatusDetail {
         guard let context = systemContext else {
             return StatusDetail(
-                title: "Keyboard remapping",
-                message: "Checking current status…",
+                title: String(localized: "Keyboard remapping"),
+                message: String(localized: "Checking current status…"),
                 icon: "ellipsis.circle",
                 level: .info
             )
@@ -177,8 +177,8 @@ extension StatusSettingsTabView {
 
         if isIntentionallyDisabled {
             return StatusDetail(
-                title: "Keyboard remapping",
-                message: "Turned off. Flip the switch above to resume remapping.",
+                title: String(localized: "Keyboard remapping"),
+                message: String(localized: "Turned off. Flip the switch above to resume remapping."),
                 icon: "power",
                 level: .info
             )
@@ -187,36 +187,36 @@ extension StatusSettingsTabView {
         if context.services.kanataRunning {
             let runtimeMessage =
                 if let runtimePathTitle = context.services.activeRuntimePathTitle {
-                    "Running via \(runtimePathTitle.lowercased())."
+                    String(localized: "Running via \(runtimePathTitle.lowercased()).")
                 } else {
-                    "Running normally."
+                    String(localized: "Running normally.")
                 }
             if let paused = kanataManager.capsPausedMessage {
                 return StatusDetail(
-                    title: "Keyboard remapping",
+                    title: String(localized: "Keyboard remapping"),
                     message: "\(runtimeMessage) \(paused)",
                     icon: "capslock",
                     level: .warning
                 )
             }
             return StatusDetail(
-                title: "Keyboard remapping",
-                message: "\(runtimeMessage) Powered by Kanata.",
+                title: String(localized: "Keyboard remapping"),
+                message: String(localized: "\(runtimeMessage) Powered by Kanata."),
                 icon: "bolt.fill",
                 level: .success
             )
         }
 
         return StatusDetail(
-            title: "Keyboard remapping",
+            title: String(localized: "Keyboard remapping"),
             message: Self.stoppedMessage(lastError: kanataManager.lastError),
             icon: "pause.circle",
             level: .warning,
             actions: [
-                StatusDetailAction(title: "Open System Settings", icon: "list.bullet") {
+                StatusDetailAction(title: String(localized: "Open System Settings"), icon: "list.bullet") {
                     SystemDiagnostics.open(.systemSettings)
                 },
-                StatusDetailAction(title: "Open Wizard", icon: "wand.and.stars") {
+                StatusDetailAction(title: String(localized: "Open Wizard"), icon: "wand.and.stars") {
                     wizardInitialPage = .summary
                 }
             ]
@@ -226,8 +226,8 @@ extension StatusSettingsTabView {
     var permissionDetail: StatusDetail? {
         guard let snapshot = permissionSnapshot else {
             return StatusDetail(
-                title: "Permissions",
-                message: "Checking current permissions…",
+                title: String(localized: "Permissions"),
+                message: String(localized: "Checking current permissions…"),
                 icon: "ellipsis.circle",
                 level: .info
             )
@@ -237,8 +237,8 @@ extension StatusSettingsTabView {
 
         if evaluation.missingOrDenied.isEmpty, evaluation.unknown.isEmpty {
             return StatusDetail(
-                title: "Permissions",
-                message: "All required permissions are granted.",
+                title: String(localized: "Permissions"),
+                message: String(localized: "All required permissions are granted."),
                 icon: "checkmark.shield.fill",
                 level: .success
             )
@@ -249,17 +249,17 @@ extension StatusSettingsTabView {
             lines.append(blocking)
         }
         if !evaluation.missingOrDenied.isEmpty {
-            lines.append("Missing: \(evaluation.missingOrDenied.joined(separator: ", "))")
+            lines.append(String(localized: "Missing: \(evaluation.missingOrDenied.joined(separator: ", "))"))
         }
         if !evaluation.unknown.isEmpty {
-            lines.append("Not yet verified: \(evaluation.unknown.joined(separator: ", ")). Retry setup to check current access.")
+            lines.append(String(localized: "Not yet verified: \(evaluation.unknown.joined(separator: ", ")). Retry setup to check current access."))
         }
 
         var actions: [StatusDetailAction] = []
 
         if !evaluation.unknown.isEmpty {
             actions.append(
-                StatusDetailAction(title: "Retry Setup", icon: "wand.and.stars") {
+                StatusDetailAction(title: String(localized: "Retry Setup"), icon: "wand.and.stars") {
                     wizardInitialPage = .summary
                 }
             )
@@ -267,7 +267,7 @@ extension StatusSettingsTabView {
 
         if evaluation.hasErrors || !evaluation.missingOrDenied.isEmpty {
             actions.append(
-                StatusDetailAction(title: "Fix", icon: "wand.and.stars") {
+                StatusDetailAction(title: String(localized: "Fix", comment: "Status action button: fix missing permissions"), icon: "wand.and.stars") {
                     showingPermissionAlert = true
                 }
             )
@@ -286,7 +286,7 @@ extension StatusSettingsTabView {
         }
 
         return StatusDetail(
-            title: "Permissions",
+            title: String(localized: "Permissions"),
             message: lines.joined(separator: "\n"),
             icon: "exclamationmark.shield",
             level: evaluation.hasErrors ? .critical : .warning,
@@ -301,12 +301,12 @@ extension StatusSettingsTabView {
         guard !isIntentionallyDisabled else { return nil }
         guard serviceStatusDetail.level != .success else { return nil }
         return StatusDetail(
-            title: "KeyPath Logs",
-            message: "Open KeyPath’s log for remapping startup errors and permission failures.",
+            title: String(localized: "KeyPath Logs"),
+            message: String(localized: "Open KeyPath’s log for remapping startup errors and permission failures."),
             icon: "doc.text.magnifyingglass",
             level: .info,
             actions: [
-                StatusDetailAction(title: "Open", icon: "doc.text") {
+                StatusDetailAction(title: String(localized: "Open", comment: "Status action button: open the log file"), icon: "doc.text") {
                     openFileInPreferredEditor(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/KeyPath/keypath-debug.log"))
                 }
             ]
@@ -317,12 +317,12 @@ extension StatusSettingsTabView {
         guard duplicateAppCopies.count > 1 else { return nil }
         let count = duplicateAppCopies.count
         return StatusDetail(
-            title: "Other App Copies",
-            message: "Found \(count) copies of KeyPath. If permissions stop working, review the extra copies in Repair/Remove.",
+            title: String(localized: "Other App Copies"),
+            message: String(localized: "Found \(count) copies of KeyPath. If permissions stop working, review the extra copies in Repair/Remove."),
             icon: "info.circle",
             level: .info,
             actions: [
-                StatusDetailAction(title: "Review", icon: "arrow.right") {
+                StatusDetailAction(title: String(localized: "Review", comment: "Status action button: review extra app copies"), icon: "arrow.right") {
                     NotificationCenter.default.post(name: .openSettingsAdvanced, object: nil)
                 }
             ]
@@ -353,9 +353,9 @@ extension StatusSettingsTabView {
             }
         }
 
-        append(status: snapshot.accessibility, label: "KeyPath \(AccessibilityPermissionPresentation.current.name)")
+        append(status: snapshot.accessibility, label: String(localized: "KeyPath \(AccessibilityPermissionPresentation.current.name)"))
         // The runtime's own report: it uses KeyPath's grant, so a gap here means it needs relaunching.
-        append(status: snapshot.runtimeKeyAccess.status, label: "Runtime key access")
+        append(status: snapshot.runtimeKeyAccess.status, label: String(localized: "Runtime key access"))
 
         return (missingOrDenied, unknown, hasErrors)
     }

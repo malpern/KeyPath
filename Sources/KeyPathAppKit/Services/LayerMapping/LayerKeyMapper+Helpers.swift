@@ -118,17 +118,17 @@ extension LayerKeyMapper {
     nonisolated func systemActionDisplayLabel(_ action: String) -> String {
         switch action.lowercased() {
         case "dnd", "do-not-disturb", "donotdisturb", "focus":
-            "Do Not Disturb"
+            String(localized: "Do Not Disturb")
         case "spotlight":
             "Spotlight"
         case "dictation":
-            "Dictation"
+            String(localized: "Dictation")
         case "mission-control", "missioncontrol":
-            "Mission Control"
+            String(localized: "Mission Control")
         case "launchpad":
             "Launchpad"
         case "notification-center", "notificationcenter":
-            "Notification Center"
+            String(localized: "Notification Center")
         case "siri":
             "Siri"
         default:

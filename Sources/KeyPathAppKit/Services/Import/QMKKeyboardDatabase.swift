@@ -736,11 +736,11 @@ enum QMKDatabaseError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .invalidURL(message):
-            "Invalid URL: \(message)"
+            String(localized: "Invalid URL: \(message)")
         case let .networkError(message):
-            "Network error: \(message)"
+            String(localized: "Network error: \(message)")
         case let .parseError(message):
-            "Parse error: \(message)"
+            String(localized: "Parse error: \(message)")
         }
     }
 }

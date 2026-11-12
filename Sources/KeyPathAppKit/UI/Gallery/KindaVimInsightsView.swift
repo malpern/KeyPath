@@ -55,7 +55,7 @@ struct KindaVimInsightsView: View {
         let series = chartSeries
         VStack(alignment: .leading, spacing: 6) {
             VStack(alignment: .leading, spacing: 2) {
-                sectionHeader("Arrow-key reliance · last 30 days")
+                sectionHeader(String(localized: "Arrow-key reliance · last 30 days"))
                 Text("Lower is better — less reaching for the arrow keys.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -173,14 +173,18 @@ struct KindaVimInsightsView: View {
     }
 
     private func accessibilityChartSummary(series: [ChartPoint]) -> String {
-        guard let last = series.last else { return "No data yet." }
+        guard let last = series.last else { return String(localized: "No data yet.") }
         let now = Int(last.percent)
         guard let first = series.first, series.count >= 2 else {
-            return "Currently \(now) percent."
+            return String(localized: "Currently \(now) percent.")
         }
         let then = Int(first.percent)
-        let direction = now < then ? "down" : (now > then ? "up" : "flat")
-        return "Currently \(now) percent, \(direction) from \(then) percent at the start of the window."
+        if now < then {
+            return String(localized: "Currently \(now) percent, down from \(then) percent at the start of the window.")
+        } else if now > then {
+            return String(localized: "Currently \(now) percent, up from \(then) percent at the start of the window.")
+        }
+        return String(localized: "Currently \(now) percent, flat from \(then) percent at the start of the window.")
     }
 
     private struct ChartPoint: Identifiable, Equatable {
@@ -213,16 +217,16 @@ struct KindaVimInsightsView: View {
         guard let last = series.last else { return "" }
         let now = Int(last.percent)
         guard let first = series.first, series.count >= 7 else {
-            return "Now: \(now)%."
+            return String(localized: "Now: \(now)%.")
         }
         let then = Int(first.percent)
         let delta = then - now
         if delta > 5 {
-            return "Now: \(now)% — down \(delta) points from \(then)%. ↓"
+            return String(localized: "Now: \(now)% — down \(delta) points from \(then)%. ↓")
         } else if delta < -5 {
-            return "Now: \(now)% — up \(-delta) points from \(then)%."
+            return String(localized: "Now: \(now)% — up \(-delta) points from \(then)%.")
         }
-        return "Now: \(now)% — holding steady around \(then)%."
+        return String(localized: "Now: \(now)% — holding steady around \(then)%.")
     }
 
     // MARK: - Usage bars
@@ -232,7 +236,7 @@ struct KindaVimInsightsView: View {
         let all = topCommands
         let visible = showAllCommands ? all : Array(all.prefix(8))
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader("What you're using")
+            sectionHeader(String(localized: "What you're using"))
             if all.isEmpty {
                 Text("No commands recorded yet.")
                     .font(.callout)
@@ -271,6 +275,15 @@ struct KindaVimInsightsView: View {
         case learning = "Learning"
         case comfortable = "Comfortable"
         case fluent = "Fluent"
+
+        var title: String {
+            switch self {
+            case .untried: String(localized: "Untried", comment: "Vim command mastery tier")
+            case .learning: String(localized: "Learning", comment: "Vim command mastery tier")
+            case .comfortable: String(localized: "Comfortable", comment: "Vim command mastery tier")
+            case .fluent: String(localized: "Fluent", comment: "Vim command mastery tier")
+            }
+        }
     }
 
     private static func tier(for count: Int) -> MasteryTier {
@@ -363,7 +376,7 @@ struct KindaVimInsightsView: View {
                 .frame(width: 44, alignment: .trailing)
                 .contentTransition(.numericText())
                 .animation(.easeOut(duration: 0.4), value: entry.count)
-            Text(entry.tier.rawValue)
+            Text(entry.tier.title)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(tierColor(entry.tier))
                 .frame(width: 80, alignment: .leading)
@@ -397,7 +410,7 @@ struct KindaVimInsightsView: View {
     private var insightCards: some View {
         let insights = VimInsightsEngine.insights(for: snapshot)
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("What to try next")
+            sectionHeader(String(localized: "What to try next"))
             if insights.isEmpty {
                 Text("No suggestions yet — keep using the pack and tips will appear here.")
                     .font(.callout)
@@ -448,8 +461,8 @@ struct KindaVimInsightsView: View {
         let normalPct = total > 0 ? Int(normalSec * 100 / total) : 0
 
         return HStack(spacing: 16) {
-            statChip(label: "In rotation", value: "\(vocab) commands")
-            statChip(label: "Normal mode", value: total > 0 ? "\(normalPct)%" : "—")
+            statChip(label: String(localized: "In rotation"), value: String(localized: "\(vocab) commands"))
+            statChip(label: String(localized: "Normal mode"), value: total > 0 ? "\(normalPct)%" : "—")
             Spacer()
         }
     }

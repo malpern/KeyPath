@@ -194,7 +194,7 @@ public struct WizardOperationProgress: View {
     private var operationDisplayName: String {
         let trimmed = operationName.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            return "Working..."
+            return String(localized: "Working...")
         }
         return trimmed
     }

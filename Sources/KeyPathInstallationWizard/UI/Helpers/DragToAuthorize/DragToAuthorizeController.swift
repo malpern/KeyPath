@@ -56,7 +56,7 @@ public final class DragToAuthorizeController {
         /// Secondary label shown under the tile's primary label.
         var subtitle: String {
             switch self {
-            case .keyPath: "Main application"
+            case .keyPath: String(localized: "Main application")
             }
         }
     }

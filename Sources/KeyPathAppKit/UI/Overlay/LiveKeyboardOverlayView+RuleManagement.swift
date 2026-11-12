@@ -39,7 +39,7 @@ extension LiveKeyboardOverlayView {
             } catch {
                 AppLogger.shared.log("⚠️ [Overlay] Failed to delete app rule: \(error)")
                 await MainActor.run {
-                    appRuleDeleteError = "Failed to delete rule: \(error.localizedDescription)"
+                    appRuleDeleteError = String(localized: "Failed to delete rule: \(error.localizedDescription)")
                 }
             }
         }
@@ -57,7 +57,7 @@ extension LiveKeyboardOverlayView {
                 try await manager.mutateAppKeymaps(store: services.appKeymapStore) { $0.removeAll() }
             } catch {
                 AppLogger.shared.log("⚠️ [LiveKeyboardOverlay] Failed to clear app rules: \(error)")
-                appRuleDeleteError = "Failed to clear app rules: \(error.localizedDescription)"
+                appRuleDeleteError = String(localized: "Failed to clear app rules: \(error.localizedDescription)")
                 return
             }
 

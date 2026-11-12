@@ -72,9 +72,9 @@ enum PackSummaryProvider {
 
         let tapLabel = tap.map(formatKey) ?? "—"
         if let hold, !hold.isEmpty {
-            return "Tap: \(tapLabel)  ·  Hold: \(formatKey(hold))"
+            return String(localized: "Tap: \(tapLabel)  ·  Hold: \(formatKey(hold))")
         }
-        return "Tap: \(tapLabel)"
+        return String(localized: "Tap: \(tapLabel)")
     }
 
     private static func singleKeySummary(for input: Input, collection: RuleCollection) -> String? {
@@ -94,9 +94,9 @@ enum PackSummaryProvider {
     private static func templateSummary(_ template: PackBindingTemplate) -> String {
         let tap = formatKey(template.output)
         if let hold = template.holdOutput, !hold.isEmpty {
-            return "Tap: \(tap)  ·  Hold: \(formatKey(hold))"
+            return String(localized: "Tap: \(tap)  ·  Hold: \(formatKey(hold))")
         }
-        return "Tap: \(tap)"
+        return String(localized: "Tap: \(tap)")
     }
 
     // MARK: - Key formatting

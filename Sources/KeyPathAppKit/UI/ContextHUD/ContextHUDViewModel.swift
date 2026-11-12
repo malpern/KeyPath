@@ -176,7 +176,7 @@ final class ContextHUDViewModel {
             let collectionId = keyMap[entry.keyCode]?.collectionId ?? defaultGroupId
             if groupMap[collectionId] == nil {
                 let collection = collectionLookup[collectionId]
-                let name = collection?.name ?? "Keys"
+                let name = collection?.name ?? String(localized: "Keys", comment: "Layer HUD group name for keys without a collection")
                 let color = collectionColor(for: collectionId == defaultGroupId ? nil : collectionId)
                 groupMap[collectionId] = (name: name, color: color, entries: [])
             }
@@ -188,7 +188,7 @@ final class ContextHUDViewModel {
             let collectionId = launcherKeyMap?[entry.keyCode]?.collectionId ?? defaultGroupId
             if groupMap[collectionId] == nil {
                 let collection = collectionLookup[collectionId]
-                let name = collection?.name ?? "Quick Launch"
+                let name = collection?.name ?? String(localized: "Quick Launch")
                 let color = collectionColor(for: collectionId == defaultGroupId ? nil : collectionId)
                 groupMap[collectionId] = (name: name, color: color, entries: [])
             }
@@ -208,7 +208,7 @@ final class ContextHUDViewModel {
             for entry in familyGroup.entries {
                 let category = VimLayerReference.presentation(forInput: Self.vimInput(for: entry.keyCode))?.category
                 let sub = category.map { (name: $0.title, order: VimCategory.allCases.firstIndex(of: $0) ?? 99) }
-                    ?? (name: "Other", order: 99)
+                    ?? (name: String(localized: "Other", comment: "Layer HUD group name for uncategorized Vim keys"), order: 99)
                 subGroupEntries[sub.name, default: (order: sub.order, entries: [])].entries.append(entry)
             }
             for (name, group) in subGroupEntries {
@@ -349,27 +349,27 @@ final class ContextHUDViewModel {
 
     /// VIM English descriptions for the HUD action column
     private static let vimHUDDescriptions: [String: String] = [
-        "←": "← left",
-        "↓": "↓ down",
-        "↑": "↑ up",
-        "→": "→ right",
-        "0": "line start",
-        "$": "line end",
-        "a": "append",
-        "gg": "doc top / bottom",
-        "find": "find",
-        "next": "next / prev match",
-        "yank": "copy",
-        "put": "paste",
-        "del": "fwd delete",
-        "redo": "redo",
-        "d": "delete previous word",
-        "undo": "undo",
-        "o": "open line below/above",
+        "←": String(localized: "← left", comment: "Vim action shown in the layer HUD"),
+        "↓": String(localized: "↓ down", comment: "Vim action shown in the layer HUD"),
+        "↑": String(localized: "↑ up", comment: "Vim action shown in the layer HUD"),
+        "→": String(localized: "→ right", comment: "Vim action shown in the layer HUD"),
+        "0": String(localized: "line start", comment: "Vim action shown in the layer HUD"),
+        "$": String(localized: "line end", comment: "Vim action shown in the layer HUD"),
+        "a": String(localized: "append", comment: "Vim action shown in the layer HUD"),
+        "gg": String(localized: "doc top / bottom", comment: "Vim action shown in the layer HUD"),
+        "find": String(localized: "find", comment: "Vim action shown in the layer HUD"),
+        "next": String(localized: "next / prev match", comment: "Vim action shown in the layer HUD"),
+        "yank": String(localized: "copy", comment: "Vim action shown in the layer HUD"),
+        "put": String(localized: "paste", comment: "Vim action shown in the layer HUD"),
+        "del": String(localized: "fwd delete", comment: "Vim action shown in the layer HUD"),
+        "redo": String(localized: "redo", comment: "Vim action shown in the layer HUD"),
+        "d": String(localized: "delete previous word", comment: "Vim action shown in the layer HUD"),
+        "undo": String(localized: "undo", comment: "Vim action shown in the layer HUD"),
+        "o": String(localized: "open line below/above", comment: "Vim action shown in the layer HUD"),
         // KindaVim word motion extras
-        "w": "word →",
-        "b": "← word",
-        "e": "end word",
+        "w": String(localized: "word →", comment: "Vim action shown in the layer HUD"),
+        "b": String(localized: "← word", comment: "Vim action shown in the layer HUD"),
+        "e": String(localized: "end word", comment: "Vim action shown in the layer HUD"),
     ]
 
     /// Convert key code to a display label for the keycap

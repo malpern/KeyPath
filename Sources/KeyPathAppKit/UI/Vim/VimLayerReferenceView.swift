@@ -51,7 +51,7 @@ struct VimLayerReferenceView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 12) {
-            Text(activationHint ?? "Hold Space, then press a key. Release Space to type normally.")
+            Text(activationHint ?? String(localized: "Hold Space, then press a key. Release Space to type normally."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -73,9 +73,9 @@ struct VimLayerReferenceView: View {
 
     private static func pickerTitle(_ modifier: VimLayerModifier) -> String {
         switch modifier {
-        case .none: "Space"
-        case .shift: "Space + ⇧"
-        case .control: "Space + ⌃"
+        case .none: String(localized: "Space", comment: "Vim layer picker: no modifier, just the Space activator")
+        case .shift: String(localized: "Space + ⇧", comment: "Vim layer picker: Space plus Shift")
+        case .control: String(localized: "Space + ⌃", comment: "Vim layer picker: Space plus Control")
         }
     }
 
@@ -85,7 +85,7 @@ struct VimLayerReferenceView: View {
                let entry = entries.first(where: { $0.input == input }),
                let variant = entry.variant(for: modifier) ?? entry.variant(for: .none)
             {
-                VimReferenceCap(text: "Space")
+                VimReferenceCap(text: String(localized: "Space", comment: "Key name: the space bar"))
                 Text("+").foregroundStyle(.tertiary)
                 VimReferenceCap(text: variant.label)
                 Text(variant.title)
@@ -115,9 +115,9 @@ struct VimLayerReferenceView: View {
 
     private var modifierHint: String {
         switch modifier {
-        case .none: "Point at a key to see what it does and which Mac shortcut it sends."
-        case .shift: "Holding Shift changes \(entries.count(where: { $0.shift != nil })) keys. The rest are dimmed."
-        case .control: "Holding Control changes \(entries.count(where: { $0.ctrl != nil })) keys. The rest are dimmed."
+        case .none: String(localized: "Point at a key to see what it does and which Mac shortcut it sends.")
+        case .shift: String(localized: "Holding Shift changes \(entries.count(where: { $0.shift != nil })) keys. The rest are dimmed.")
+        case .control: String(localized: "Holding Control changes \(entries.count(where: { $0.ctrl != nil })) keys. The rest are dimmed.")
         }
     }
 }
@@ -303,9 +303,9 @@ private struct VimLayerActivatorKey: View {
 
     private var text: String {
         switch modifier {
-        case .none: compact ? "Space" : "Hold Space"
-        case .shift: compact ? "Space ⇧" : "Hold Space + ⇧"
-        case .control: compact ? "Space ⌃" : "Hold Space + ⌃"
+        case .none: compact ? String(localized: "Space", comment: "Key name: the space bar") : String(localized: "Hold Space")
+        case .shift: compact ? String(localized: "Space ⇧", comment: "Keycap: Space plus Shift") : String(localized: "Hold Space + ⇧")
+        case .control: compact ? String(localized: "Space ⌃", comment: "Keycap: Space plus Control") : String(localized: "Hold Space + ⌃")
         }
     }
 
@@ -353,7 +353,14 @@ struct VimLayerCommandList: View {
         }
         let others = entries.filter { $0.category == nil }
         if !others.isEmpty {
-            result.append(Group(id: "more", title: "More", icon: "ellipsis", color: .secondary, entries: others, showsArrowCluster: false))
+            result.append(Group(
+                id: "more",
+                title: String(localized: "More", comment: "Vim command list group for keys without a category"),
+                icon: "ellipsis",
+                color: .secondary,
+                entries: others,
+                showsArrowCluster: false
+            ))
         }
         return result
     }
@@ -469,7 +476,12 @@ struct VimReferenceCap: View {
 extension VimLayerReference {
     /// Spoken name for an arrow-cluster key, used by VoiceOver.
     static func entry(forArrow input: String) -> String {
-        ["h": "Left", "j": "Down", "k": "Up", "l": "Right"][input] ?? input
+        [
+            "h": String(localized: "Left", comment: "Arrow key direction, spoken by VoiceOver"),
+            "j": String(localized: "Down", comment: "Arrow key direction, spoken by VoiceOver"),
+            "k": String(localized: "Up", comment: "Arrow key direction, spoken by VoiceOver"),
+            "l": String(localized: "Right", comment: "Arrow key direction, spoken by VoiceOver")
+        ][input] ?? input
     }
 }
 

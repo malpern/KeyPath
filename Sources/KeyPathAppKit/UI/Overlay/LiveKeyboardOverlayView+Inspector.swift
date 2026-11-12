@@ -82,7 +82,7 @@ struct OverlayInspectorPanel: View {
     @State var launcherHyperTriggerMode: HyperTriggerMode = .hold
 
     /// Labels for tap-dance steps beyond double tap
-    static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap"]
+    static let tapDanceLabels = [String(localized: "Triple Tap"), String(localized: "Quad Tap"), String(localized: "Quint Tap")]
 
     /// Binding for whether any panel is open
     private var isPanelPresented: Binding<Bool> {

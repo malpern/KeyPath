@@ -68,13 +68,13 @@ public enum TypingFeelMapping {
     public static func helperText(forSliderPosition position: Double) -> String {
         switch position {
         case 0 ..< 0.3:
-            "Favors fast typing. Longer window before a hold registers."
+            String(localized: "Favors fast typing. Longer window before a hold registers.")
         case 0.3 ..< 0.7:
-            "Balanced. Works well for most users."
+            String(localized: "Balanced. Works well for most users.")
         case 0.7 ... 1.0:
-            "Modifiers trigger quickly. Best for shortcut-heavy workflows."
+            String(localized: "Modifiers trigger quickly. Best for shortcut-heavy workflows.")
         default:
-            "Balanced. Works well for most users."
+            String(localized: "Balanced. Works well for most users.")
         }
     }
 

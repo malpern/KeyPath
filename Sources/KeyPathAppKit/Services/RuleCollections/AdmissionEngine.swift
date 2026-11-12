@@ -118,7 +118,7 @@ enum AdmissionEngine {
                 inputKey: key, layer: layer,
                 conflictingCollections: parties.map { subject in
                     switch subject {
-                    case let .collection(id), let .customRule(id): names[id] ?? "a rule"
+                    case let .collection(id), let .customRule(id): names[id] ?? String(localized: "a rule")
                     case let .pack(id): id
                     case let .named(name): name
                     }
@@ -180,14 +180,14 @@ enum AdmissionEngine {
                 var hold: String?
                 if case let .dualRole(dualRole)? = mapping.behavior { hold = dualRole.holdActionString }
                 claim(slot, Stake(subject: owner.subject, name: owner.collection.name,
-                                  detail: hold.map { "\(owner.collection.name): hold → \($0)" }))
+                                  detail: hold.map { String(localized: "\(owner.collection.name): hold → \($0)") }))
                 mappers[slot, default: []].append((owner.subject, owner.collection.name))
             }
         }
         if let leader, let leaderInput {
             claim(KeySlot(input: leaderInput, layer: .base),
-                  Stake(subject: .named("Leader Key"), name: "Leader Key",
-                        detail: "Leader Key: hold → \(leader.targetLayer.displayName) layer"))
+                  Stake(subject: .named(String(localized: "Leader Key")), name: String(localized: "Leader Key"),
+                        detail: String(localized: "Leader Key: hold → \(leader.targetLayer.displayName) layer")))
         }
         for slot in slotOrder {
             let stakes = keySlots[slot]!
@@ -213,8 +213,8 @@ enum AdmissionEngine {
         }
         if let leader, let leaderInput {
             claimActivator(ActivatorSlot(sourceLayer: .base, input: leaderInput),
-                           Stake(subject: .named("Leader Key"), name: "Leader Key",
-                                 detail: "Leader Key: activates \(leader.targetLayer.displayName)"),
+                           Stake(subject: .named(String(localized: "Leader Key")), name: String(localized: "Leader Key"),
+                                 detail: String(localized: "Leader Key: activates \(leader.targetLayer.displayName)")),
                            target: leader.targetLayer)
         }
         for owner in owners {
@@ -225,15 +225,15 @@ enum AdmissionEngine {
             let name = owner.collection.name
             claimActivator(ActivatorSlot(sourceLayer: activator.sourceLayer, input: input),
                            Stake(subject: owner.subject, name: name,
-                                 detail: "\(name): activates \(activator.targetLayer.displayName)"),
+                                 detail: String(localized: "\(name): activates \(activator.targetLayer.displayName)")),
                            target: activator.targetLayer)
             let others = (mappers[KeySlot(input: input, layer: activator.sourceLayer)] ?? [])
                 .filter { $0.subject != owner.subject }
                 .sorted { $0.name < $1.name }
             guard !others.isEmpty else { continue }
             conflict(input, activator.sourceLayer.displayName,
-                     [Stake(subject: owner.subject, name: name, detail: "\(name): activates \(activator.targetLayer.displayName)")]
-                         + others.map { Stake(subject: $0.subject, name: $0.name, detail: "\($0.name): maps \(input)") })
+                     [Stake(subject: owner.subject, name: name, detail: String(localized: "\(name): activates \(activator.targetLayer.displayName)"))]
+                         + others.map { Stake(subject: $0.subject, name: $0.name, detail: String(localized: "\($0.name): maps \(input)")) })
         }
         for slot in activatorOrder {
             let claims = activators[slot]!
@@ -248,11 +248,11 @@ enum AdmissionEngine {
             guard case let .chordGroups(config) = owner.collection.configuration else { continue }
             let layer = owner.collection.targetLayer.displayName
             for duplicate in config.detectDuplicateGroupNames() {
-                let group = Stake(subject: .named("chord group '\(duplicate.name)'"),
-                                  name: "chord group '\(duplicate.name)'", detail: nil)
+                let groupName = String(localized: "chord group '\(duplicate.name)'")
+                let group = Stake(subject: .named(groupName), name: groupName, detail: nil)
                 var stakes = Array(repeating: group, count: duplicate.count)
                 stakes[0] = Stake(subject: group.subject, name: group.name,
-                                  detail: "\(duplicate.count) chord groups share the name '\(duplicate.name)' — chord group names must be unique")
+                                  detail: String(localized: "\(duplicate.count) chord groups share the name '\(duplicate.name)' — chord group names must be unique"))
                 conflict(duplicate.name, layer, stakes, subject: owner.subject)
             }
             for crossing in config.detectCrossGroupConflicts() {
@@ -297,7 +297,7 @@ enum AdmissionEngine {
             let parties = origins.filter { seen.insert($0.subject).inserted }.sorted { $0.name < $1.name }
             var stakes = parties.map { Stake(subject: $0.subject, name: $0.name, detail: nil) }
             stakes[0] = Stake(subject: stakes[0].subject, name: stakes[0].name,
-                              detail: "keys \(inputs.joined(separator: ", ")) all generate the alias '\(alias)'")
+                              detail: String(localized: "keys \(inputs.joined(separator: ", ")) all generate the alias '\(alias)'"))
             conflict(inputs.joined(separator: " / "), origins[0].layer, stakes)
         }
         return verdicts

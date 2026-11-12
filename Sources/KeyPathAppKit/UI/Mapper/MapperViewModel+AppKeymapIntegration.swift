@@ -36,7 +36,7 @@ extension MapperViewModel {
             return true
         } catch {
             AppLogger.shared.error("❌ [MapperViewModel] Failed to save app-specific mapping: \(error)")
-            statusMessage = "Failed to save: \(error.localizedDescription)"
+            statusMessage = String(localized: "Failed to save: \(error.localizedDescription)")
             statusIsError = true
             return false
         }

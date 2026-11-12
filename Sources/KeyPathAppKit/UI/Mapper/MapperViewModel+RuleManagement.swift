@@ -13,7 +13,7 @@ extension MapperViewModel {
               !outputSeq.isEmpty
         else {
             AppLogger.shared.log("🚫 [MapperViewModel] Save declined: input or output not captured")
-            statusMessage = "Capture both input and output first"
+            statusMessage = String(localized: "Capture both input and output first")
             statusIsError = true
             return
         }
@@ -35,7 +35,7 @@ extension MapperViewModel {
            !hasDeviceCondition
         {
             AppLogger.shared.log("🚫 [MapperViewModel] Save declined: '\(inputKey)' maps to itself")
-            statusMessage = "Nothing to save - input and output are the same"
+            statusMessage = String(localized: "Nothing to save - input and output are the same")
             statusIsError = true
             return
         }
@@ -56,12 +56,12 @@ extension MapperViewModel {
             )
 
             if success {
-                showTransientStatus("✓ Saved")
+                showTransientStatus(String(localized: "✓ Saved"))
                 SoundPlayer.shared.playSuccessSound()
                 AppLogger.shared.log("✅ [MapperViewModel] Saved app-specific mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [only in \(appCondition.displayName)]")
             } else {
                 AppLogger.shared.log("🚫 [MapperViewModel] App-specific save failed: \(inputKanata) → \(outputKanata) for \(appCondition.bundleIdentifier)")
-                statusMessage = "Failed to save app-specific rule"
+                statusMessage = String(localized: "Failed to save app-specific rule")
                 statusIsError = true
             }
 
@@ -115,8 +115,8 @@ extension MapperViewModel {
             AppLogger.shared.log("💾 [MapperViewModel] Adding dualRole behavior: tap='\(outputKanata)', hold='\(holdAction)'")
         } else if !doubleTapAction.isEmpty || tapDanceSteps.contains(where: { !$0.action.isEmpty }) {
             var steps = [
-                TapDanceStep(label: "Single tap", action: KanataBehaviorRenderer.parseActionString(outputKanata)),
-                TapDanceStep(label: "Double tap", action: KanataBehaviorRenderer.parseActionString(doubleTapAction))
+                TapDanceStep(label: String(localized: "Single tap"), action: KanataBehaviorRenderer.parseActionString(outputKanata)),
+                TapDanceStep(label: String(localized: "Double tap"), action: KanataBehaviorRenderer.parseActionString(doubleTapAction))
             ]
             for step in advancedBehavior.tapDanceSteps where !step.action.isEmpty {
                 steps.append(TapDanceStep(label: step.label, action: KanataBehaviorRenderer.parseActionString(step.action)))
@@ -160,13 +160,13 @@ extension MapperViewModel {
         if customRuleSaved {
             lastSavedRuleID = customRule.id
             if let note = review.notes.first {
-                showTransientStatus("✓ Saved. \(note)", duration: .seconds(6))
+                showTransientStatus(String(localized: "✓ Saved. \(note)"), duration: .seconds(6))
             } else {
-                showTransientStatus("✓ Saved")
+                showTransientStatus(String(localized: "✓ Saved"))
             }
             AppLogger.shared.log("✅ [MapperViewModel] Saved mapping: \(inputSeq.displayString) → \(outputSeq.displayString) [layer: \(currentLayer)] (ruleID: \(customRule.id))")
         } else {
-            statusMessage = "Rule save failed — config could not be applied"
+            statusMessage = String(localized: "Rule save failed — config could not be applied")
             statusIsError = true
             AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false for input='\(inputKanata)', output='\(outputKanata)'")
         }
@@ -324,7 +324,7 @@ extension MapperViewModel {
             AppLogger.shared.log("⚠️ [MapperViewModel] revertToKeystroke: kanataManager is nil — cannot delete rule")
         }
 
-        statusMessage = "✓ Reverted to keystroke"
+        statusMessage = String(localized: "✓ Reverted to keystroke")
     }
 
     /// Reset entire keyboard by clearing all custom rules (preserves rule collections)
@@ -346,7 +346,7 @@ extension MapperViewModel {
         // Post notification to update keyboard
         NotificationCenter.default.post(name: .kanataConfigChanged, object: nil)
 
-        statusMessage = "✓ Custom rules cleared"
+        statusMessage = String(localized: "✓ Custom rules cleared")
         statusIsError = false
         AppLogger.shared.log("🔄 [MapperViewModel] Cleared all custom rules (collections preserved)")
     }
@@ -359,8 +359,8 @@ extension MapperViewModel {
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.message = "Select an application to launch"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Select an application to launch")
+        panel.prompt = String(localized: "Select")
 
         panel.begin { [weak self] response in
             guard response == .OK, let url = panel.url else { return }

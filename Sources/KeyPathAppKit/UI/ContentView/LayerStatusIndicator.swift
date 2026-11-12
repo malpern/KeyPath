@@ -24,7 +24,7 @@ struct LayerStatusIndicator: View {
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Current layer")
-        .accessibilityValue(isBaseLayer ? "Base" : currentLayerName)
+        .accessibilityValue(isBaseLayer ? String(localized: "Base", comment: "Current layer value: the base layer") : currentLayerName)
     }
 }
 

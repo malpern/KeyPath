@@ -11,9 +11,9 @@ public enum OppositeHandMode: String, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .off: "Off"
-        case .press: "On Press"
-        case .release: "On Release"
+        case .off: String(localized: "Off")
+        case .press: String(localized: "On Press")
+        case .release: String(localized: "On Release")
         }
     }
 
@@ -29,7 +29,7 @@ public enum OppositeHandMode: String, Codable, Sendable {
 
     /// The user-facing name for the timer that decides when the hold action starts.
     public var decisionWindowLabel: String {
-        usesTapWindow ? "Hold activation delay" : "Opposite-hand decision window"
+        usesTapWindow ? String(localized: "Hold activation delay") : String(localized: "Opposite-hand decision window")
     }
 }
 
@@ -256,8 +256,8 @@ public enum HomeRowHoldMode: String, Codable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .modifiers: "Modifiers"
-        case .layers: "Layers"
+        case .modifiers: String(localized: "Modifiers")
+        case .layers: String(localized: "Layers")
         }
     }
 }

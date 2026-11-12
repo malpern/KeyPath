@@ -17,10 +17,10 @@ enum KindaVimStrategy: String, CaseIterable, Sendable, Equatable {
 
     var displayName: String {
         switch self {
-        case .accessibility: "Accessibility"
-        case .keyboard: "Keyboard fallback"
-        case .hybrid: "Hybrid"
-        case .ignored: "Ignored for this app"
+        case .accessibility: String(localized: "Accessibility")
+        case .keyboard: String(localized: "Keyboard fallback")
+        case .hybrid: String(localized: "Hybrid")
+        case .ignored: String(localized: "Ignored for this app")
         }
     }
 }

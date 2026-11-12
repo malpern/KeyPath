@@ -21,7 +21,7 @@ struct LauncherDrawerView: View {
             let synthetic = LauncherMapping(
                 key: "w",
                 action: .systemAction(id: "window-snapping"),
-                userDescription: "Window Snapping"
+                userDescription: String(localized: "Window Snapping")
             )
             mappings.insert(synthetic, at: mappings.firstIndex(where: { $0.key > "w" }) ?? mappings.endIndex)
         }
@@ -222,12 +222,12 @@ private struct LauncherMappingCard: View {
 
     private var typeLabel: String {
         switch mapping.action {
-        case .launchApp: "App"
-        case .openURL: "Website"
-        case .openFolder: "Folder"
-        case .runScript: "Script"
-        case let .systemAction(id) where id == "window-snapping": "Layer"
-        default: "Action"
+        case .launchApp: String(localized: "App")
+        case .openURL: String(localized: "Website")
+        case .openFolder: String(localized: "Folder")
+        case .runScript: String(localized: "Script")
+        case let .systemAction(id) where id == "window-snapping": String(localized: "Layer")
+        default: String(localized: "Action")
         }
     }
 

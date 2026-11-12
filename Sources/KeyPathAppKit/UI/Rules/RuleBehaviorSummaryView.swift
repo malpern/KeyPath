@@ -16,7 +16,7 @@ struct RuleBehaviorSummaryView: View {
         HStack(spacing: 6) {
             switch behavior {
             case let .dualRole(dr):
-                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdActionString)
+                behaviorItem(icon: "hand.point.up.left", label: String(localized: "Hold"), key: dr.holdActionString)
 
             case let .tapOrTapDance(tapBehavior):
                 if case let .tapDance(td) = tapBehavior {
@@ -42,7 +42,7 @@ struct RuleBehaviorSummaryView: View {
             case let .chord(ch):
                 behaviorItem(
                     icon: "rectangle.on.rectangle",
-                    label: "Combo",
+                    label: String(localized: "Combo"),
                     key: ch.keys.joined(separator: "+") + " → " + ch.output.displayName
                 )
             }
@@ -67,13 +67,20 @@ struct RuleBehaviorSummaryView: View {
     static func extractTapDanceSteps(from td: TapDanceBehavior)
         -> [(icon: String, label: String, key: String)]
     {
-        let tapLabels = ["Double Tap", "Triple Tap", "Quad Tap", "5× Tap", "6× Tap", "7× Tap"]
+        let tapLabels = [
+            String(localized: "Double Tap"),
+            String(localized: "Triple Tap"),
+            String(localized: "Quad Tap"),
+            String(localized: "5× Tap"),
+            String(localized: "6× Tap"),
+            String(localized: "7× Tap")
+        ]
         var items: [(icon: String, label: String, key: String)] = []
         for index in 1 ..< td.steps.count {
             let step = td.steps[index]
             guard !step.action.isEmpty else { continue }
             let labelIndex = index - 1
-            let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : "\(index + 1)× Tap"
+            let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : String(localized: "\(index + 1)× Tap")
             items.append((icon: "hand.tap", label: label, key: step.actionString))
         }
         return items

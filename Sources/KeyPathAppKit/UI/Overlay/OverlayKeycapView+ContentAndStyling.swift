@@ -190,7 +190,7 @@ extension OverlayKeycapView {
     }
 
     private var keyMenuName: String {
-        key.label.isEmpty ? "Key \(key.keyCode)" : key.label.count == 1 ? key.label.uppercased() : key.label
+        key.label.isEmpty ? String(localized: "Key \(String(key.keyCode))") : key.label.count == 1 ? key.label.uppercased() : key.label
     }
 
     var keycapBody: some View {
@@ -247,36 +247,40 @@ extension OverlayKeycapView {
     /// Accessibility label describing the key and its current mapping
     var keycapAccessibilityLabel: String {
         if key.layoutRole == .touchId {
-            return isInspectorVisible ? "Close settings drawer" : "Open settings drawer"
+            return isInspectorVisible ? String(localized: "Close settings drawer") : String(localized: "Open settings drawer")
         }
-        let keyName = key.label.isEmpty ? "Key \(key.keyCode)" : key.label
+        let keyName = key.label.isEmpty ? String(localized: "Key \(String(key.keyCode))") : key.label
 
         // Launcher mode: describe the app/URL this key launches
         if isLauncherMode, let mapping = launcherMapping {
-            let targetType = mapping.action.isLaunchApp ? "app" : "website"
-            return "\(keyName), launches \(targetType) \(mapping.action.displayName)"
+            return mapping.action.isLaunchApp
+                ? String(localized: "\(keyName), launches app \(mapping.action.displayName)")
+                : String(localized: "\(keyName), launches website \(mapping.action.displayName)")
         }
 
         // For dots legend style, describe the visual representation
         if colorway.legendStyle == .dots {
-            let shape = isModifierKey ? "bar" : "dot"
             let colorDescription = dotsColorAccessibilityDescription
             if let info = layerKeyInfo, !info.displayLabel.isEmpty, info.displayLabel != keyName {
-                return "\(keyName), \(colorDescription) \(shape), mapped to \(info.displayLabel)"
+                return isModifierKey
+                    ? String(localized: "\(keyName), \(colorDescription) bar, mapped to \(info.displayLabel)")
+                    : String(localized: "\(keyName), \(colorDescription) dot, mapped to \(info.displayLabel)")
             }
-            return "\(keyName), \(colorDescription) \(shape)"
+            return isModifierKey
+                ? String(localized: "\(keyName), \(colorDescription) bar")
+                : String(localized: "\(keyName), \(colorDescription) dot")
         }
 
         guard let info = layerKeyInfo else { return keyName }
 
         // Layer switch keys
         if info.isLayerSwitch {
-            return "\(keyName), layer switch to \(info.displayLabel)"
+            return String(localized: "\(keyName), layer switch to \(info.displayLabel)")
         }
 
         // App launch keys (non-launcher mode)
         if let appId = info.appLaunchIdentifier {
-            return "\(keyName), launches \(info.displayLabel.isEmpty ? appId : info.displayLabel)"
+            return String(localized: "\(keyName), launches \(info.displayLabel.isEmpty ? appId : info.displayLabel)")
         }
 
         // System action keys
@@ -286,7 +290,7 @@ extension OverlayKeycapView {
 
         // URL keys
         if let url = info.urlIdentifier {
-            return "\(keyName), opens \(info.displayLabel.isEmpty ? url : info.displayLabel)"
+            return String(localized: "\(keyName), opens \(info.displayLabel.isEmpty ? url : info.displayLabel)")
         }
 
         // Tap-hold keys: describe both actions when idle on base layer
@@ -294,12 +298,12 @@ extension OverlayKeycapView {
            currentLayerName.lowercased() == "base",
            !info.displayLabel.isEmpty, info.displayLabel != idleLabel
         {
-            return "\(keyName), tap \(idleLabel), hold \(info.displayLabel)"
+            return String(localized: "\(keyName), tap \(idleLabel), hold \(info.displayLabel)")
         }
 
         // Standard mapping
         if !info.displayLabel.isEmpty, info.displayLabel != keyName {
-            return "\(keyName), mapped to \(info.displayLabel)"
+            return String(localized: "\(keyName), mapped to \(info.displayLabel)")
         }
         return keyName
     }
@@ -307,35 +311,42 @@ extension OverlayKeycapView {
     /// Accessibility value describing the key's current state
     var keycapAccessibilityValue: String {
         if isPressed, isHoldActive {
-            return "held"
+            return String(localized: "held", comment: "Keycap accessibility state")
         } else if isPressed {
-            return "pressed"
+            return String(localized: "pressed", comment: "Keycap accessibility state")
         } else if isOneShot {
-            return "one-shot active"
+            return String(localized: "one-shot active", comment: "Keycap accessibility state")
         } else if isEmphasized {
-            return "highlighted"
+            return String(localized: "highlighted", comment: "Keycap accessibility state")
         } else if isSelected {
-            return "selected"
+            return String(localized: "selected", comment: "Keycap accessibility state")
         }
         return ""
     }
 
     /// Human-readable color description for dots legend accessibility
     private var dotsColorAccessibilityDescription: String {
-        guard let config = colorway.dotsConfig else { return "colored" }
+        guard let config = colorway.dotsConfig else { return String(localized: "colored", comment: "Keycap accessibility: dot color") }
 
         switch config.colorMode {
         case .monochrome:
-            return "monochrome"
+            return String(localized: "monochrome", comment: "Keycap accessibility state")
         case .rainbow:
             // Map column position to color name
             let totalColumns = Int(layoutTotalWidth)
-            guard totalColumns > 1 else { return "colored" }
+            guard totalColumns > 1 else { return String(localized: "colored", comment: "Keycap accessibility: dot color") }
             let normalized = CGFloat(key.x) / CGFloat(totalColumns - 1)
             let colorIndex = Int(normalized * CGFloat(DotsLegendConfig.rainbowPalette.count - 1))
             let clampedIndex = max(0, min(colorIndex, DotsLegendConfig.rainbowPalette.count - 1))
 
-            let colorNames = ["red", "orange", "yellow", "green", "blue", "purple"]
+            let colorNames = [
+                String(localized: "red", comment: "Keycap accessibility: dot color"),
+                String(localized: "orange", comment: "Keycap accessibility: dot color"),
+                String(localized: "yellow", comment: "Keycap accessibility: dot color"),
+                String(localized: "green", comment: "Keycap accessibility: dot color"),
+                String(localized: "blue", comment: "Keycap accessibility: dot color"),
+                String(localized: "purple", comment: "Keycap accessibility: dot color"),
+            ]
             return colorNames[clampedIndex]
         }
     }

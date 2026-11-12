@@ -43,7 +43,12 @@ struct ServiceControlIntent: AppIntent {
         }
 
         if success {
-            return .result(value: "KeyPath service \(action.rawValue) succeeded.")
+            let message = switch action {
+            case .start: String(localized: "KeyPath service start succeeded.")
+            case .stop: String(localized: "KeyPath service stop succeeded.")
+            case .restart: String(localized: "KeyPath service restart succeeded.")
+            }
+            return .result(value: message)
         } else {
             throw ServiceError.operationFailed(action.rawValue)
         }

@@ -37,7 +37,7 @@ struct RuleDependentResolutionDialogModel: Equatable, Sendable {
 
         rows = context.dependents.map { dependent in
             let consumerName = consumersByID[dependent.dependentCollectionID]?.name
-                ?? "Another enabled rule"
+                ?? String(localized: "Another enabled rule")
             return RuleDependentDialogRow(
                 id: RuleDependentDialogRowID(
                     dependentID: dependent.dependentCollectionID,
@@ -69,13 +69,13 @@ struct RuleDependentResolutionDialogModel: Equatable, Sendable {
     ) -> String {
         switch capability {
         case let .layerContent(layer):
-            "\(consumerName) uses \(providerName) for the \(RulePrerequisiteDialogModel.displayName(layer.rawValue)) layer."
+            String(localized: "\(consumerName) uses \(providerName) for the \(RulePrerequisiteDialogModel.displayName(layer.rawValue)) layer.")
         case let .layerActivation(layer):
-            "\(consumerName) uses \(providerName) to enter the \(RulePrerequisiteDialogModel.displayName(layer.rawValue)) layer."
+            String(localized: "\(consumerName) uses \(providerName) to enter the \(RulePrerequisiteDialogModel.displayName(layer.rawValue)) layer.")
         case let .keyAlias(alias):
             switch alias {
             case .hyper:
-                "\(consumerName) uses \(providerName) for the Hyper key."
+                String(localized: "\(consumerName) uses \(providerName) for the Hyper key.")
             }
         }
     }
@@ -224,8 +224,9 @@ private struct RuleDependentRuleRow: View {
         var values = row.evidence
         if !row.alternativeProviderNames.isEmpty {
             values.append(
-                "Other matching rules are currently off: "
-                    + row.alternativeProviderNames.joined(separator: ", ")
+                String(
+                    localized: "Other matching rules are currently off: \(row.alternativeProviderNames.joined(separator: ", "))"
+                )
             )
         }
         return values

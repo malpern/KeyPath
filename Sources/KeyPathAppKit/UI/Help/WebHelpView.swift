@@ -12,20 +12,20 @@ enum HelpLoadError: Equatable {
 
     var title: String {
         switch self {
-        case .offline: "Can't reach the help site"
-        case .notFound: "This guide isn't available"
-        case .generic: "Couldn't load this guide"
+        case .offline: String(localized: "Can't reach the help site")
+        case .notFound: String(localized: "This guide isn't available")
+        case .generic: String(localized: "Couldn't load this guide")
         }
     }
 
     var message: String {
         switch self {
         case .offline:
-            "The saved guide could not be opened. Try again, or open the online version when connected."
+            String(localized: "The saved guide could not be opened. Try again, or open the online version when connected.")
         case .notFound:
-            "This guide may have moved or isn't published yet. Try opening it in your browser, or report it so we can fix the link."
+            String(localized: "This guide may have moved or isn't published yet. Try opening it in your browser, or report it so we can fix the link.")
         case .generic:
-            "Something went wrong loading this guide. Try again, or open it in your browser."
+            String(localized: "Something went wrong loading this guide. Try again, or open it in your browser.")
         }
     }
 }

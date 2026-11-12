@@ -10,7 +10,7 @@ struct UndoCard: View {
     var body: some View {
         ActionCard(
             icon: "arrow.uturn.backward",
-            title: "Undo",
+            title: String(localized: "Undo", comment: "Window snapping card: undo the last window move"),
             isHovered: isHovered,
             accentColor: .gray
         ) {

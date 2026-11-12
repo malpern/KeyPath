@@ -133,7 +133,10 @@ struct TapHoldPickerContent: View {
                     }
 
                     PickerSegment(
-                        label: isCustomTapSelection ? "Edit" : "Custom",
+                        label: isCustomTapSelection ? String(localized: "Edit", comment: "Picker segment: edit the custom key") : String(
+                            localized: "Custom",
+                            comment: "Picker segment: choose a custom key"
+                        ),
                         isSelected: false,
                         isFirst: false,
                         isLast: false
@@ -204,7 +207,10 @@ struct TapHoldPickerContent: View {
                     }
 
                     PickerSegment(
-                        label: isCustomHoldSelection ? "Edit" : "Custom",
+                        label: isCustomHoldSelection ? String(localized: "Edit", comment: "Picker segment: edit the custom key") : String(
+                            localized: "Custom",
+                            comment: "Picker segment: choose a custom key"
+                        ),
                         isSelected: false,
                         isFirst: false,
                         isLast: false

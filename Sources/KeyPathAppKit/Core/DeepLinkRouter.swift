@@ -26,7 +26,7 @@ enum DeepLinkRouter {
                 ActionDispatcher.shared.dispatch(actionURI)
             } else {
                 AppLogger.shared.log("⚠️ [DeepLinkRouter] Failed to parse URL as KeyPathActionURI")
-                ActionDispatcher.shared.onError?("Invalid keypath:// URL: \(url.absoluteString)")
+                ActionDispatcher.shared.onError?(String(localized: "Invalid keypath:// URL: \(url.absoluteString)"))
             }
         }
     }

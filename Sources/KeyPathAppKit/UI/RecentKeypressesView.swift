@@ -183,7 +183,7 @@ final class RecentKeypressesWindowController {
         let hostingController = NSHostingController(rootView: contentView)
 
         let newWindow = NSWindow(contentViewController: hostingController)
-        newWindow.title = "Recent Keypresses"
+        newWindow.title = String(localized: "Recent Keypresses")
         newWindow.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         newWindow.setContentSize(NSSize(width: 350, height: 400))
         newWindow.minSize = NSSize(width: 280, height: 200)

@@ -42,7 +42,7 @@ extension RuleCollectionsManager {
             if !conflicts.isEmpty {
                 let conflictKeys = conflicts.flatMap(\.keys).joined(separator: ", ")
                 onWarning?(
-                    "⚠️ Layout change affects custom rules on: \(conflictKeys). Custom rules will override layout mappings for those keys."
+                    String(localized: "⚠️ Layout change affects custom rules on: \(conflictKeys). Custom rules will override layout mappings for those keys.")
                 )
                 AppLogger.shared.log("⚠️ [RuleCollections] Keymap conflicts with custom rules on: \(conflictKeys)")
             }

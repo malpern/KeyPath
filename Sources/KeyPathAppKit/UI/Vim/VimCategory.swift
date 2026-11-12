@@ -12,10 +12,10 @@ enum VimCategory: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .navigation: "Move"
-        case .editing: "Edit"
-        case .search: "Search"
-        case .clipboard: "Clipboard"
+        case .navigation: String(localized: "Move", comment: "Vim command category")
+        case .editing: String(localized: "Edit", comment: "Vim command category")
+        case .search: String(localized: "Search", comment: "Vim command category")
+        case .clipboard: String(localized: "Clipboard", comment: "Vim command category")
         }
     }
 

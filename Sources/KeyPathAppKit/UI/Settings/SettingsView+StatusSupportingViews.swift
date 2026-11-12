@@ -40,16 +40,19 @@ struct PermissionStatusRow: View {
     }
 
     private var accessibilityValue: String {
-        guard let status else { return "checking" }
+        guard let status else { return String(localized: "checking", comment: "VoiceOver permission status value") }
         switch status {
         case .granted:
-            return "granted"
+            return String(localized: "granted", comment: "VoiceOver permission status value")
         case .denied:
-            return "denied"
+            return String(localized: "denied", comment: "VoiceOver permission status value")
         case let .error(message):
-            return message.isEmpty ? "error" : "error: \(message)"
+            return message.isEmpty ? String(localized: "error", comment: "VoiceOver permission status value") : String(
+                localized: "error: \(message)",
+                comment: "VoiceOver permission status value with the error text"
+            )
         case .unknown:
-            return "unknown"
+            return String(localized: "unknown", comment: "VoiceOver permission status value")
         }
     }
 

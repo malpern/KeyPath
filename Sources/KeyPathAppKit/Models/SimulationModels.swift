@@ -218,15 +218,15 @@ enum SimulatorError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .featureDisabled:
-            "Simulator is disabled by feature flag"
+            String(localized: "Simulator is disabled by feature flag")
         case .simulatorNotFound:
-            "Simulator binary not found in app bundle"
+            String(localized: "Simulator binary not found in app bundle")
         case let .configNotFound(path):
-            "Config not found: \(path)"
+            String(localized: "Config not found: \(path)")
         case let .processFailedWithCode(code, msg):
-            "Simulator failed (\(code)): \(msg)"
+            String(localized: "Simulator failed (\(String(code))): \(msg)")
         case let .invalidJSON(msg):
-            "Invalid JSON output: \(msg)"
+            String(localized: "Invalid JSON output: \(msg)")
         }
     }
 }

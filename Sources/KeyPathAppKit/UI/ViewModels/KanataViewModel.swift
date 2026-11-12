@@ -170,8 +170,8 @@ class KanataViewModel {
 
             switch error {
             case let .invalidStartup(errors, backupPath):
-                validationAlertTitle = "Configuration File Invalid"
-                validationAlertMessage = """
+                validationAlertTitle = String(localized: "Configuration File Invalid")
+                validationAlertMessage = String(localized: """
                 KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.
 
                 Errors found:
@@ -181,12 +181,12 @@ class KanataViewModel {
                 \(backupPath)
 
                 KeyPath is now using a default configuration (Caps Lock → Escape).
-                """
+                """)
                 validationAlertActions = [
-                    ValidationAlertAction(title: "OK", style: .default) { [weak self] in
+                    ValidationAlertAction(title: String(localized: "OK"), style: .default) { [weak self] in
                         self?.clearValidationError()
                     },
-                    ValidationAlertAction(title: "Open Backup Location", style: .default) { [weak self] in
+                    ValidationAlertAction(title: String(localized: "Open Backup Location"), style: .default) { [weak self] in
                         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
                         self?.clearValidationError()
                     }
@@ -194,18 +194,18 @@ class KanataViewModel {
 
             case let .saveFailed(title, errors):
                 validationAlertTitle = title
-                validationAlertMessage = """
+                validationAlertMessage = String(localized: """
                 KeyPath found errors in the configuration:
 
                 \(errors.joined(separator: "\n• "))
 
                 What would you like to do?
-                """
+                """)
                 validationAlertActions = [
-                    ValidationAlertAction(title: "Cancel", style: .cancel) { [weak self] in
+                    ValidationAlertAction(title: String(localized: "Cancel"), style: .cancel) { [weak self] in
                         self?.clearValidationError()
                     },
-                    ValidationAlertAction(title: "Use Default Config", style: .destructive) { [weak self] in
+                    ValidationAlertAction(title: String(localized: "Use Default Config"), style: .destructive) { [weak self] in
                         Task {
                             do {
                                 try await self?.resetToDefaultConfig()
@@ -255,7 +255,7 @@ class KanataViewModel {
         }
 
         let collection = ruleCollections.first { $0.id == id }
-        let collectionName = collection?.name ?? "Collection"
+        let collectionName = collection?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
 
         // Special handling for macOS Function Keys
         if id == RuleCollectionIdentifier.macFunctionKeys {
@@ -264,13 +264,13 @@ class KanataViewModel {
                 // This is required for Kanata to intercept F10/F11/F12 and remap to volume keys
                 let wasSet = await setMacOSFunctionKeyMode(useStandardFKeys: true)
                 if wasSet {
-                    showToast("Function Keys enabled — macOS setting updated automatically", type: .success, duration: 5.0)
+                    showToast(String(localized: "Function Keys enabled — macOS setting updated automatically"), type: .success, duration: 5.0)
                 } else {
-                    showToast("Function Keys enabled", type: .success)
+                    showToast(String(localized: "Function Keys enabled"), type: .success)
                 }
             } else {
                 // When disabling, we leave the macOS setting as-is (user may want to keep it)
-                showToast("Function Keys disabled", type: .info)
+                showToast(String(localized: "Function Keys disabled"), type: .info)
             }
             return
         }
@@ -278,15 +278,15 @@ class KanataViewModel {
         // Special message for Home Row Mods
         if id == RuleCollectionIdentifier.homeRowMods {
             if enabled {
-                showToast("Home Row Mods enabled - tap keys for letters, hold for modifiers", type: .success)
+                showToast(String(localized: "Home Row Mods enabled - tap keys for letters, hold for modifiers"), type: .success)
             } else {
-                showToast("Home Row Mods disabled", type: .info)
+                showToast(String(localized: "Home Row Mods disabled"), type: .info)
             }
         } else {
             if enabled {
-                showToast("\(collectionName) enabled", type: .success)
+                showToast(String(localized: "\(collectionName) enabled"), type: .success)
             } else {
-                showToast("\(collectionName) disabled", type: .info)
+                showToast(String(localized: "\(collectionName) disabled"), type: .info)
             }
         }
     }
@@ -330,20 +330,20 @@ class KanataViewModel {
     func saveCustomRule(_ rule: CustomRule) async {
         let success = await manager.saveCustomRule(rule)
         if success {
-            showToast("Rule saved", type: .success)
+            showToast(String(localized: "Rule saved"), type: .success)
         } else {
-            showToast("Failed to save rule", type: .error)
+            showToast(String(localized: "Failed to save rule"), type: .error)
         }
     }
 
     func toggleCustomRule(_ id: UUID, enabled: Bool) async {
         await manager.toggleCustomRule(id: id, isEnabled: enabled)
         let rule = customRules.first { $0.id == id }
-        let ruleName = rule?.displayTitle ?? "Rule"
+        let ruleName = rule?.displayTitle ?? String(localized: "Rule", comment: "Fallback name in a toast")
         if enabled {
-            showToast("\(ruleName) enabled", type: .success)
+            showToast(String(localized: "\(ruleName) enabled"), type: .success)
         } else {
-            showToast("\(ruleName) disabled", type: .info)
+            showToast(String(localized: "\(ruleName) disabled"), type: .info)
         }
     }
 
@@ -394,8 +394,8 @@ class KanataViewModel {
             "🧪 [QA] Persisted Home Row Mods config collection=\(collectionId.uuidString) mode=\(config.holdMode.rawValue) keys=\(config.enabledKeys.sorted().joined(separator: ",")) tapWindow=\(config.timing.tapWindow) holdDelay=\(config.timing.holdDelay)"
         )
         if wasNewlyEnabled {
-            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
-            showToast("Turned on \(name)", type: .success)
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
+            showToast(String(localized: "Turned on \(name)"), type: .success)
         }
         return persistedConfig
     }
@@ -417,8 +417,8 @@ class KanataViewModel {
         let wasNewlyEnabled = await manager.updateHomeRowLayerTogglesConfig(collectionId: collectionId, config: config)
         ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
-            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
-            showToast("Turned on \(name)", type: .success)
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
+            showToast(String(localized: "Turned on \(name)"), type: .success)
         }
     }
 
@@ -426,8 +426,8 @@ class KanataViewModel {
         let wasNewlyEnabled = await manager.updateChordGroupsConfig(collectionId: collectionId, config: config)
         ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
-            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
-            showToast("Turned on \(name)", type: .success)
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
+            showToast(String(localized: "Turned on \(name)"), type: .success)
         }
     }
 
@@ -435,32 +435,32 @@ class KanataViewModel {
         let wasNewlyEnabled = await manager.updateSequencesConfig(collectionId: collectionId, config: config)
         ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
-            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
-            showToast("Turned on \(name)", type: .success)
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
+            showToast(String(localized: "Turned on \(name)"), type: .success)
         }
     }
 
     func updateLauncherConfig(_ collectionId: UUID, config: LauncherGridConfig) async {
         let wasNewlyEnabled = await manager.updateLauncherConfig(collectionId: collectionId, config: config)
         if wasNewlyEnabled {
-            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
-            showToast("Turned on \(name)", type: .success)
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
+            showToast(String(localized: "Turned on \(name)"), type: .success)
         }
     }
 
     func updateAutoShiftSymbolsConfig(collectionId: UUID, config: AutoShiftSymbolsConfig) async {
         let wasNewlyEnabled = await manager.updateAutoShiftSymbolsConfig(collectionId: collectionId, config: config)
         if wasNewlyEnabled {
-            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
-            showToast("Turned on \(name)", type: .success)
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
+            showToast(String(localized: "Turned on \(name)"), type: .success)
         }
     }
 
     func updateKeyRepeatControlConfig(collectionId: UUID, config: KeyRepeatControlConfig) async {
         let wasNewlyEnabled = await manager.updateKeyRepeatControlConfig(collectionId: collectionId, config: config)
         if wasNewlyEnabled {
-            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? "Collection"
-            showToast("Turned on \(name)", type: .success)
+            let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
+            showToast(String(localized: "Turned on \(name)"), type: .success)
         }
     }
 

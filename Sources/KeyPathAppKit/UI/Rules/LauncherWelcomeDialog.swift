@@ -88,18 +88,18 @@ struct LauncherWelcomeDialog: View {
             VStack(alignment: .leading, spacing: 16) {
                 howItWorksRow(
                     icon: "hand.point.up.left.fill",
-                    title: "Hold your Hyper key",
+                    title: String(localized: "Hold your Hyper key"),
                     description: KeyboardConceptCopy.hyperDefinition
                 )
                 howItWorksRow(
                     icon: "keyboard.fill",
-                    title: "Press a Shortcut",
-                    description: "S for Safari, 5 for Documents, 1 for GitHub..."
+                    title: String(localized: "Press a Shortcut"),
+                    description: String(localized: "S for Safari, 5 for Documents, 1 for GitHub...")
                 )
                 howItWorksRow(
                     icon: "arrow.up.forward.app.fill",
-                    title: "Opens Instantly",
-                    description: "Your app, website, folder, or script launches immediately"
+                    title: String(localized: "Opens Instantly"),
+                    description: String(localized: "Your app, website, folder, or script launches immediately")
                 )
             }
             .padding(.horizontal, 40)

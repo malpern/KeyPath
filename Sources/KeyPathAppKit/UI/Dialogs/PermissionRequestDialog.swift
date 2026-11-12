@@ -4,10 +4,10 @@ import SwiftUI
 enum PermissionRequestDialog {
     @MainActor
     static func show(
-        title: String = "Permission Required",
+        title: String = String(localized: "Permission Required"),
         explanation: String,
-        approveButtonTitle: String = "Allow",
-        cancelButtonTitle: String = "Cancel"
+        approveButtonTitle: String = String(localized: "Allow"),
+        cancelButtonTitle: String = String(localized: "Cancel")
     ) async -> Bool {
         await withCheckedContinuation { continuation in
             Task { @MainActor in

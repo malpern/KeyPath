@@ -25,9 +25,9 @@ struct ActivityOptInFlow: View {
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 8) {
-                BulletPoint("App launches and switches")
-                BulletPoint("Keyboard shortcuts (modifier + key combinations)")
-                BulletPoint("KeyPath actions (layer switches, app launches)")
+                BulletPoint(String(localized: "App launches and switches"))
+                BulletPoint(String(localized: "Keyboard shortcuts (modifier + key combinations)"))
+                BulletPoint(String(localized: "KeyPath actions (layer switches, app launches)"))
             }
             .padding(.leading, 8)
 

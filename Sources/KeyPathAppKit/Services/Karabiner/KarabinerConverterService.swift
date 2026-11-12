@@ -32,13 +32,13 @@ enum KarabinerImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case let .invalidJSON(detail):
-            "Invalid Karabiner JSON: \(detail)"
+            String(localized: "Invalid Karabiner JSON: \(detail)")
         case .noProfiles:
-            "No profiles found in Karabiner configuration"
+            String(localized: "No profiles found in Karabiner configuration")
         case .fileTooLarge:
-            "Configuration file is too large (max 10 MB)"
+            String(localized: "Configuration file is too large (max 10 MB)")
         case let .profileIndexOutOfRange(index):
-            "Profile index \(index) is out of range"
+            String(localized: "Profile index \(index) is out of range")
         }
     }
 }
@@ -127,8 +127,8 @@ struct KarabinerConverterService: Sendable {
             let mappings = convertSimpleModifications(simpleMods, skipped: &skipped)
             if !mappings.isEmpty {
                 let collection = RuleCollection(
-                    name: "Karabiner Simple Remaps",
-                    summary: "Imported from Karabiner simple modifications",
+                    name: String(localized: "Karabiner Simple Remaps"),
+                    summary: String(localized: "Imported from Karabiner simple modifications"),
                     category: .custom,
                     mappings: mappings,
                     icon: "arrow.right.arrow.left",
@@ -191,7 +191,7 @@ struct KarabinerConverterService: Sendable {
 
             guard let fromKey, let toKey else {
                 let desc = "Simple: \(mod.from.keyCode ?? mod.from.consumerKeyCode ?? "unknown") → \(mod.to.first?.keyCode ?? "unknown")"
-                skipped.append(KarabinerSkippedRule(description: desc, reason: "Unsupported key type (pointing button or unknown)"))
+                skipped.append(KarabinerSkippedRule(description: desc, reason: String(localized: "Unsupported key type (pointing button or unknown)")))
                 continue
             }
 
@@ -213,7 +213,7 @@ struct KarabinerConverterService: Sendable {
             guard let input = kanataFrom, let output = kanataTo else {
                 skipped.append(KarabinerSkippedRule(
                     description: "Simple: \(fromKey) → \(toKey)",
-                    reason: "Unknown key code"
+                    reason: String(localized: "Unknown key code")
                 ))
                 continue
             }
@@ -247,10 +247,10 @@ struct KarabinerConverterService: Sendable {
     }
 
     private func convertRule(_ rule: KarabinerRule) -> RuleConversionResult {
-        let description = rule.description ?? "Untitled Rule"
+        let description = rule.description ?? String(localized: "Untitled Rule")
         var result = RuleConversionResult(
             name: description,
-            summary: "Imported from Karabiner: \(description)",
+            summary: String(localized: "Imported from Karabiner: \(description)"),
             icon: "keyboard"
         )
 
@@ -286,7 +286,7 @@ struct KarabinerConverterService: Sendable {
         guard manipulator.type == "basic" || manipulator.type == nil else {
             result.skipped.append(KarabinerSkippedRule(
                 description: rule,
-                reason: "Unsupported manipulator type: \(manipulator.type ?? "unknown")"
+                reason: String(localized: "Unsupported manipulator type: \(manipulator.type ?? "unknown")")
             ))
             return
         }
@@ -295,7 +295,7 @@ struct KarabinerConverterService: Sendable {
         if manipulator.from?.pointingButton != nil {
             result.skipped.append(KarabinerSkippedRule(
                 description: rule,
-                reason: "Mouse button remapping not supported"
+                reason: String(localized: "Mouse button remapping not supported")
             ))
             return
         }
@@ -303,7 +303,7 @@ struct KarabinerConverterService: Sendable {
         if manipulator.to?.contains(where: { $0.mouseKey != nil }) == true {
             result.skipped.append(KarabinerSkippedRule(
                 description: rule,
-                reason: "Mouse key emulation not supported"
+                reason: String(localized: "Mouse key emulation not supported")
             ))
             return
         }
@@ -311,7 +311,7 @@ struct KarabinerConverterService: Sendable {
         if manipulator.to?.contains(where: { $0.selectInputSource != nil }) == true {
             result.skipped.append(KarabinerSkippedRule(
                 description: rule,
-                reason: "Input source switching not supported"
+                reason: String(localized: "Input source switching not supported")
             ))
             return
         }
@@ -331,7 +331,7 @@ struct KarabinerConverterService: Sendable {
             let varNames = variableConditions.map(\.name).joined(separator: ", ")
             result.skipped.append(KarabinerSkippedRule(
                 description: rule,
-                reason: "Guarded by variable condition (\(varNames)) — layer-gated rules not yet supported"
+                reason: String(localized: "Guarded by variable condition (\(varNames)) — layer-gated rules not yet supported")
             ))
             return
         }
@@ -344,7 +344,7 @@ struct KarabinerConverterService: Sendable {
             convertShellCommand(manipulator, rule: rule, appConditions: appConditions, result: &result)
 
         case .shellCommandWithDroppedTap:
-            result.warnings.append("'\(rule)': has both a shell command and a tap action (to_if_alone) — tap action was dropped; only the shell command was imported")
+            result.warnings.append(String(localized: "'\(rule)': has both a shell command and a tap action (to_if_alone) — tap action was dropped; only the shell command was imported"))
             convertShellCommand(manipulator, rule: rule, appConditions: appConditions, result: &result)
 
         case .dualRole:
@@ -415,7 +415,7 @@ struct KarabinerConverterService: Sendable {
             return .simpleRemap
         }
 
-        return .unsupported("No recognized from/to mapping")
+        return .unsupported(String(localized: "No recognized from/to mapping"))
     }
 
     // MARK: - Simple Remap Conversion
@@ -433,19 +433,19 @@ struct KarabinerConverterService: Sendable {
         // Handle variable set (layer toggle)
         if let setVar = toFirst.setVariable {
             // This sets a variable — treat as a remap that doesn't produce a key
-            result.warnings.append("Variable '\(setVar.name)' toggle in '\(rule)' — layer variables are informational only")
+            result.warnings.append(String(localized: "Variable '\(setVar.name)' toggle in '\(rule)' — layer variables are informational only"))
             return
         }
 
         let fromKey = from.keyCode ?? from.consumerKeyCode
         guard let fromKey else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Missing from key"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Missing from key")))
             return
         }
 
         let toKey = toFirst.keyCode ?? toFirst.consumerKeyCode
         guard let toKey else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Missing to key"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Missing to key")))
             return
         }
 
@@ -458,7 +458,7 @@ struct KarabinerConverterService: Sendable {
         let droppedToMods = toMods.filter { KarabinerKeyTranslator.unsupportedModifierPrefixes.contains($0) }
         if !droppedFromMods.isEmpty || !droppedToMods.isEmpty {
             let dropped = (droppedFromMods + droppedToMods).joined(separator: ", ")
-            result.warnings.append("'\(rule)': modifier '\(dropped)' has no Kanata prefix equivalent and was dropped from the key expression")
+            result.warnings.append(String(localized: "'\(rule)': modifier '\(dropped)' has no Kanata prefix equivalent and was dropped from the key expression"))
         }
 
         let kanataInput: String? = if from.keyCode != nil {
@@ -476,7 +476,7 @@ struct KarabinerConverterService: Sendable {
         guard let input = kanataInput, let output = kanataOutput else {
             result.skipped.append(KarabinerSkippedRule(
                 description: rule,
-                reason: "Unknown key: \(fromKey) or \(toKey)"
+                reason: String(localized: "Unknown key: \(fromKey) or \(toKey)")
             ))
             return
         }
@@ -507,13 +507,13 @@ struct KarabinerConverterService: Sendable {
               let toFirst = manipulator.to?.first,
               let aloneFirst = manipulator.toIfAlone?.first
         else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Incomplete dual-role definition"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Incomplete dual-role definition")))
             return
         }
 
         let fromKey = from.keyCode ?? from.consumerKeyCode
         guard let fromKey else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Missing from key in dual-role"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Missing from key in dual-role")))
             return
         }
 
@@ -524,7 +524,7 @@ struct KarabinerConverterService: Sendable {
         }
 
         guard let input = kanataFrom else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Unknown from key: \(fromKey)"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Unknown from key: \(fromKey)")))
             return
         }
 
@@ -553,7 +553,7 @@ struct KarabinerConverterService: Sendable {
         }
 
         guard !tapAction.isEmpty, !holdAction.isEmpty else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Could not translate dual-role actions"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Could not translate dual-role actions")))
             return
         }
 
@@ -596,7 +596,7 @@ struct KarabinerConverterService: Sendable {
               !simultaneous.isEmpty,
               let toFirst = manipulator.to?.first
         else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Incomplete chord definition"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Incomplete chord definition")))
             return
         }
 
@@ -608,7 +608,7 @@ struct KarabinerConverterService: Sendable {
             } else if let consumerKey = simKey.consumerKeyCode, let kanata = KarabinerKeyTranslator.consumerKeyToKanata(consumerKey) {
                 chordKeys.append(kanata)
             } else {
-                result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Unknown chord key"))
+                result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Unknown chord key")))
                 return
             }
         }
@@ -621,7 +621,7 @@ struct KarabinerConverterService: Sendable {
         }
 
         guard chordKeys.count >= 2 else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Chord needs at least 2 keys"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Chord needs at least 2 keys")))
             return
         }
 
@@ -633,7 +633,7 @@ struct KarabinerConverterService: Sendable {
         } else if let key = toFirst.consumerKeyCode {
             output = KarabinerKeyTranslator.consumerKeyToKanataExpression(keyCode: key, modifiers: toMods) ?? key
         } else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "No output for chord"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "No output for chord")))
             return
         }
 
@@ -672,13 +672,13 @@ struct KarabinerConverterService: Sendable {
         guard let from = manipulator.from,
               let toArray = manipulator.to, toArray.count > 1
         else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Incomplete macro definition"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Incomplete macro definition")))
             return
         }
 
         let fromKey = from.keyCode ?? from.consumerKeyCode
         guard let fromKey else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Missing from key in macro"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Missing from key in macro")))
             return
         }
 
@@ -690,7 +690,7 @@ struct KarabinerConverterService: Sendable {
         }
 
         guard let input = kanataInput else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Unknown from key: \(fromKey)"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Unknown from key: \(fromKey)")))
             return
         }
 
@@ -714,12 +714,12 @@ struct KarabinerConverterService: Sendable {
         }
 
         guard !outputs.isEmpty else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "No translatable output keys in macro"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "No translatable output keys in macro")))
             return
         }
 
         if droppedKeyCount > 0 {
-            result.warnings.append("'\(rule)': \(droppedKeyCount) key(s) in macro sequence could not be translated and were dropped")
+            result.warnings.append(String(localized: "'\(rule)': \(droppedKeyCount) key(s) in macro sequence could not be translated and were dropped"))
         }
 
         let behavior = MappingBehavior.macro(MacroBehavior(
@@ -755,13 +755,13 @@ struct KarabinerConverterService: Sendable {
         guard let from = manipulator.from,
               let shellCmd = manipulator.to?.first(where: { $0.shellCommand != nil })?.shellCommand
         else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Incomplete shell command"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Incomplete shell command")))
             return
         }
 
         let fromKey = from.keyCode ?? from.consumerKeyCode
         guard let fromKey else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Missing trigger key for shell command"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Missing trigger key for shell command")))
             return
         }
 
@@ -773,7 +773,7 @@ struct KarabinerConverterService: Sendable {
         }
 
         guard let input = kanataInput else {
-            result.skipped.append(KarabinerSkippedRule(description: rule, reason: "Unknown trigger key: \(fromKey)"))
+            result.skipped.append(KarabinerSkippedRule(description: rule, reason: String(localized: "Unknown trigger key: \(fromKey)")))
             return
         }
 
@@ -877,7 +877,7 @@ struct KarabinerConverterService: Sendable {
                     if cleanBundleId.contains(where: { "*+?[]|(){}\\".contains($0) }) {
                         result.skipped.append(KarabinerSkippedRule(
                             description: rule,
-                            reason: "App condition uses regex pattern '\(bundleId)' — only literal bundle IDs are supported"
+                            reason: String(localized: "App condition uses regex pattern '\(bundleId)' — only literal bundle IDs are supported")
                         ))
                         continue
                     }
@@ -901,7 +901,7 @@ struct KarabinerConverterService: Sendable {
         } else if !unlessConditions.isEmpty {
             // Only "unless" conditions — add as global mapping with warning
             let apps = unlessConditions.flatMap(\.bundleIdentifiers).joined(separator: ", ")
-            result.warnings.append("'\(rule)' applies everywhere except [\(apps)] — imported as global rule (app exclusions not yet supported)")
+            result.warnings.append(String(localized: "'\(rule)' applies everywhere except [\(apps)] — imported as global rule (app exclusions not yet supported)"))
             result.mappings.append(mapping)
         } else {
             result.mappings.append(mapping)

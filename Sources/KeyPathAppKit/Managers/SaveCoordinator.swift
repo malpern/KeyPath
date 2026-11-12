@@ -130,7 +130,7 @@ final class SaveCoordinator {
                     reload = result
                     try Task.checkCancellation()
                     guard result.disposition == .applied || result.disposition == .pending else {
-                        throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? "App-specific configuration could not be applied"))
+                        throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? String(localized: "App-specific configuration could not be applied")))
                     }
                     guard let staged else { throw AppConfigError.validationUnavailable }
                     try await configurationService.settleAppKeymapWrite(staged, commit: true, mutationPermit: permit)
@@ -155,7 +155,10 @@ final class SaveCoordinator {
                             }.value
                             recovery = .restoredPreviousAppKeymapState(reloadResult: recoveryReload)
                             if let recoveryReload, recoveryReload.disposition == .failed || recoveryReload.disposition == .rejected {
-                                reportedError = SaveApplicationError(cause: error, recovery: recoveryReload.errorMessage ?? "The prior files were restored, but runtime recovery failed")
+                                reportedError = SaveApplicationError(
+                                    cause: error,
+                                    recovery: recoveryReload.errorMessage ?? String(localized: "The prior files were restored, but runtime recovery failed")
+                                )
                             }
                         } catch let recoveryError {
                             recovery = .appKeymapRecoveryFailed(recoveryError)
@@ -198,7 +201,7 @@ final class SaveCoordinator {
                     let (sanitizedInput, sanitizedOutput) = try validateInputOutput(input: input, output: output)
                     let rule = ruleCollectionsManager.makeCustomRule(input: sanitizedInput, output: sanitizedOutput)
                     guard await ruleCollectionsManager.updateCustomRuleInMemory(rule, mutationPermit: permit) else {
-                        let error = KeyPathError.configuration(.validationFailed(errors: ["The rule change was cancelled or conflicts with an existing mapping."]))
+                        let error = KeyPathError.configuration(.validationFailed(errors: [String(localized: "The rule change was cancelled or conflicts with an existing mapping.")]))
                         saveStatus = .failed(error.localizedDescription)
                         return .failure(error)
                     }
@@ -268,7 +271,7 @@ final class SaveCoordinator {
                         reload = result
                         try Task.checkCancellation()
                         if let result, result.disposition != .applied, result.disposition != .pending {
-                            throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? "The rule configuration could not be applied"))
+                            throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? String(localized: "The rule configuration could not be applied")))
                         }
                         guard let staged else { throw AppConfigError.validationUnavailable }
                         try await configurationService.settleRuleWrite(staged, commit: true, mutationPermit: permit)
@@ -291,7 +294,10 @@ final class SaveCoordinator {
                                 let recoveryReload = reload == nil ? nil : await Task { @MainActor in await reloadHandler?() }.value
                                 recovery = .restoredPreviousRuleState(reloadResult: recoveryReload)
                                 if let recoveryReload, recoveryReload.disposition == .failed || recoveryReload.disposition == .rejected {
-                                    reportedError = SaveApplicationError(cause: error, recovery: recoveryReload.errorMessage ?? "Prior rule files were restored, but runtime recovery failed")
+                                    reportedError = SaveApplicationError(
+                                        cause: error,
+                                        recovery: recoveryReload.errorMessage ?? String(localized: "Prior rule files were restored, but runtime recovery failed")
+                                    )
                                 }
                             } catch let recoveryError {
                                 recovery = .ruleStateRecoveryFailed(recoveryError)
@@ -395,7 +401,7 @@ final class SaveCoordinator {
                     }
                     let previousContent = try await snapshotCurrentConfig(mutationPermit: permit)
                     if let expectedContent, previousContent != expectedContent {
-                        throw KeyPathError.configuration(.loadFailed(reason: "The configuration changed while this edit was being prepared. Reload mappings and try again."))
+                        throw KeyPathError.configuration(.loadFailed(reason: String(localized: "The configuration changed while this edit was being prepared. Reload mappings and try again.")))
                     }
                     try Task.checkCancellation()
                     backupCurrentConfig(previousContent)
@@ -405,7 +411,7 @@ final class SaveCoordinator {
                     let result = await reloadHandler()
                     reload = result
                     guard result.disposition == .applied || result.disposition == .pending else {
-                        throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? "The configuration could not be applied"))
+                        throw KeyPathError.configuration(.loadFailed(reason: result.errorMessage ?? String(localized: "The configuration could not be applied")))
                     }
                     guard let staged else { throw AppConfigError.validationUnavailable }
                     // Preserve the existing raw-editor contract: an accepted revision
@@ -568,7 +574,7 @@ final class SaveCoordinator {
 
         guard !sanitizedInput.isEmpty, !sanitizedOutput.isEmpty else {
             throw KeyPathError.configuration(
-                .validationFailed(errors: ["Input and output are required."])
+                .validationFailed(errors: [String(localized: "Input and output are required.")])
             )
         }
 
@@ -623,6 +629,6 @@ private struct SaveApplicationError: LocalizedError {
     let cause: Error
     let recovery: String
     var errorDescription: String? {
-        "\(cause.localizedDescription). Recovery needs attention: \(recovery)"
+        String(localized: "\(cause.localizedDescription). Recovery needs attention: \(recovery)")
     }
 }

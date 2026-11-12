@@ -46,7 +46,7 @@ struct WizardWelcomePage: View {
                 fill: Color(red: 0.36, green: 0.40, blue: 0.47),
                 rotation: -6,
                 yOffset: 8,
-                caption: "Caps Lock\ntap + hold",
+                caption: String(localized: "Caps Lock\ntap + hold"),
                 visible: keycapsVisible,
                 delay: 0.0
             ) {
@@ -62,7 +62,7 @@ struct WizardWelcomePage: View {
                 fill: Color(red: 0.20, green: 0.66, blue: 0.39),
                 rotation: 4,
                 yOffset: -6,
-                caption: "Arrows on\nhome row",
+                caption: String(localized: "Arrows on\nhome row"),
                 visible: keycapsVisible,
                 delay: 0.08
             ) {
@@ -73,7 +73,7 @@ struct WizardWelcomePage: View {
                 fill: Color(red: 0.55, green: 0.49, blue: 0.91),
                 rotation: -3,
                 yOffset: 4,
-                caption: "Tile\nwindows",
+                caption: String(localized: "Tile\nwindows"),
                 visible: keycapsVisible,
                 delay: 0.16
             ) {
@@ -84,7 +84,7 @@ struct WizardWelcomePage: View {
                 fill: Color(red: 0.93, green: 0.55, blue: 0.18),
                 rotation: 6,
                 yOffset: -4,
-                caption: "Launch\nanything",
+                caption: String(localized: "Launch\nanything"),
                 visible: keycapsVisible,
                 delay: 0.24
             ) {
@@ -122,7 +122,7 @@ struct WizardWelcomePage: View {
 
     private var footer: some View {
         VStack(spacing: WizardDesign.Spacing.elementGap) {
-            WizardButton("Get Started", style: .primary, isDefaultAction: true) {
+            WizardButton(String(localized: "Get Started"), style: .primary, isDefaultAction: true) {
                 onGetStarted()
             }
             .accessibilityIdentifier("wizard-welcome-get-started")

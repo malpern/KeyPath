@@ -17,11 +17,16 @@ struct WindowSnappingView: View {
     private let zones: [SnapZone] = [.left, .right, .maximize, .center, .topLeft, .topRight, .bottomLeft, .bottomRight]
 
     private var activationDescription: String {
-        if activationMode == .quickLauncher { return "Hold Hyper → W → action" }
+        activationDescription(action: String(localized: "action", comment: "Window snapping: placeholder for the zone key, as in 'Hold Space → W → action'"))
+    }
+
+    private func activationDescription(action: String) -> String {
+        if activationMode == .quickLauncher { return String(localized: "Hold Hyper → W → \(action)") }
         let preference = PreferencesService.shared.leaderKeyPreference
-        let key = ["space", "spc"].contains(preference.key) ? "Space" : preference.key.uppercased()
-        let gesture = PreferencesService.shared.contextHUDTriggerMode == .holdToShow ? "Hold" : "Tap"
-        return "\(gesture) \(key) → W → action"
+        let key = ["space", "spc"].contains(preference.key) ? String(localized: "Space", comment: "Key name: the space bar") : preference.key.uppercased()
+        return PreferencesService.shared.contextHUDTriggerMode == .holdToShow
+            ? String(localized: "Hold \(key) → W → \(action)")
+            : String(localized: "Tap \(key) → W → \(action)")
     }
 
     var body: some View {
@@ -57,7 +62,7 @@ struct WindowSnappingView: View {
             PermissionStatusBanner()
             SettingsCard {
                 VStack(spacing: SettingsDesign.rowGap) {
-                    SettingsControlRow(title: "Key layout", icon: "keyboard") {
+                    SettingsControlRow(title: String(localized: "Key layout"), icon: "keyboard") {
                         Picker("Key layout", selection: Binding(get: { convention }, set: { onConventionChange($0) })) {
                             Text("Standard").tag(WindowKeyConvention.standard)
                             Text("Vim").tag(WindowKeyConvention.vim)
@@ -70,7 +75,7 @@ struct WindowSnappingView: View {
                         desktopPreview(preview).frame(width: 140, height: 80)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(title(preview)).font(.headline)
-                            Text("\(activationDescription.replacingOccurrences(of: "action", with: preview.key(for: convention)))")
+                            Text(activationDescription(action: preview.key(for: convention)))
                                 .font(.callout).foregroundStyle(.secondary)
                             Text("Preview only — your windows stay in place.")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -103,11 +108,11 @@ struct WindowSnappingView: View {
             SettingsCard {
                 DisclosureGroup {
                     VStack(spacing: 12) {
-                        shortcutRow("Previous / next display", keys: "[  /  ]", icon: "display.2")
+                        shortcutRow(String(localized: "Previous / next display"), keys: "[  /  ]", icon: "display.2")
                         Divider()
-                        shortcutRow("Previous / next Space", keys: convention == .standard ? ",  /  ." : "A  /  S", icon: "square.stack.3d.up")
+                        shortcutRow(String(localized: "Previous / next Space"), keys: convention == .standard ? ",  /  ." : "A  /  S", icon: "square.stack.3d.up")
                         Divider()
-                        shortcutRow("Undo last move", keys: "Z", icon: "arrow.uturn.backward")
+                        shortcutRow(String(localized: "Undo last move"), keys: "Z", icon: "arrow.uturn.backward")
                     }.padding(.top, 12)
                 } label: {
                     Text("More shortcuts").accessibilityIdentifier("window-snapping-more-shortcuts")
@@ -128,9 +133,14 @@ struct WindowSnappingView: View {
 
     private func title(_ zone: SnapZone) -> String {
         switch zone {
-        case .left: "Left Half"
-        case .right: "Right Half"
-        default: zone.label.replacingOccurrences(of: "-", with: " ")
+        case .left: String(localized: "Left Half")
+        case .right: String(localized: "Right Half")
+        case .topLeft: String(localized: "Top Left", comment: "Window snapping zone title")
+        case .topRight: String(localized: "Top Right", comment: "Window snapping zone title")
+        case .bottomLeft: String(localized: "Bottom Left", comment: "Window snapping zone title")
+        case .bottomRight: String(localized: "Bottom Right", comment: "Window snapping zone title")
+        case .maximize: String(localized: "Maximize", comment: "Window snapping zone title")
+        case .center: String(localized: "Center", comment: "Window snapping zone title")
         }
     }
 

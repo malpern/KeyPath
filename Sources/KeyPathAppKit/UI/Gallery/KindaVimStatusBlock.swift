@@ -19,17 +19,17 @@ struct KindaVimStatusBlock: View {
         VStack(alignment: .leading, spacing: 12) {
             // 1. Status
             row(
-                label: "KindaVim app",
-                value: appInstalled ? "Installed" : "Not installed",
+                label: String(localized: "KindaVim app"),
+                value: appInstalled ? String(localized: "Installed") : String(localized: "Not installed"),
                 tint: appInstalled ? .green : .orange
             )
             row(
-                label: "Current mode",
+                label: String(localized: "Current mode"),
                 value: modeDisplay,
                 tint: modeTint
             )
             row(
-                label: "Strategy (frontmost app)",
+                label: String(localized: "Strategy (frontmost app)"),
                 value: strategyMonitor.currentStrategy.displayName,
                 tint: strategyTint
             )
@@ -53,15 +53,15 @@ struct KindaVimStatusBlock: View {
             // 3. Config
             Divider()
             rightAlignedToggle(
-                "Show all keys (advanced)",
-                subtitle: "Adds page motions, search, and bracket-match hints.",
+                String(localized: "Show all keys (advanced)"),
+                subtitle: String(localized: "Adds page motions, search, and bracket-match hints."),
                 isOn: $showAdvancedHints,
                 id: "kindavim-status-show-advanced"
             )
 
             rightAlignedToggle(
-                "Show vim hints in terminal apps",
-                subtitle: "Shows keycap hints and mode badge in Kitty, Ghostty, Terminal, iTerm, and other terminals — even when they're in KindaVim's ignore list.",
+                String(localized: "Show vim hints in terminal apps"),
+                subtitle: String(localized: "Shows keycap hints and mode badge in Kitty, Ghostty, Terminal, iTerm, and other terminals — even when they're in KindaVim's ignore list."),
                 isOn: $showHintsInTerminals,
                 id: "kindavim-status-show-hints-terminals"
             )
@@ -116,10 +116,7 @@ struct KindaVimStatusBlock: View {
                 .accessibilityIdentifier("kindavim-status-clear-telemetry-cancel")
         } message: {
             Text(
-                "This permanently deletes all locally-recorded command counts, " +
-                    "mode dwell time, and other usage statistics. KeyPath has no " +
-                    "copies of this data — it stays on your Mac and is never sent " +
-                    "anywhere."
+                "This permanently deletes all locally-recorded command counts, mode dwell time, and other usage statistics. KeyPath has no copies of this data — it stays on your Mac and is never sent anywhere."
             )
         }
     }
@@ -127,8 +124,8 @@ struct KindaVimStatusBlock: View {
     @ViewBuilder
     private var telemetrySection: some View {
         rightAlignedToggle(
-            "Record local KindaVim usage stats",
-            subtitle: "Used by KeyPath to show you which vim commands you use most. This data stays on your Mac and is never sent anywhere.",
+            String(localized: "Record local KindaVim usage stats"),
+            subtitle: String(localized: "Used by KeyPath to show you which vim commands you use most. This data stays on your Mac and is never sent anywhere."),
             isOn: $telemetryEnabled,
             id: "kindavim-status-telemetry-toggle"
         )

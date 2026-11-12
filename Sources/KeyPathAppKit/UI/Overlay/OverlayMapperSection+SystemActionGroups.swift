@@ -26,7 +26,7 @@ extension OverlayMapperSection {
                 outputPickerRootPage
                     .transition(.move(edge: .leading))
             case .systemActions:
-                outputPickerSubPage(title: "System Action") {
+                outputPickerSubPage(title: String(localized: "System Action")) {
                     SystemActionGridView(
                         groups: OutputActionGrouping.detailed,
                         selectedActionID: viewModel.selectedSystemAction?.id,
@@ -39,12 +39,12 @@ extension OverlayMapperSection {
                 }
                 .transition(.move(edge: .trailing))
             case .launchApps:
-                outputPickerSubPage(title: "Launch App") {
+                outputPickerSubPage(title: String(localized: "Launch App")) {
                     launchAppsExpandedContent
                 }
                 .transition(.move(edge: .trailing))
             case .layers:
-                outputPickerSubPage(title: "Go to Layer") {
+                outputPickerSubPage(title: String(localized: "Go to Layer")) {
                     layersExpandedContent
                 }
                 .transition(.move(edge: .trailing))
@@ -77,7 +77,7 @@ extension OverlayMapperSection {
         return ScrollView {
             VStack(spacing: 0) {
                 outputTypeLeafRow(
-                    title: "Keystroke",
+                    title: String(localized: "Keystroke"),
                     icon: "keyboard",
                     isSelected: isKeystrokeSelected,
                     accessibilityID: "overlay-mapper-output-keystroke"
@@ -90,7 +90,7 @@ extension OverlayMapperSection {
                 PopoverListDivider()
 
                 outputTypeNavRow(
-                    title: "System Action",
+                    title: String(localized: "System Action"),
                     icon: "gearshape",
                     isSelected: viewModel.selectedSystemAction != nil,
                     detail: viewModel.selectedSystemAction?.name,
@@ -102,7 +102,7 @@ extension OverlayMapperSection {
                 PopoverListDivider()
 
                 outputTypeNavRow(
-                    title: "Launch App",
+                    title: String(localized: "Launch App"),
                     icon: "app.fill",
                     customIcon: viewModel.selectedApp?.icon,
                     isSelected: viewModel.selectedApp != nil,
@@ -116,7 +116,7 @@ extension OverlayMapperSection {
                 PopoverListDivider()
 
                 outputTypeLeafRow(
-                    title: "Open URL",
+                    title: String(localized: "Open URL"),
                     icon: "link",
                     isSelected: viewModel.selectedURL != nil,
                     detail: viewModel.selectedURL.map { KeyMappingFormatter.extractDomain(from: $0) },
@@ -129,7 +129,7 @@ extension OverlayMapperSection {
                 PopoverListDivider()
 
                 outputTypeLeafRow(
-                    title: "Open Folder",
+                    title: String(localized: "Open Folder"),
                     icon: "folder.fill",
                     isSelected: viewModel.selectedFolder != nil,
                     detail: viewModel.selectedFolder.map { $0.name ?? URL(fileURLWithPath: $0.path).lastPathComponent },
@@ -142,7 +142,7 @@ extension OverlayMapperSection {
                 PopoverListDivider()
 
                 outputTypeLeafRow(
-                    title: "Run Script",
+                    title: String(localized: "Run Script"),
                     icon: "terminal.fill",
                     isSelected: viewModel.selectedScript != nil,
                     detail: viewModel.selectedScript.map { $0.name ?? URL(fileURLWithPath: $0.path).lastPathComponent },
@@ -155,7 +155,7 @@ extension OverlayMapperSection {
                 PopoverListDivider()
 
                 outputTypeNavRow(
-                    title: "Go to Layer",
+                    title: String(localized: "Go to Layer"),
                     icon: "square.stack.3d.up",
                     isSelected: viewModel.selectedLayerOutput != nil,
                     detail: viewModel.selectedLayerOutput?.capitalized,
@@ -314,8 +314,8 @@ extension OverlayMapperSection {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "Select a folder to open"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Select a folder to open")
+        panel.prompt = String(localized: "Select")
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
@@ -334,8 +334,8 @@ extension OverlayMapperSection {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Select a script file"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Select a script file")
+        panel.prompt = String(localized: "Select")
         panel.allowedContentTypes = [.shellScript, .unixExecutable]
 
         guard panel.runModal() == .OK, let url = panel.url else { return }

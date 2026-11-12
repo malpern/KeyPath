@@ -38,7 +38,7 @@ struct CustomRulesInlineEditor: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 InlineKeyField(
-                    title: "Input",
+                    title: String(localized: "Input"),
                     text: $inputKey,
                     options: keyOptions,
                     fieldWidth: 200,
@@ -52,7 +52,7 @@ struct CustomRulesInlineEditor: View {
                     .padding(.top, 18)
 
                 InlineKeyField(
-                    title: "Output",
+                    title: String(localized: "Output"),
                     text: $outputKey,
                     options: keyOptions,
                     fieldWidth: 240,
@@ -181,9 +181,9 @@ struct CustomRulesListView: View {
 
                     if !globalRules.isEmpty {
                         RulesSectionHeader(
-                            title: "All Keyboards",
+                            title: String(localized: "All Keyboards"),
                             systemImage: "keyboard",
-                            subtitle: "These rules apply on every keyboard"
+                            subtitle: String(localized: "These rules apply on every keyboard")
                         )
                         .padding(.horizontal, 16)
 
@@ -269,7 +269,7 @@ struct DeviceRulesSectionHeader: View {
     }
 
     private var displayName: String {
-        device?.displayName ?? "Device \(deviceHash.suffix(8))"
+        device?.displayName ?? String(localized: "Device \(deviceHash.suffix(8))")
     }
 
     private var sfSymbolName: String {
@@ -303,8 +303,8 @@ struct DeviceRulesSectionHeader: View {
             }
 
             Text(isConnected
-                ? "Only applies on this keyboard"
-                : "This keyboard is not currently connected")
+                ? String(localized: "Only applies on this keyboard")
+                : String(localized: "This keyboard is not currently connected"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -438,7 +438,7 @@ struct CustomRuleRow: View {
         HStack(spacing: 6) {
             switch behavior {
             case let .dualRole(dr):
-                behaviorItem(icon: "hand.point.up.left", label: "Hold", key: dr.holdActionString)
+                behaviorItem(icon: "hand.point.up.left", label: String(localized: "Hold"), key: dr.holdActionString)
 
             case let .tapOrTapDance(tapBehavior):
                 if case let .tapDance(td) = tapBehavior {
@@ -465,7 +465,7 @@ struct CustomRuleRow: View {
             case let .chord(ch):
                 behaviorItem(
                     icon: "rectangle.on.rectangle",
-                    label: "Combo",
+                    label: String(localized: "Combo"),
                     key: ch.keys.joined(separator: "+") + " → " + ch.output.displayName
                 )
             }
@@ -479,7 +479,14 @@ struct CustomRuleRow: View {
 
         // Step 0 = single tap (shown as "Finish" already)
         // Step 1+ = double tap, triple tap, etc.
-        let tapLabels = ["Double Tap", "Triple Tap", "Quad Tap", "5× Tap", "6× Tap", "7× Tap"]
+        let tapLabels = [
+            String(localized: "Double Tap"),
+            String(localized: "Triple Tap"),
+            String(localized: "Quad Tap"),
+            String(localized: "5× Tap"),
+            String(localized: "6× Tap"),
+            String(localized: "7× Tap")
+        ]
         let tapIcons = ["hand.tap", "hand.tap", "hand.tap", "hand.tap", "hand.tap", "hand.tap"]
 
         for index in 1 ..< td.steps.count {
@@ -487,7 +494,7 @@ struct CustomRuleRow: View {
             guard !step.action.isEmpty else { continue }
 
             let labelIndex = index - 1
-            let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : "\(index + 1)× Tap"
+            let label = labelIndex < tapLabels.count ? tapLabels[labelIndex] : String(localized: "\(index + 1)× Tap")
             let icon = labelIndex < tapIcons.count ? tapIcons[labelIndex] : "hand.tap"
 
             behaviorItems.append((icon, label, step.actionString))

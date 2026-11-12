@@ -195,8 +195,8 @@ public struct WizardSystemStatusOverview: View {
             StatusItemModel(
                 id: "kanata-service",
                 icon: "app.badge.checkmark",
-                title: "KeyPath Runtime",
-                subtitle: systemState == .active ? "Running" : nil,
+                title: String(localized: "KeyPath Runtime"),
+                subtitle: systemState == .active ? String(localized: "Running") : nil,
                 status: status(for: runtimeIssues, permissionReady: nil),
                 isNavigable: true,
                 targetPage: .service,

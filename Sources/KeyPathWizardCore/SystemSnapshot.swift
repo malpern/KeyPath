@@ -73,10 +73,10 @@ public struct SystemSnapshot: Sendable {
             issues.append(permissionIssue)
         }
         if !components.requiredRuntimePayloadPresent {
-            issues.append(.componentMissing(name: "Bundled session runtime", autoFix: false))
+            issues.append(.componentMissing(name: String(localized: "Bundled session runtime"), autoFix: false))
         }
         if !health.kanataRuntimeReadiness.isReady {
-            issues.append(.componentUnhealthy(name: "Session keyboard runtime", autoFix: true))
+            issues.append(.componentUnhealthy(name: String(localized: "Session keyboard runtime"), autoFix: true))
         }
         return issues
     }
@@ -87,7 +87,7 @@ public struct SystemSnapshot: Sendable {
         return .permissionMissing(
             app: "KeyPath", permission: AccessibilityPermissionPresentation.current.name,
             action: permissions.blockingIssue
-                ?? "Grant \(AccessibilityPermissionPresentation.current.name) first, then retry the current-process check"
+                ?? String(localized: "Grant \(AccessibilityPermissionPresentation.current.name) first, then retry the current-process check")
         )
     }
 
@@ -292,22 +292,22 @@ public enum Issue: Equatable {
     public func displayTitle(accessibility: AccessibilityPermissionPresentation) -> String {
         switch self {
         case let .permissionMissing(app, permission, _):
-            "\(app) needs \(accessibility.displayName(for: permission)) permission"
+            String(localized: "\(app) needs \(accessibility.displayName(for: permission)) permission")
         case let .componentMissing(name, _):
-            "\(name) not installed"
+            String(localized: "\(name) not installed")
         case let .componentUnhealthy(name, _):
-            "\(name) unhealthy"
+            String(localized: "\(name) unhealthy")
         case let .conflict(conflict):
             switch conflict {
             case let .kanataProcessRunning(pid, _):
-                "Conflicting Kanata process (PID \(pid))"
+                String(localized: "Conflicting Kanata process (PID \(String(pid)))")
             case let .karabinerGrabberRunning(pid):
-                "Karabiner Grabber running (PID \(pid))"
+                String(localized: "Karabiner Grabber running (PID \(String(pid)))")
             case let .exclusiveDeviceAccess(device):
-                "Device \(device) in use"
+                String(localized: "Device \(device) in use")
             }
         case .configParseError:
-            "Configuration error prevents remapping"
+            String(localized: "Configuration error prevents remapping")
         }
     }
 
@@ -330,13 +330,13 @@ public enum Issue: Equatable {
         case let .permissionMissing(_, _, action):
             action
         case .componentMissing:
-            "Install via wizard"
+            String(localized: "Install via wizard")
         case .componentUnhealthy:
-            "Restart component"
+            String(localized: "Restart component")
         case .conflict:
-            "Terminate conflicting process"
+            String(localized: "Terminate conflicting process")
         case .configParseError:
-            "Reset to default config"
+            String(localized: "Reset to default config")
         }
     }
 }

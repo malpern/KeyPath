@@ -17,7 +17,7 @@ public final class BiometricAuthService: @unchecked Sendable {
     /// Intentionally avoids a precise dollar figure — per-request cost varies with
     /// model and config size. Shared across all AI call sites for consistent copy.
     public static let defaultAuthReason =
-        "This will use your Anthropic API quota (a small per-request cost). Authenticate to proceed?"
+        String(localized: "This will use your Anthropic API quota (a small per-request cost). Authenticate to proceed?")
 
     /// Whether user has authenticated this session (persists until app restart)
     private var hasAuthenticatedThisSession: Bool = false

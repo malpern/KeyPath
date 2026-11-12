@@ -16,9 +16,9 @@ struct SoundProfile: Identifiable, Equatable {
 
     static let off = SoundProfile(
         id: "off",
-        name: "Off",
-        shortName: "Off",
-        descriptor: "Silent typing",
+        name: String(localized: "Off", comment: "Typing sounds: no sound"),
+        shortName: String(localized: "Off", comment: "Typing sounds: no sound"),
+        descriptor: String(localized: "Silent typing"),
         color: .systemGray,
         icon: "speaker.slash"
     )
@@ -27,7 +27,7 @@ struct SoundProfile: Identifiable, Equatable {
         id: "mx-blue",
         name: "Cherry MX Blue",
         shortName: "Blue",
-        descriptor: "Clicky, loud",
+        descriptor: String(localized: "Clicky, loud"),
         color: .systemBlue,
         icon: "circle.fill"
     )
@@ -36,7 +36,7 @@ struct SoundProfile: Identifiable, Equatable {
         id: "mx-brown",
         name: "Cherry MX Brown",
         shortName: "Brown",
-        descriptor: "Tactile bump",
+        descriptor: String(localized: "Tactile bump"),
         color: .brown,
         icon: "circle.fill"
     )
@@ -45,7 +45,7 @@ struct SoundProfile: Identifiable, Equatable {
         id: "mx-red",
         name: "Cherry MX Red",
         shortName: "Red",
-        descriptor: "Smooth linear",
+        descriptor: String(localized: "Smooth linear"),
         color: .systemRed,
         icon: "circle.fill"
     )
@@ -54,16 +54,16 @@ struct SoundProfile: Identifiable, Equatable {
         id: "nk-cream",
         name: "NK Cream",
         shortName: "Cream",
-        descriptor: "Deep, thocky",
+        descriptor: String(localized: "Deep, thocky"),
         color: NSColor(red: 0.96, green: 0.94, blue: 0.88, alpha: 1.0),
         icon: "circle.fill"
     )
 
     static let bubblePop = SoundProfile(
         id: "bubble-pop",
-        name: "Bubble Pop",
+        name: String(localized: "Bubble Pop"),
         shortName: "Pop",
-        descriptor: "Playful, silly",
+        descriptor: String(localized: "Playful, silly"),
         color: .systemPink,
         icon: "bubble.left.fill"
     )

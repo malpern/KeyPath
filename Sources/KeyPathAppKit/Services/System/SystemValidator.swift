@@ -204,8 +204,8 @@ public class SystemValidator {
                 kanataProcessRunning: running, kanataTCPResponding: responding,
                 kanataRunning: running && responding,
                 kanataInputCaptureReady: running,
-                activeRuntimePathTitle: "Driverless session runtime",
-                activeRuntimePathDetail: "Current user · KeyPath app identity · session event tap"
+                activeRuntimePathTitle: String(localized: "Driverless session runtime"),
+                activeRuntimePathDetail: String(localized: "Current user · KeyPath app identity · session event tap")
             ),
             compatibility: SystemCompatibilityStatus(macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString),
             timestamp: Date()

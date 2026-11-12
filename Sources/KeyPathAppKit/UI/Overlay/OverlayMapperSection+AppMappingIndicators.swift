@@ -135,9 +135,9 @@ extension OverlayMapperSection {
     private func tapSlotLabel(for slot: BehaviorSlot) -> String {
         guard slot == .tap else { return slot.label }
         return switch selectedTapCount {
-        case 2: "Tap (2×)"
-        case 3: "Tap (3×)"
-        default: "Tap"
+        case 2: String(localized: "Tap (2×)")
+        case 3: String(localized: "Tap (3×)")
+        default: String(localized: "Tap")
         }
     }
 
@@ -257,7 +257,7 @@ extension OverlayMapperSection {
                         .font(.title3)
                         .frame(width: 28)
                 }
-                Text(viewModel.selectedAppCondition.map { "Only in \($0.displayName)" } ?? "Only in...")
+                Text(viewModel.selectedAppCondition.map { String(localized: "Only in \($0.displayName)") } ?? String(localized: "Only in..."))
                     .font(.body)
                     .lineLimit(1)
                 Spacer()
@@ -275,7 +275,7 @@ extension OverlayMapperSection {
         .buttonStyle(LayerPickerItemButtonStyle())
         .focusable(false)
         .accessibilityIdentifier("overlay-mapper-only-in-app")
-        .accessibilityLabel(viewModel.selectedAppCondition.map { "Only in \($0.displayName)" } ?? "Only in...")
+        .accessibilityLabel(viewModel.selectedAppCondition.map { String(localized: "Only in \($0.displayName)") } ?? String(localized: "Only in..."))
     }
 
     /// Clear all behavior slots for the current key (tap, hold, combo)
@@ -330,7 +330,7 @@ extension OverlayMapperSection {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Choose an app for this rule to apply only when it's active"
+        panel.message = String(localized: "Choose an app for this rule to apply only when it's active")
 
         let vm = viewModel
         panel.begin { response in

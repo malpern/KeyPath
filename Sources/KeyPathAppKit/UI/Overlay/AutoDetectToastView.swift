@@ -87,17 +87,17 @@ struct AutoDetectToastView: View {
     private var titleText: String {
         switch mode {
         case .autoSwitch:
-            "Switched to \(keyboardName)"
+            String(localized: "Switched to \(keyboardName)")
         case .rememberKeyboard:
-            confidence == .low ? "Possible match: \(keyboardName)" : "Detected \(keyboardName)"
+            confidence == .low ? String(localized: "Possible match: \(keyboardName)") : String(localized: "Detected \(keyboardName)")
         case .importKeyboard:
-            "Detected \(keyboardName)"
+            String(localized: "Detected \(keyboardName)")
         case .importingKeyboard:
-            "Importing layout for \(keyboardName)"
+            String(localized: "Importing layout for \(keyboardName)")
         case .importSucceeded:
-            "Imported layout for \(keyboardName)"
+            String(localized: "Imported layout for \(keyboardName)")
         case .importFailed:
-            "Couldn’t import \(keyboardName)"
+            String(localized: "Couldn’t import \(keyboardName)")
         }
     }
 
@@ -106,15 +106,15 @@ struct AutoDetectToastView: View {
         case .autoSwitch:
             nil
         case .rememberKeyboard:
-            confidence == .low ? "Use this layout and remember it for next time?" : "Using this layout now. Remember it for next time?"
+            confidence == .low ? String(localized: "Use this layout and remember it for next time?") : String(localized: "Using this layout now. Remember it for next time?")
         case .importKeyboard:
-            "Import a layout for this keyboard?"
+            String(localized: "Import a layout for this keyboard?")
         case .importingKeyboard:
-            "Fetching the layout and preparing it for KeyPath."
+            String(localized: "Fetching the layout and preparing it for KeyPath.")
         case .importSucceeded:
-            "Using this layout now."
+            String(localized: "Using this layout now.")
         case .importFailed:
-            errorMessage ?? "You can search for a layout instead."
+            errorMessage ?? String(localized: "You can search for a layout instead.")
         }
     }
 
@@ -123,15 +123,15 @@ struct AutoDetectToastView: View {
         case .autoSwitch:
             nil
         case .rememberKeyboard:
-            "Remember"
+            String(localized: "Remember")
         case .importKeyboard:
-            "Import Layout"
+            String(localized: "Import Layout")
         case .importingKeyboard:
             nil
         case .importSucceeded:
             nil
         case .importFailed:
-            "Search Layouts"
+            String(localized: "Search Layouts")
         }
     }
 

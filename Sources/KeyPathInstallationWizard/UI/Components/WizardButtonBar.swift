@@ -19,7 +19,7 @@ public struct WizardButtonBar: View {
         public let usesCancelShortcut: Bool
 
         public init(
-            title: String = "Cancel",
+            title: String = String(localized: "Cancel"),
             action: @escaping () -> Void,
             isEnabled: Bool = true,
             usesCancelShortcut: Bool = true
@@ -182,7 +182,7 @@ public extension WizardButtonBar {
 
     /// Primary + Cancel (common case)
     static func primaryAndCancel(
-        primaryTitle: String, primaryAction: @escaping () -> Void, cancelTitle: String = "Cancel",
+        primaryTitle: String, primaryAction: @escaping () -> Void, cancelTitle: String = String(localized: "Cancel"),
         cancelAction: @escaping () -> Void,
         isLoading: Bool = false
     ) -> WizardButtonBar {
@@ -198,7 +198,7 @@ public extension WizardButtonBar {
         primaryAction: @escaping () -> Void,
         secondaryTitle: String,
         secondaryAction: @escaping () -> Void,
-        cancelTitle: String = "Cancel",
+        cancelTitle: String = String(localized: "Cancel"),
         cancelAction: @escaping () -> Void,
         isLoading: Bool = false
     ) -> WizardButtonBar {

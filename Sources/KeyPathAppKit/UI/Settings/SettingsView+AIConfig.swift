@@ -45,7 +45,7 @@ struct AIConfigGenerationSettingsSection: View {
             // Biometric auth toggle (only show if key is configured)
             if hasAPIKey {
                 SettingsToggleRow(
-                    title: "Require \(BiometricAuthService.shared.biometricTypeName)", subtitle: "Confirm before using API",
+                    title: String(localized: "Require \(BiometricAuthService.shared.biometricTypeName)"), subtitle: String(localized: "Confirm before using API"),
                     isOn: Binding(get: { BiometricAuthService.shared.isEnabled }, set: { BiometricAuthService.shared.isEnabled = $0 }),
                     identifier: "settings-ai-biometric-toggle"
                 )
@@ -59,12 +59,12 @@ struct AIConfigGenerationSettingsSection: View {
     private var statusDescription: String {
         if hasAPIKeyFromEnv {
             hasAPIKeyInKeychain
-                ? "Using ANTHROPIC_API_KEY (overrides your saved key)"
-                : "Using ANTHROPIC_API_KEY environment variable"
+                ? String(localized: "Using ANTHROPIC_API_KEY (overrides your saved key)")
+                : String(localized: "Using ANTHROPIC_API_KEY environment variable")
         } else if hasAPIKeyInKeychain {
-            "Stored in Keychain"
+            String(localized: "Stored in Keychain")
         } else {
-            "Optional for complex mappings"
+            String(localized: "Optional for complex mappings")
         }
     }
 
@@ -197,7 +197,7 @@ struct AIConfigGenerationSettingsSection: View {
         isValidating = false
 
         guard result.isValid else {
-            validationError = result.errorMessage ?? "Invalid API key"
+            validationError = result.errorMessage ?? String(localized: "Invalid API key")
             saveFailed = false
             return
         }
@@ -215,7 +215,7 @@ struct AIConfigGenerationSettingsSection: View {
             saveFailed = false
             refreshStatus()
         } catch {
-            validationError = "Couldn't save to Keychain: \(error.localizedDescription)"
+            validationError = String(localized: "Couldn't save to Keychain: \(error.localizedDescription)")
             saveFailed = true
         }
     }
@@ -317,7 +317,7 @@ private struct AIUsageHistoryView: View {
                 List(Array(costHistory.enumerated().reversed()), id: \.offset) { _, entry in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(entry["timestamp"] as? String ?? "Unknown")
+                            Text(entry["timestamp"] as? String ?? String(localized: "Unknown", comment: "Placeholder when a timestamp is missing"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
 

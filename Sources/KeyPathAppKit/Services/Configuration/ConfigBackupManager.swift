@@ -149,7 +149,7 @@ public final class ConfigBackupManager {
         // Validate backup content
         guard isValidConfig(content: content) else {
             throw KeyPathError.configuration(
-                .corruptedFormat(details: "Invalid backup: \(backup.filename)")
+                .corruptedFormat(details: String(localized: "Invalid backup: \(backup.filename)"))
             )
         }
 
@@ -325,11 +325,11 @@ struct RuleBackupSnapshot: Codable, Sendable {
         var errorDescription: String? {
             switch self {
             case .requiresManagedRestore:
-                "Restore this backup through Settings so rules and runtime are updated together."
+                String(localized: "Restore this backup through Settings so rules and runtime are updated together.")
             case .missingMetadata:
-                "This older backup has no matching editor data. Open it to recover rules manually; your current setup was kept."
+                String(localized: "This older backup has no matching editor data. Open it to recover rules manually; your current setup was kept.")
             case .inconsistentSnapshot:
-                "This backup cannot be reproduced with the current keyboard, app rules or generation settings. Your current setup was kept."
+                String(localized: "This backup cannot be reproduced with the current keyboard, app rules or generation settings. Your current setup was kept.")
             }
         }
     }

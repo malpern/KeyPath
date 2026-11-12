@@ -93,7 +93,7 @@ struct HomeRowModsModalView: View {
         .frame(width: 750, height: 700)
         .background(Color(NSColor.windowBackgroundColor))
         .sheet(isPresented: $showHelp) {
-            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+            MarkdownHelpSheet(resource: "home-row-mods", title: String(localized: "Home Row Mods"))
         }
     }
 
@@ -207,16 +207,16 @@ struct HomeRowModsModalView: View {
 
     private var modifierPresetAccessibilityValue: String {
         switch modifierPresetSelection(from: localConfig.modifierAssignments) {
-        case .macCAGS: "Mac CAGS"
-        case .winGACS: "Windows Linux GACS"
-        case .custom: "Custom"
+        case .macCAGS: String(localized: "Mac CAGS")
+        case .winGACS: String(localized: "Windows Linux GACS")
+        case .custom: String(localized: "Custom")
         }
     }
 
     private var layerPresetAccessibilityValue: String {
         switch layerPresetSelection(from: localConfig.layerAssignments) {
-        case .default: "Default"
-        case .custom: "Custom"
+        case .default: String(localized: "Default")
+        case .custom: String(localized: "Custom")
         }
     }
 }

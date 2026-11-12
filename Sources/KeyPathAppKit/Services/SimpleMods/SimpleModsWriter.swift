@@ -61,7 +61,7 @@ public final class SimpleModsWriter: Sendable {
                 let trimmed = newContent.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty, trimmed.contains("defsrc") || trimmed.contains("deflayer") else {
                     AppLogger.shared.errorUnlessQuietTest("🛑 [SimpleModsWriter] BLOCKED: Would have written invalid config")
-                    throw KeyPathError.configuration(.invalidFormat(reason: "Cannot write empty or invalid configuration"))
+                    throw KeyPathError.configuration(.invalidFormat(reason: String(localized: "Cannot write empty or invalid configuration")))
                 }
 
                 // A config still needs a layer when its final mapping is removed.

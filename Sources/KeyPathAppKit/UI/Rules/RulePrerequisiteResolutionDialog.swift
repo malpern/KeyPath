@@ -38,11 +38,11 @@ struct RulePrerequisiteDialogRow: Equatable, Identifiable, Sendable {
     var providerSummary: String {
         switch providerState {
         case .unavailable:
-            "No available rule provides this."
+            String(localized: "No available rule provides this.")
         case let .automatic(providerName):
-            "KeyPath will turn on \(providerName)."
+            String(localized: "KeyPath will turn on \(providerName).")
         case let .choices(providerNames):
-            "Turn on one first: \(RulePrerequisiteDialogModel.joinedAlternatives(providerNames))."
+            String(localized: "Turn on one first: \(RulePrerequisiteDialogModel.joinedAlternatives(providerNames)).")
         }
     }
 }
@@ -73,7 +73,7 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
 
         rows = context.prerequisites.map { prerequisite in
             let providerNames = prerequisite.availableProviderCollectionIDs.map {
-                providersByID[$0]?.name ?? "Another rule"
+                providersByID[$0]?.name ?? String(localized: "Another rule")
             }
             return RulePrerequisiteDialogRow(
                 id: RulePrerequisiteDialogRowID(
@@ -118,91 +118,101 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
     var title: String {
         switch resolution {
         case .automatic:
-            "Turn on supporting rules?"
+            String(localized: "Turn on supporting rules?")
         case .unavailable:
             if rows.count == 1, let row = rows.first {
-                "\(row.consumerName) would lose \(row.capabilityName)"
+                String(localized: "\(row.consumerName) would lose \(row.capabilityName)")
             } else {
-                "Some rules would lose behavior they need"
+                String(localized: "Some rules would lose behavior they need")
             }
         case .ambiguous:
-            "Choose a supporting rule first"
+            String(localized: "Choose a supporting rule first")
         case .unavailableAndAmbiguous:
-            "This change needs attention first"
+            String(localized: "This change needs attention first")
         }
     }
 
     var primaryActionTitle: String {
         switch operation {
         case .enable:
-            "Turn On Required Rules"
+            String(localized: "Turn On Required Rules")
         case .save:
-            "Save & Turn On Required Rules"
+            String(localized: "Save & Turn On Required Rules")
         }
     }
 
     var secondaryActionTitle: String {
         switch operation {
         case .enable:
-            "Turn On Anyway"
+            String(localized: "Turn On Anyway")
         case .save:
-            "Save Anyway"
+            String(localized: "Save Anyway")
         }
     }
 
     var cancelActionTitle: String {
         switch operation {
         case .enable:
-            "Keep Off"
+            String(localized: "Keep Off")
         case .save:
-            "Keep Editing"
+            String(localized: "Keep Editing")
         }
     }
 
     var consequenceSummary: String {
-        let action = switch operation {
-        case .enable: "Turning on \(candidateName)"
-        case .save: "Saving changes to \(candidateName)"
-        }
-
-        switch resolution {
-        case .automatic:
-            return "\(action) also requires the supporting rules below."
-        case .unavailable:
+        switch (operation, resolution) {
+        case (.enable, .automatic):
+            return String(localized: "Turning on \(candidateName) also requires the supporting rules below.")
+        case (.save, .automatic):
+            return String(localized: "Saving changes to \(candidateName) also requires the supporting rules below.")
+        case (.enable, .unavailable):
             if rows.count == 1, let row = rows.first {
-                return "\(action) would remove behavior that \(row.consumerName) needs."
+                return String(localized: "Turning on \(candidateName) would remove behavior that \(row.consumerName) needs.")
             }
-            return "\(action) would remove behavior that other enabled rules need."
-        case .ambiguous:
-            return "\(action) would leave enabled rules without behavior they use, and more than one supporting rule could replace it."
-        case .unavailableAndAmbiguous:
-            return "\(action) would leave enabled rules without behavior they use. Some missing behavior has no automatic fix, while other behavior has more than one choice."
+            return String(localized: "Turning on \(candidateName) would remove behavior that other enabled rules need.")
+        case (.save, .unavailable):
+            if rows.count == 1, let row = rows.first {
+                return String(localized: "Saving changes to \(candidateName) would remove behavior that \(row.consumerName) needs.")
+            }
+            return String(localized: "Saving changes to \(candidateName) would remove behavior that other enabled rules need.")
+        case (.enable, .ambiguous):
+            return String(localized: "Turning on \(candidateName) would leave enabled rules without behavior they use, and more than one supporting rule could replace it.")
+        case (.save, .ambiguous):
+            return String(localized: "Saving changes to \(candidateName) would leave enabled rules without behavior they use, and more than one supporting rule could replace it.")
+        case (.enable, .unavailableAndAmbiguous):
+            return String(
+                localized: "Turning on \(candidateName) would leave enabled rules without behavior they use. Some missing behavior has no automatic fix, while other behavior has more than one choice."
+            )
+        case (.save, .unavailableAndAmbiguous):
+            return String(
+                localized: "Saving changes to \(candidateName) would leave enabled rules without behavior they use. Some missing behavior has no automatic fix, while other behavior has more than one choice."
+            )
         }
     }
 
     var guidanceSummary: String {
         switch resolution {
         case .automatic:
-            "KeyPath can turn on every required rule in the same change."
+            String(localized: "KeyPath can turn on every required rule in the same change.")
         case .unavailable:
-            "Keep your current setup, or continue knowing the affected shortcuts may not work."
+            String(localized: "Keep your current setup, or continue knowing the affected shortcuts may not work.")
         case .ambiguous:
-            "Turn on one of the listed rules first, or continue knowing the affected shortcuts may not work."
+            String(localized: "Turn on one of the listed rules first, or continue knowing the affected shortcuts may not work.")
         case .unavailableAndAmbiguous:
-            "Resolve the items below first, or continue knowing the affected shortcuts may not work."
+            String(localized: "Resolve the items below first, or continue knowing the affected shortcuts may not work.")
         }
     }
 
     private static func capabilityName(_ capability: RuleCapability) -> String {
         switch capability {
         case let .layerContent(layer):
-            "\(displayName(layer.rawValue)) layer content"
+            String(localized: "\(displayName(layer.rawValue)) layer content")
         case let .layerActivation(layer):
-            "a way to enter the \(displayName(layer.rawValue)) layer"
+            String(localized: "a way to enter the \(displayName(layer.rawValue)) layer")
         case let .keyAlias(alias):
             switch alias {
             case .hyper:
-                "the Hyper key"
+                String(localized: "the Hyper key")
             }
         }
     }
@@ -226,8 +236,10 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
         evidence.compactMap { item in
             switch item {
             case let .keys(keys):
-                let noun = keys.count == 1 ? "key" : "keys"
-                return "\(keys.count) affected \(noun): \(joinedList(keys.map(displayName)))"
+                let list = joinedList(keys.map(displayName))
+                return keys.count == 1
+                    ? String(localized: "1 affected key: \(list)")
+                    : String(localized: "\(keys.count) affected keys: \(list)")
             case .mappingIDs, .layerPath, .configuration:
                 return nil
             }
@@ -241,9 +253,9 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
         case 1:
             values[0]
         case 2:
-            "\(values[0]) and \(values[1])"
+            String(localized: "\(values[0]) and \(values[1])")
         default:
-            "\(values.dropLast().joined(separator: ", ")), and \(values.last ?? "")"
+            String(localized: "\(values.dropLast().joined(separator: ", ")), and \(values.last ?? "")")
         }
     }
 
@@ -254,9 +266,9 @@ struct RulePrerequisiteDialogModel: Equatable, Sendable {
         case 1:
             values[0]
         case 2:
-            "\(values[0]) or \(values[1])"
+            String(localized: "\(values[0]) or \(values[1])")
         default:
-            "\(values.dropLast().joined(separator: ", ")), or \(values.last ?? "")"
+            String(localized: "\(values.dropLast().joined(separator: ", ")), or \(values.last ?? "")")
         }
     }
 

@@ -427,14 +427,14 @@ struct LiveKeyboardOverlayView: View {
                     return
                 }
                 toastState.lastReloadFailureAt = now
-                let message = (notification.userInfo?["message"] as? String) ?? "Config reload failed"
-                toastState.manager.showError("Reload delayed: \(message)")
+                let message = (notification.userInfo?["message"] as? String) ?? String(localized: "Config reload failed")
+                toastState.manager.showError(String(localized: "Reload delayed: \(message)"))
                 SoundManager.shared.playErrorSound()
             },
             onConfigReloadRecovered: {
                 guard toastState.lastReloadFailureAt != nil else { return }
                 toastState.lastReloadFailureAt = nil
-                toastState.manager.showSuccess("Reload recovered")
+                toastState.manager.showSuccess(String(localized: "Reload recovered"))
                 SoundManager.shared.playGlassSound()
             },
             onSwitchToAppRulesTab: {

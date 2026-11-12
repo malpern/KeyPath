@@ -106,14 +106,14 @@ struct RuleSetupSheet: View {
                 Button("Cancel") { session.finish(.failure(CancellationError())) }
                     .settingsAction().keyboardShortcut(.cancelAction)
                     .disabled(saving).accessibilityIdentifier("rule-setup-cancel")
-                Button(saving ? "Enabling…" : "Enable \(session.context.candidate.name)") {
+                Button(saving ? String(localized: "Enabling…") : String(localized: "Enable \(session.context.candidate.name)")) {
                     saving = true
                     error = nil
                     Task { @MainActor in
                         let result = await session.apply(selectedIDs)
                         saving = false
                         if result.success { session.finish(result) }
-                        else { error = result.error?.localizedDescription ?? "Could not save. Your existing rules were kept. Try again." }
+                        else { error = result.error?.localizedDescription ?? String(localized: "Could not save. Your existing rules were kept. Try again.") }
                     }
                 }
                 .settingsPrimaryAction().keyboardShortcut(.defaultAction)
@@ -133,7 +133,7 @@ struct RuleSetupSheet: View {
     private func providerChoice(_ provider: RuleCollection, index: Int, recommended: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             SettingsOptionCard(icon: provider.icon ?? "keyboard", title: provider.name,
-                               subtitle: recommended ? "Recommended" : provider.summary,
+                               subtitle: recommended ? String(localized: "Recommended") : provider.summary,
                                isSelected: selections[index] == provider.id)
             {
                 selections[index] = provider.id
@@ -145,7 +145,7 @@ struct RuleSetupSheet: View {
                 if provider.id == RuleCollectionIdentifier.leaderKey {
                     let key = provider.configuration.singleKeyPickerConfig?.selectedOutput ?? PreferencesService.shared.leaderKeyPreference.key
                     HStack(spacing: 6) {
-                        Text(PreferencesService.shared.contextHUDTriggerMode == .holdToShow ? "Hold" : "Tap")
+                        Text(PreferencesService.shared.contextHUDTriggerMode == .holdToShow ? String(localized: "Hold") : String(localized: "Tap"))
                         keycap(key == "space" || key == "spc" ? "Space" : key.uppercased())
                         if session.context.candidate.id == RuleCollectionIdentifier.windowSnapping {
                             Image(systemName: "arrow.right")

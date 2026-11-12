@@ -27,23 +27,23 @@ enum RulesRecommendationEngine {
 
         maybeAdd(
             RuleCollectionIdentifier.homeRowArrows,
-            reason: "Arrow keys under your right hand — hold F, press I/J/K/L. No more reaching."
+            reason: String(localized: "Arrow keys under your right hand — hold F, press I/J/K/L. No more reaching.")
         )
         maybeAdd(
             RuleCollectionIdentifier.capsLockRemap,
-            reason: "Most popular: turn Caps Lock into Escape + Hyper for instant shortcuts."
+            reason: String(localized: "Most popular: turn Caps Lock into Escape + Hyper for instant shortcuts.")
         )
         maybeAdd(
             RuleCollectionIdentifier.windowSnapping,
-            reason: "Snap windows to halves, thirds, and corners without reaching for the mouse."
+            reason: String(localized: "Snap windows to halves, thirds, and corners without reaching for the mouse.")
         )
         maybeAdd(
             RuleCollectionIdentifier.homeRowMods,
-            reason: "Hold home row keys for modifiers — keep your fingers where they type."
+            reason: String(localized: "Hold home row keys for modifiers — keep your fingers where they type.")
         )
         maybeAdd(
             RuleCollectionIdentifier.launcher,
-            reason: "Launch apps and open URLs with a single key tap."
+            reason: String(localized: "Launch apps and open URLs with a single key tap.")
         )
 
         // --- Contextual: based on what's already enabled ---
@@ -52,11 +52,11 @@ enum RulesRecommendationEngine {
         if isEnabled(RuleCollectionIdentifier.vimNavigation) {
             maybeAdd(
                 RuleCollectionIdentifier.windowSnapping,
-                reason: "Pairs well with Vim navigation for fast window management."
+                reason: String(localized: "Pairs well with Vim navigation for fast window management.")
             )
             maybeAdd(
                 RuleCollectionIdentifier.missionControl,
-                reason: "Quick access to Mission Control and Exposé alongside Vim keys."
+                reason: String(localized: "Quick access to Mission Control and Exposé alongside Vim keys.")
             )
         }
 
@@ -64,7 +64,7 @@ enum RulesRecommendationEngine {
         if isEnabled(RuleCollectionIdentifier.capsLockRemap) {
             maybeAdd(
                 RuleCollectionIdentifier.backupCapsLock,
-                reason: "Get Caps Lock back via Both Shifts since your Caps Lock key is remapped."
+                reason: String(localized: "Get Caps Lock back via Both Shifts since your Caps Lock key is remapped.")
             )
         }
 
@@ -72,7 +72,7 @@ enum RulesRecommendationEngine {
         if isEnabled(RuleCollectionIdentifier.windowSnapping) {
             maybeAdd(
                 RuleCollectionIdentifier.missionControl,
-                reason: "Complements window snapping with Mission Control and desktop switching."
+                reason: String(localized: "Complements window snapping with Mission Control and desktop switching.")
             )
         }
 
@@ -81,7 +81,7 @@ enum RulesRecommendationEngine {
         if enabledProductivityCount >= 3 {
             maybeAdd(
                 RuleCollectionIdentifier.leaderKey,
-                reason: "Organize your shortcuts under a leader key as your setup grows."
+                reason: String(localized: "Organize your shortcuts under a leader key as your setup grows.")
             )
         }
 
@@ -89,7 +89,7 @@ enum RulesRecommendationEngine {
         if isEnabled(RuleCollectionIdentifier.homeRowMods) {
             maybeAdd(
                 RuleCollectionIdentifier.vimNavigation,
-                reason: "Add H/J/K/L arrow navigation — natural complement to home row mods."
+                reason: String(localized: "Add H/J/K/L arrow navigation — natural complement to home row mods.")
             )
         }
 
@@ -97,11 +97,11 @@ enum RulesRecommendationEngine {
         if isEnabled(RuleCollectionIdentifier.homeRowMods) || isEnabled(RuleCollectionIdentifier.vimNavigation) {
             maybeAdd(
                 RuleCollectionIdentifier.symbolLayer,
-                reason: "Quick access to brackets, operators, and symbols for coding."
+                reason: String(localized: "Quick access to brackets, operators, and symbols for coding.")
             )
             maybeAdd(
                 RuleCollectionIdentifier.autoShiftSymbols,
-                reason: "Hold letter keys briefly to type their shifted symbol — no Shift key needed."
+                reason: String(localized: "Hold letter keys briefly to type their shifted symbol — no Shift key needed.")
             )
         }
 
@@ -111,11 +111,11 @@ enum RulesRecommendationEngine {
         if hasLayers {
             maybeAdd(
                 RuleCollectionIdentifier.numpadLayer,
-                reason: "A full numpad under your right hand — great alongside other layers."
+                reason: String(localized: "A full numpad under your right hand — great alongside other layers.")
             )
             maybeAdd(
                 RuleCollectionIdentifier.funLayer,
-                reason: "Quick access to F-keys and media controls on a dedicated layer."
+                reason: String(localized: "Quick access to F-keys and media controls on a dedicated layer.")
             )
         }
 

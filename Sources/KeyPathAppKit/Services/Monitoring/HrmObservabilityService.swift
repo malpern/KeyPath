@@ -18,11 +18,11 @@ final class HrmObservabilityService {
 
         var displayName: String {
             switch self {
-            case .unknown: "Unknown"
-            case .supported: "Supported"
-            case .traceOnly: "Trace only"
-            case .unsupported: "Unsupported"
-            case .disabledInRuntimeConfig: "Disabled in runtime config"
+            case .unknown: String(localized: "Unknown")
+            case .supported: String(localized: "Supported")
+            case .traceOnly: String(localized: "Trace only")
+            case .unsupported: String(localized: "Unsupported")
+            case .disabledInRuntimeConfig: String(localized: "Disabled in runtime config")
             }
         }
     }
@@ -189,11 +189,11 @@ final class HrmObservabilityService {
 
     func startCalibration(durationSeconds: Int = 60) {
         guard isMonitoring else {
-            calibrationState = .failed("The remapping engine is not being monitored.")
+            calibrationState = .failed(String(localized: "The remapping engine is not being monitored."))
             return
         }
         guard supportsHrmStats else {
-            calibrationState = .failed("HRM telemetry is not supported by the current Kanata build.")
+            calibrationState = .failed(String(localized: "HRM telemetry is not supported by the current Kanata build."))
             return
         }
 
@@ -223,7 +223,7 @@ final class HrmObservabilityService {
                 } catch {
                     guard calibrationRunToken == runToken else { return }
                     calibrationRemainingSeconds = 0
-                    calibrationState = .failed("Failed to reset HRM stats: \(error.localizedDescription)")
+                    calibrationState = .failed(String(localized: "Failed to reset HRM stats: \(error.localizedDescription)"))
                     return
                 }
             }
@@ -593,8 +593,8 @@ final class HrmObservabilityService {
             generated.append(
                 TimingRecommendation(
                     id: "reduce-hold-delay-release-before-decide",
-                    title: "Reduce hold delay slightly",
-                    details: "High release-before-decide rates suggest hold activation is arriving too late. Try making hold activation a bit faster.",
+                    title: String(localized: "Reduce hold delay slightly"),
+                    details: String(localized: "High release-before-decide rates suggest hold activation is arriving too late. Try making hold activation a bit faster."),
                     holdDelayDeltaMs: -10,
                     tapWindowDeltaMs: 0,
                     tapOffsetDeltaMsByKey: [:],
@@ -605,8 +605,8 @@ final class HrmObservabilityService {
             generated.append(
                 TimingRecommendation(
                     id: "increase-hold-delay-timeout",
-                    title: "Increase hold delay",
-                    details: "Timeout-driven holds are high. Increase hold delay to reduce accidental modifier activation during regular typing.",
+                    title: String(localized: "Increase hold delay"),
+                    details: String(localized: "Timeout-driven holds are high. Increase hold delay to reduce accidental modifier activation during regular typing."),
                     holdDelayDeltaMs: 10,
                     tapWindowDeltaMs: 5,
                     tapOffsetDeltaMsByKey: [:],
@@ -643,8 +643,8 @@ final class HrmObservabilityService {
             generated.append(
                 TimingRecommendation(
                     id: "per-key-tap-offset-cluster",
-                    title: "Add per-key tap offsets",
-                    details: "Accidental decisions are clustered on \(preview). Add a small per-key tap offset for those keys.",
+                    title: String(localized: "Add per-key tap offsets"),
+                    details: String(localized: "Accidental decisions are clustered on \(preview). Add a small per-key tap offset for those keys."),
                     holdDelayDeltaMs: 0,
                     tapWindowDeltaMs: 0,
                     tapOffsetDeltaMsByKey: tapOffsets,

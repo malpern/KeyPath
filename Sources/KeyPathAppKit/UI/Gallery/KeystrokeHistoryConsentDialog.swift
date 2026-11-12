@@ -45,15 +45,15 @@ struct KeystrokeHistoryConsentDialog: View {
         VStack(alignment: .leading, spacing: 8) {
             privacyRow(
                 icon: "memorychip",
-                text: "Kept in memory only — nothing is saved to disk"
+                text: String(localized: "Kept in memory only — nothing is saved to disk")
             )
             privacyRow(
                 icon: "lock.shield",
-                text: "Never leaves your machine"
+                text: String(localized: "Never leaves your machine")
             )
             privacyRow(
                 icon: "xmark.circle",
-                text: "Disappears when you quit KeyPath"
+                text: String(localized: "Disappears when you quit KeyPath")
             )
         }
         .padding(12)

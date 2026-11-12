@@ -165,7 +165,7 @@ public final class WindowManager {
         hasShownSpaceAPIWarning = true
 
         notificationService.notifyActionError(
-            "Space Movement Unavailable: The required macOS APIs are not available. Window-to-Space shortcuts will not work. This may happen after a macOS update."
+            String(localized: "Space Movement Unavailable: The required macOS APIs are not available. Window-to-Space shortcuts will not work. This may happen after a macOS update.")
         )
     }
 
@@ -189,7 +189,7 @@ public final class WindowManager {
         if position == .undo {
             let success = undoLastMove()
             if !success {
-                notifyOperationFailed("No previous window position to restore")
+                notifyOperationFailed(String(localized: "No previous window position to restore"))
             }
             return success
         }
@@ -198,14 +198,14 @@ public final class WindowManager {
         if position == .nextDisplay {
             let success = moveToNextDisplay()
             if !success {
-                notifyOperationFailed("Unable to move window to next display. Make sure multiple displays are connected and the window can be moved.")
+                notifyOperationFailed(String(localized: "Unable to move window to next display. Make sure multiple displays are connected and the window can be moved."))
             }
             return success
         }
         if position == .previousDisplay {
             let success = moveToPreviousDisplay()
             if !success {
-                notifyOperationFailed("Unable to move window to previous display. Make sure multiple displays are connected and the window can be moved.")
+                notifyOperationFailed(String(localized: "Unable to move window to previous display. Make sure multiple displays are connected and the window can be moved."))
             }
             return success
         }
@@ -229,7 +229,7 @@ public final class WindowManager {
         // Get the focused window
         guard let (window, currentFrame) = getFocusedWindow() else {
             AppLogger.shared.log("⚠️ [WindowManager] No focused window found")
-            notifyOperationFailed("No window is currently focused. Click on a window first.")
+            notifyOperationFailed(String(localized: "No window is currently focused. Click on a window first."))
             return false
         }
 
@@ -240,7 +240,7 @@ public final class WindowManager {
         // Get the screen containing the window
         guard let screen = screenContaining(frame: currentFrame) else {
             AppLogger.shared.log("⚠️ [WindowManager] Could not determine screen for window")
-            notifyOperationFailed("Unable to determine which display the window is on")
+            notifyOperationFailed(String(localized: "Unable to determine which display the window is on"))
             return false
         }
 
@@ -251,14 +251,17 @@ public final class WindowManager {
         // Apply the new frame
         let success = setWindowFrame(window, frame: targetFrame)
         if !success {
-            notifyOperationFailed("Unable to move window to \(position.rawValue). The window may not support resizing or moving.")
+            notifyOperationFailed(String(localized: "Unable to move window to \(position.rawValue). The window may not support resizing or moving."))
         }
         return success
     }
 
     /// Show user feedback when Accessibility permission is required
     private func notifyAccessibilityPermissionRequired() {
-        let message = "Window Management requires \(AccessibilityPermissionPresentation.current.name) permission. Enable in \(AccessibilityPermissionPresentation.current.settingsPath), then restart KeyPath."
+        let message =
+            String(
+                localized: "Window Management requires \(AccessibilityPermissionPresentation.current.name) permission. Enable in \(AccessibilityPermissionPresentation.current.settingsPath), then restart KeyPath."
+            )
         AppLogger.shared.log("⚠️ [WindowManager] \(message)")
         notificationService.notifyActionError(message)
     }
@@ -356,7 +359,7 @@ public final class WindowManager {
             if !hasShownSpaceAPIWarning {
                 hasShownSpaceAPIWarning = true
                 notificationService.notifyActionError(
-                    "Space Movement Unavailable: The macOS APIs needed for this feature are not available. This may happen after a macOS update."
+                    String(localized: "Space Movement Unavailable: The macOS APIs needed for this feature are not available. This may happen after a macOS update.")
                 )
             }
             return false

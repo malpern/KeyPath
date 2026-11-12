@@ -66,8 +66,8 @@ final class LaunchAtLoginController {
         case busy, notApplied
         var errorDescription: String? {
             switch self {
-            case .busy: "A login setting change is still in progress. Try again in a moment."
-            case .notApplied: "macOS did not apply the login setting. Check Login Items in System Settings."
+            case .busy: String(localized: "A login setting change is still in progress. Try again in a moment.")
+            case .notApplied: String(localized: "macOS did not apply the login setting. Check Login Items in System Settings.")
             }
         }
     }

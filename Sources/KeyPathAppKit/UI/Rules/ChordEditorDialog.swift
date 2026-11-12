@@ -21,6 +21,15 @@ struct ChordEditorDialog: View {
         case systemAction = "System"
         case appLaunch = "App"
         case custom = "Custom"
+
+        var displayName: String {
+            switch self {
+            case .keystroke: String(localized: "Keystroke", comment: "Chord output type")
+            case .systemAction: String(localized: "System", comment: "Chord output type: a system action")
+            case .appLaunch: String(localized: "App", comment: "Chord output type: launch an application")
+            case .custom: String(localized: "Custom", comment: "Chord output type: custom kanata output")
+            }
+        }
     }
 
     init(chord: ChordDefinition, onSave: @escaping (ChordDefinition) -> Void, onCancel: @escaping () -> Void) {
@@ -124,7 +133,7 @@ struct ChordEditorDialog: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Picker("", selection: $outputMode) {
                             ForEach(OutputMode.allCases, id: \.self) { mode in
-                                Text(mode.rawValue).tag(mode)
+                                Text(mode.displayName).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)

@@ -13,7 +13,7 @@ struct ContextHUDSettingsSection: View {
     @State private var advancedExpanded = false
 
     var body: some View {
-        SettingsSection(title: "While a Layer Is Active") {
+        SettingsSection(title: String(localized: "While a Layer Is Active")) {
             SettingsCard {
                 VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                     // Display Mode (only when Context HUD List is enabled)
@@ -31,26 +31,26 @@ struct ContextHUDSettingsSection: View {
                                 displayModeCard(
                                     mode: .overlayOnly,
                                     icon: "keyboard",
-                                    title: "Overlay",
-                                    subtitle: "Full keyboard"
+                                    title: String(localized: "Overlay", comment: "Layer display option: show the keyboard overlay"),
+                                    subtitle: String(localized: "Full keyboard")
                                 )
                                 displayModeCard(
                                     mode: .hudOnly,
                                     icon: "list.bullet.rectangle",
-                                    title: "List",
-                                    subtitle: "Compact view"
+                                    title: String(localized: "List", comment: "Layer display option: show a compact list"),
+                                    subtitle: String(localized: "Compact view")
                                 )
                                 displayModeCard(
                                     mode: .both,
                                     icon: "rectangle.on.rectangle",
-                                    title: "Both",
-                                    subtitle: "Overlay + List"
+                                    title: String(localized: "Both", comment: "Layer display option: overlay and list"),
+                                    subtitle: String(localized: "Overlay + List")
                                 )
                                 displayModeCard(
                                     mode: .none,
                                     icon: "eye.slash",
-                                    title: "Nothing",
-                                    subtitle: "Stay out of the way"
+                                    title: String(localized: "Nothing", comment: "Layer display option: show nothing"),
+                                    subtitle: String(localized: "Stay out of the way")
                                 )
                             }
                         }
@@ -65,8 +65,8 @@ struct ContextHUDSettingsSection: View {
                         HStack(spacing: 10) {
                             SettingsOptionCard(
                                 icon: "hand.tap",
-                                title: "Hold",
-                                subtitle: "Show while held",
+                                title: String(localized: "Hold", comment: "Layer trigger mode: show while the key is held"),
+                                subtitle: String(localized: "Show while held"),
                                 isSelected: triggerMode == .holdToShow,
                                 cardWidth: SettingsOptionCard.settingsRowWidth
                             ) {
@@ -77,8 +77,8 @@ struct ContextHUDSettingsSection: View {
 
                             SettingsOptionCard(
                                 icon: "hand.point.up",
-                                title: "Tap",
-                                subtitle: "Toggle on/off",
+                                title: String(localized: "Tap", comment: "Layer trigger mode: tap to toggle"),
+                                subtitle: String(localized: "Toggle on/off"),
                                 isSelected: triggerMode == .tapToToggle,
                                 cardWidth: SettingsOptionCard.settingsRowWidth
                             ) {

@@ -80,17 +80,17 @@ struct HomeRowArrowsView: View {
 
     private var heroHeadline: String {
         if isVim {
-            "Hold F for Vim-style\nHJKL arrow keys."
+            String(localized: "Hold F for Vim-style\nHJKL arrow keys.")
         } else {
-            "Hold F for arrow keys\nright under your fingers."
+            String(localized: "Hold F for arrow keys\nright under your fingers.")
         }
     }
 
     private var heroSubhead: String {
         if isVim {
-            "Classic Vim navigation.\nTap F normally to type."
+            String(localized: "Classic Vim navigation.\nTap F normally to type.")
         } else {
-            "Matches your arrow key layout.\nTap F normally to type."
+            String(localized: "Matches your arrow key layout.\nTap F normally to type.")
         }
     }
 
@@ -121,8 +121,8 @@ struct HomeRowArrowsView: View {
         HStack(spacing: 8) {
             SettingsOptionCard(
                 icon: "arrow.up.and.down.and.arrow.left.and.right",
-                title: "Inverted-T",
-                subtitle: "Arrow key layout",
+                title: String(localized: "Inverted-T"),
+                subtitle: String(localized: "Arrow key layout"),
                 isSelected: !isVim
             ) {
                 selectedPresetId = "inverted-t"
@@ -130,8 +130,8 @@ struct HomeRowArrowsView: View {
             }
             SettingsOptionCard(
                 icon: "chevron.left.forwardslash.chevron.right",
-                title: "Vim-Style",
-                subtitle: "HJKL layout",
+                title: String(localized: "Vim-Style"),
+                subtitle: String(localized: "HJKL layout"),
                 isSelected: isVim
             ) {
                 selectedPresetId = "vim"

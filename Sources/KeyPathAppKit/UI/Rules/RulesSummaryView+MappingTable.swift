@@ -44,22 +44,22 @@ struct MappingTableContent: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header row
             HStack(spacing: 0) {
-                headerCell("Key")
+                headerCell(String(localized: "Key"))
                     .frame(minWidth: 80, alignment: .leading)
                     .padding(.leading, 12)
                     .padding(.trailing, 24)
                 if hasDescriptions {
-                    headerCell("Description")
+                    headerCell(String(localized: "Description"))
                         .frame(minWidth: 150, maxWidth: .infinity, alignment: .center)
                 }
-                headerCell("Action")
+                headerCell(String(localized: "Action"))
                     .frame(width: 110)
                 if hasShiftVariants {
-                    headerCell("+ Shift ⇧", color: .orange)
+                    headerCell(String(localized: "+ Shift ⇧"), color: .orange)
                         .frame(width: 100)
                 }
                 if hasCtrlVariants {
-                    headerCell("+ Ctrl ⌃", color: .cyan)
+                    headerCell(String(localized: "+ Ctrl ⌃"), color: .cyan)
                         .frame(width: 100)
                 }
             }
@@ -105,7 +105,7 @@ struct MappingTableContent: View {
                 .padding(.vertical, 5)
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("rules-mapping-table-row-\(mapping.id)")
-                .accessibilityLabel(mapping.description ?? "Mapping")
+                .accessibilityLabel(mapping.description ?? String(localized: "Mapping"))
                 .accessibilityValue(mappingAccessibilityValue(mapping))
             }
             .padding(.vertical, 4)
@@ -178,13 +178,13 @@ struct MappingTableContent: View {
         behavior: MappingBehavior?
     )) -> String {
         var parts = [
-            "\(prettyKeyName(mapping.input)) to \(formatOutput(mapping.output))"
+            String(localized: "\(prettyKeyName(mapping.input)) to \(formatOutput(mapping.output))")
         ]
         if let shiftedOutput = mapping.shiftedOutput {
-            parts.append("shift to \(formatOutput(shiftedOutput))")
+            parts.append(String(localized: "shift to \(formatOutput(shiftedOutput))"))
         }
         if let ctrlOutput = mapping.ctrlOutput {
-            parts.append("control to \(formatOutput(ctrlOutput))")
+            parts.append(String(localized: "control to \(formatOutput(ctrlOutput))"))
         }
         return parts.joined(separator: ", ")
     }
