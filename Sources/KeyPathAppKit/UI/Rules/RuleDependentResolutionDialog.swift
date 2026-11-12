@@ -206,7 +206,7 @@ private struct RuleDependentRuleRow: View {
                         RuleDependentDetailList(details: details)
                             .padding(.top, 4)
                     } label: {
-                        Text("Show \(details.count) \(details.count == 1 ? "detail" : "details")")
+                        Text("Show \(details.count) details")
                             .font(.caption)
                     }
                     .accessibilityIdentifier(

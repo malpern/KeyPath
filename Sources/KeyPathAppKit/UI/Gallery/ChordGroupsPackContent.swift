@@ -195,7 +195,9 @@ private struct ChordRuleRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("chord-pack-toggle-\(chord.id.uuidString)")
-            .accessibilityLabel("\(chord.isEnabled ? "Disable" : "Enable") chord \(chord.keys.joined(separator: "+"))")
+            .accessibilityLabel(chord.isEnabled
+                ? Text("Disable chord \(chord.keys.joined(separator: "+"))")
+                : Text("Enable chord \(chord.keys.joined(separator: "+"))"))
 
             // Rest of the row — tapping opens editor
             Button(action: onEdit) {

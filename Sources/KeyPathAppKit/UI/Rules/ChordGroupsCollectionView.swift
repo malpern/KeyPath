@@ -107,7 +107,7 @@ struct ChordGroupsCollectionView: View {
                 .foregroundColor(.accentColor)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(config.groups.count) group\(config.groups.count == 1 ? "" : "s") • \(totalChords) chord\(totalChords == 1 ? "" : "s")")
+                Text("\(Text("\(config.groups.count) groups")) • \(Text("\(totalChords) chords"))")
                     .font(.body)
                     .fontWeight(.medium)
 

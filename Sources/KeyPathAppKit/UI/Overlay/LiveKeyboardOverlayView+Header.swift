@@ -795,7 +795,7 @@ struct SystemHealthIndicatorView: View {
                 })
                 .help("Click to fix system issues")
                 .accessibilityIdentifier("overlay-health-indicator-error")
-                .accessibilityLabel("System has \(issueCount) issue\(issueCount == 1 ? "" : "s"). Click to fix.")
+                .accessibilityLabel(Text("System has \(issueCount) issues. Click to fix."))
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.8).combined(with: .opacity),
                     removal: .opacity

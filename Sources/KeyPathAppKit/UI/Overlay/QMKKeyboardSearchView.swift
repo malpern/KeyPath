@@ -208,7 +208,7 @@ struct QMKKeyboardSearchView: View {
         VStack(spacing: 0) {
             Divider()
             HStack {
-                Text("\(keyboards.count) keyboard\(keyboards.count == 1 ? "" : "s")")
+                Text("\(keyboards.count) keyboards")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -221,7 +221,7 @@ struct QMKKeyboardSearchView: View {
             .background(Color(NSColor.controlBackgroundColor))
         }
         .accessibilityIdentifier("qmk-search-status-bar")
-        .accessibilityLabel("\(keyboards.count) keyboard\(keyboards.count == 1 ? "" : "s") found")
+        .accessibilityLabel(Text("\(keyboards.count) keyboards found"))
     }
 
     // MARK: - Actions
