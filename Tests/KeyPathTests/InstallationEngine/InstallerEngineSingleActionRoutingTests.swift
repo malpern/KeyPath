@@ -76,7 +76,7 @@ private final class SessionStartStub: RuntimeCoordinating {
     }
 
     func updateStatus() async {}
-    func currentRuntimeStatus() async -> WizardRuntimeStatus {
+    func currentRuntimeStatus() async -> RuntimeStatus {
         .stopped
     }
 

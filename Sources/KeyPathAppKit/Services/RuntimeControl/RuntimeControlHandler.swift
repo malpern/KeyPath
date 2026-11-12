@@ -140,7 +140,7 @@ enum RuntimeControlHandler {
     }
 
     static func response(ok: Bool, operation: RuntimeControl.Operation,
-                         status: ServiceLifecycleCoordinator.RuntimeStatus, lastError: String?) -> RuntimeControl.Response
+                         status: RuntimeStatus, lastError: String?) -> RuntimeControl.Response
     {
         let state: RuntimeControl.State
         var workerPID: Int?

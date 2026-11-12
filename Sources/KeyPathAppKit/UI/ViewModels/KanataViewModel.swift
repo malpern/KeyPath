@@ -582,7 +582,7 @@ class KanataViewModel {
         await manager.setCapsExcludedKeyboardIDs(ids)
     }
 
-    func currentRuntimeStatus() async -> RuntimeCoordinator.RuntimeStatus {
+    func currentRuntimeStatus() async -> RuntimeStatus {
         await manager.currentRuntimeStatusInternal()
     }
 

@@ -2,9 +2,9 @@ import Foundation
 
 // MARK: - Runtime Status
 
-/// Runtime status for the Kanata service, usable across module boundaries.
-/// Mirrors ServiceLifecycleCoordinator.RuntimeStatus for protocol use.
-public enum WizardRuntimeStatus: Equatable, Sendable {
+/// The session runtime's state, as ServiceLifecycleCoordinator reports it.
+/// Lives here so the app and the wizard module share one definition.
+public enum RuntimeStatus: Equatable, Sendable {
     case running(pid: Int)
     case stopped
     case failed(reason: String)
@@ -37,7 +37,7 @@ public protocol RuntimeCoordinating: AnyObject, Sendable {
 
     func updateStatus() async
 
-    func currentRuntimeStatus() async -> WizardRuntimeStatus
+    func currentRuntimeStatus() async -> RuntimeStatus
     func isInTransientRuntimeStartupWindow() async -> Bool
 
     // MARK: - Settings

@@ -122,7 +122,7 @@ private final class RuntimeStub: RuntimeCoordinating {
     }
 
     func updateStatus() async {}
-    func currentRuntimeStatus() async -> WizardRuntimeStatus {
+    func currentRuntimeStatus() async -> RuntimeStatus {
         .stopped
     }
 

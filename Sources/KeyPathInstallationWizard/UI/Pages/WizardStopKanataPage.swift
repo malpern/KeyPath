@@ -6,6 +6,7 @@ import SwiftUI
 /// Page 2 of the Kanata user migration flow
 /// Only shown when an external Kanata process is running
 public struct WizardStopKanataPage: View {
+    @Environment(\.wizardHost) private var wizardHost
     @State private var isStopping = false
     @State private var stopError: String?
     @State private var runningInfo: WizardSystemPaths.RunningKanataInfo?
@@ -46,7 +47,7 @@ public struct WizardStopKanataPage: View {
         .background(WizardDesign.Colors.wizardBackground)
         .wizardDetailPage()
         .onAppear {
-            runningInfo = WizardDependencies.getExternalKanataInfo?()
+            runningInfo = wizardHost.externalKanata?.info()
             animateEntrance()
         }
     }
@@ -165,8 +166,9 @@ public struct WizardStopKanataPage: View {
         isStopping = true
         stopError = nil
 
+        let externalKanata = wizardHost.externalKanata
         Task {
-            let result = await WizardDependencies.stopExternalKanata?(info)
+            let result = await externalKanata?.stop(info)
 
             await MainActor.run {
                 isStopping = false
@@ -177,7 +179,7 @@ public struct WizardStopKanataPage: View {
 
                 case let .failure(error):
                     let message = error.localizedDescription
-                    if WizardDependencies.hasExternalKanataRunning?() == false {
+                    if externalKanata?.isRunning() == false {
                         // Process is gone even if there was a warning
                         onComplete()
                     } else {

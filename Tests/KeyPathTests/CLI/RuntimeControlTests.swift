@@ -2,6 +2,7 @@ import Darwin
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
+import KeyPathWizardCore
 @preconcurrency import XCTest
 
 @MainActor
@@ -97,7 +98,7 @@ final class RuntimeControlTests: XCTestCase {
     }
 
     func testHandlerMapsRuntimeStatusToResponseStates() {
-        let cases: [(ServiceLifecycleCoordinator.RuntimeStatus, RuntimeControl.State, Int?, String?)] = [
+        let cases: [(RuntimeStatus, RuntimeControl.State, Int?, String?)] = [
             (.running(pid: 7), .running, 7, nil), (.starting, .starting, nil, nil), (.stopped, .stopped, nil, nil),
             (.failed(reason: "held keys"), .failed, nil, "held keys"), (.unknown, .unknown, nil, nil),
         ]

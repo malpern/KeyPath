@@ -6,6 +6,7 @@ import SwiftUI
 
 /// Accessibility permission page - dedicated page for Accessibility permissions
 public struct WizardAccessibilityPage: View {
+    @Environment(\.wizardHost) private var wizardHost
     public let onRefresh: () async -> Void
     public let onNavigateToPage: ((WizardPage) -> Void)?
     public let onDismiss: (() -> Void)?
@@ -232,8 +233,9 @@ public struct WizardAccessibilityPage: View {
         // Ask macOS first (this adds KeyPath's row), and record the attempt so the
         // manual card appears if the grant never registers.
         if keyPathRequestAttemptedAt == nil { keyPathRequestAttemptedAt = Date() }
+        let permissionRequests = wizardHost.permissionRequests
         Task { @MainActor in
-            if let service = WizardDependencies.permissionRequestService {
+            if let service = permissionRequests {
                 // Keep the service's cooldown: macOS shows its dialog on every
                 // request, so a user pressing this button again while the grant
                 // has not taken effect would get the same dialog each time.
@@ -293,6 +295,7 @@ public struct WizardAccessibilityPage: View {
 /// tile the user drags KeyPath into — instead of leaving them at a "Turn On" button
 /// that appeared to do nothing.
 private struct AccessibilityManualFallbackCard: View {
+    @Environment(\.wizardHost) private var wizardHost
     @State private var resetMessage: String?
 
     var body: some View {
@@ -355,8 +358,9 @@ private struct AccessibilityManualFallbackCard: View {
             return
         }
         resetMessage = "Reset. Allow KeyPath when macOS asks, then turn it on in System Settings."
+        let permissionRequests = wizardHost.permissionRequests
         Task { @MainActor in
-            if let service = WizardDependencies.permissionRequestService {
+            if let service = permissionRequests {
                 // The row is gone, so this asks for a fresh row bound to this build.
                 _ = await service.requestAccessibilityPermission(ignoreCooldown: true)
             }

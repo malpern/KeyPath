@@ -8,15 +8,8 @@ import SwiftUI
 // MARK: - RuntimeCoordinator + RuntimeCoordinating
 
 extension RuntimeCoordinator: RuntimeCoordinating {
-    public func currentRuntimeStatus() async -> WizardRuntimeStatus {
-        let status = await serviceLifecycleCoordinator.currentRuntimeStatus()
-        switch status {
-        case let .running(pid): return .running(pid: pid)
-        case .stopped: return .stopped
-        case let .failed(reason): return .failed(reason: reason)
-        case .starting: return .starting
-        case .unknown: return .unknown
-        }
+    public func currentRuntimeStatus() async -> RuntimeStatus {
+        await serviceLifecycleCoordinator.currentRuntimeStatus()
     }
 
     public func isInTransientRuntimeStartupWindow() async -> Bool {
@@ -52,7 +45,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
     // Share the same validator with MainAppStateController so there's only one instance app-wide.
     // This ensures inProgressValidation dedup spans all callers.
     MainAppStateController.shared.setValidator(sharedValidator)
-    WizardDependencies.permissionRequestService = PermissionRequestService.shared
 
     WizardDependencies.createUninstallCoordinator = {
         SessionUninstallCoordinator(prepare: {
@@ -75,22 +67,6 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             return outcome.result
         })
     }
-
-    configureExternalKanataDependencies()
-
-    // Page view factories for pages that live in KeyPathAppKit
-    WizardDependencies.makeKanataMigrationPage = { onMigrationComplete, onSkip in
-        AnyView(WizardKanataMigrationPage(
-            onMigrationComplete: onMigrationComplete,
-            onSkip: onSkip
-        ))
-    }
-    WizardDependencies.makeKarabinerImportPage = { onImportComplete, onSkip in
-        AnyView(WizardKarabinerImportPage(
-            onImportComplete: onImportComplete,
-            onSkip: onSkip
-        ))
-    }
 }
 
 /// Configure WizardDependencies for app-bundled CLI repair/inspect entry points.
@@ -100,31 +76,38 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
     WizardDependencies.systemValidator = systemValidator
 
     MainAppStateController.shared.setValidator(systemValidator)
-    WizardDependencies.permissionRequestService = PermissionRequestService.shared
 
     // The CLI cannot uninstall: the session runtime belongs to the running app.
     WizardDependencies.createUninstallCoordinator = nil
-
-    configureExternalKanataDependencies()
 }
 
-/// The wizard's Stop Kanata page reaches ExternalKanataService through these.
-@MainActor
-private func configureExternalKanataDependencies() {
-    WizardDependencies.getExternalKanataInfo = {
-        ExternalKanataService.getExternalKanataInfo()
-    }
-    WizardDependencies.stopExternalKanata = { info in
-        switch await ExternalKanataService.stopExternalKanata(info) {
-        case .success, .processNotFound:
-            .success(())
-        case let .killFailed(reason):
-            .failure(NSError(domain: "ExternalKanata", code: 1, userInfo: [NSLocalizedDescriptionKey: reason]))
-        case let .launchAgentDisableFailed(reason):
-            .failure(NSError(domain: "ExternalKanata", code: 2, userInfo: [NSLocalizedDescriptionKey: reason]))
-        }
-    }
-    WizardDependencies.hasExternalKanataRunning = {
-        ExternalKanataService.hasExternalKanataRunning()
+public extension WizardHost {
+    /// The app's pages and services for the wizard. Wizard hosts set this in
+    /// the SwiftUI environment.
+    @MainActor
+    static var app: WizardHost {
+        WizardHost(
+            makeKanataMigrationPage: { onMigrationComplete, onSkip in
+                AnyView(WizardKanataMigrationPage(onMigrationComplete: onMigrationComplete, onSkip: onSkip))
+            },
+            makeKarabinerImportPage: { onImportComplete, onSkip in
+                AnyView(WizardKarabinerImportPage(onImportComplete: onImportComplete, onSkip: onSkip))
+            },
+            externalKanata: ExternalKanataOperations(
+                info: { ExternalKanataService.getExternalKanataInfo() },
+                stop: { info in
+                    switch await ExternalKanataService.stopExternalKanata(info) {
+                    case .success, .processNotFound:
+                        .success(())
+                    case let .killFailed(reason):
+                        .failure(NSError(domain: "ExternalKanata", code: 1, userInfo: [NSLocalizedDescriptionKey: reason]))
+                    case let .launchAgentDisableFailed(reason):
+                        .failure(NSError(domain: "ExternalKanata", code: 2, userInfo: [NSLocalizedDescriptionKey: reason]))
+                    }
+                },
+                isRunning: { ExternalKanataService.hasExternalKanataRunning() }
+            ),
+            permissionRequests: PermissionRequestService.shared
+        )
     }
 }

@@ -88,7 +88,7 @@ extension InstallationWizardView {
                 unconfiguredView(page: "accessibility")
             }
         case .kanataMigration:
-            if let factory = WizardDependencies.makeKanataMigrationPage {
+            if let factory = wizardHost.makeKanataMigrationPage {
                 factory(
                     { hasRunningKanata in
                         // After migration, check if we need to stop external kanata
@@ -120,7 +120,7 @@ extension InstallationWizardView {
                 }
             )
         case .karabinerImport:
-            if let factory = WizardDependencies.makeKarabinerImportPage {
+            if let factory = wizardHost.makeKarabinerImportPage {
                 factory(
                     {
                         refreshSystemState()

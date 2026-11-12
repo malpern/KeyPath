@@ -1181,10 +1181,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     // MARK: - Service Management
 
-    /// Type alias preserving backward compatibility for callers that reference
-    /// `RuntimeCoordinator.RuntimeStatus`.
-    typealias RuntimeStatus = ServiceLifecycleCoordinator.RuntimeStatus
-
     @discardableResult
     public func startKanata(reason: String = "Manual start") async -> Bool {
         await serviceLifecycleCoordinator.startKanata(reason: reason)
