@@ -123,7 +123,7 @@ public struct SystemContext: Sendable {
         )
     }
 
-    /// Empty/fallback context for test environments where WizardDependencies is not configured.
+    /// Empty/fallback context for test environments where no InstallerServices are configured.
     public static var empty: SystemContext {
         SystemContext(
             snapshot: .unavailable(captureStatus: .cancelled, source: "validator-unavailable")

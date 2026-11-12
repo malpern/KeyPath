@@ -39,19 +39,22 @@ private enum InstallerTransactionContext {
 public final class InstallerEngine {
     // MARK: - Dependencies
 
-    /// System validator for detecting current system state.
-    /// Lazily resolved: prefers an injected validator, then falls back to
-    /// WizardDependencies.systemValidator at call-time (not init-time) so that
-    /// InstallerEngine can be created before WizardDependencies is configured.
-    private let injectedValidator: (any WizardSystemValidating)?
-    private var systemValidator: (any WizardSystemValidating)? {
-        injectedValidator ?? WizardDependencies.systemValidator
+    /// Services resolved at call time: injected ones (tests), else the ones the
+    /// app or CLI set at launch, so an engine made early still sees them.
+    private let injectedServices: InstallerServices?
+    private var services: InstallerServices {
+        injectedServices ?? InstallerServices.current
     }
 
-    /// Creates an engine. Tests inject a validator; app and CLI callers resolve
-    /// `WizardDependencies.systemValidator` at call time.
-    public init(systemValidator injectedValidator: (any WizardSystemValidating)? = nil) {
-        self.injectedValidator = injectedValidator
+    private var systemValidator: (any WizardSystemValidating)? {
+        services.systemValidator
+    }
+
+    /// Creates an engine. Tests pass their services; app and CLI callers use the
+    /// ones set at launch. Passed services replace all of them: whatever a passed
+    /// value leaves nil (a runtime, an uninstaller) is nil for this engine.
+    public init(services: InstallerServices? = nil) {
+        injectedServices = services
 
         AppLogger.shared.log("🔧 [InstallerEngine] Initialized")
     }
@@ -578,7 +581,7 @@ public final class InstallerEngine {
         }
         switch recipe.id {
         case InstallerRecipeID.startSessionRuntime:
-            guard await WizardDependencies.runtimeCoordinator?.startKanata(reason: "Driverless setup") == true else {
+            guard await services.runtime?.startKanata(reason: "Driverless setup") == true else {
                 throw InstallerError.healthCheckFailed("Session runtime did not become ready")
             }
         default:
@@ -631,7 +634,7 @@ public final class InstallerEngine {
 
     private func uninstallWithinTransaction(deleteConfig: Bool) async -> InstallerReport {
         guard deleteConfig,
-              let coordinator = WizardDependencies.createUninstallCoordinator?()
+              let coordinator = services.makeUninstaller?()
         else {
             return InstallerReport(success: false, failureReason: "Use Uninstall KeyPath in Settings to back up and remove this user's installation.")
         }

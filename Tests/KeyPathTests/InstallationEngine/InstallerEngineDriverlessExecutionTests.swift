@@ -22,11 +22,8 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
 
     func testMalformedAndPrivilegedRecipesCannotExecuteOrBecomeVerifiedSuccess() async {
         let runtime = RuntimeStub()
-        let previous = WizardDependencies.runtimeCoordinator
-        WizardDependencies.runtimeCoordinator = runtime
-        defer { WizardDependencies.runtimeCoordinator = previous }
         let final = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
-        let engine = InstallerEngine(systemValidator: StubSystemValidator(context: final))
+        let engine = InstallerEngine(services: InstallerServices(systemValidator: StubSystemValidator(context: final), runtime: runtime))
         let recipes = [
             ServiceRecipe(id: "forged-component", type: .installComponent),
             ServiceRecipe(id: "start-session-runtime", type: .checkRequirement,
@@ -49,11 +46,8 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
 
     func testMixedPlanRefusesBeforePermittedSessionStart() async {
         let runtime = RuntimeStub()
-        let previous = WizardDependencies.runtimeCoordinator
-        WizardDependencies.runtimeCoordinator = runtime
-        defer { WizardDependencies.runtimeCoordinator = previous }
         let context = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
-        let engine = InstallerEngine(systemValidator: StubSystemValidator(context: context))
+        let engine = InstallerEngine(services: InstallerServices(systemValidator: StubSystemValidator(context: context), runtime: runtime))
         let permitted = engine.recipeForAction(.startSessionRuntime)
         let plan = InstallPlan(recipes: [permitted, ServiceRecipe(id: "forbidden-recipe", type: .installComponent)],
                                status: .ready, intent: .repair)
@@ -67,10 +61,11 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
 
     func testExternallyConstructedInspectionAndUninstallPlansCannotStartRuntime() async {
         let runtime = RuntimeStub()
-        let previous = WizardDependencies.runtimeCoordinator
-        WizardDependencies.runtimeCoordinator = runtime
-        defer { WizardDependencies.runtimeCoordinator = previous }
-        let engine = InstallerEngine()
+        let context = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
+        let engine = InstallerEngine(services: InstallerServices(
+            systemValidator: StubSystemValidator(context: context),
+            runtime: runtime
+        ))
         let recipe = engine.recipeForAction(.startSessionRuntime)
         for intent in [InstallIntent.inspectOnly, .uninstall] {
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: intent)
@@ -84,13 +79,10 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
 
     func testSessionStartRequiresFreshCompleteRuntimeReadiness() async {
         let runtime = RuntimeStub()
-        let previous = WizardDependencies.runtimeCoordinator
-        WizardDependencies.runtimeCoordinator = runtime
-        defer { WizardDependencies.runtimeCoordinator = previous }
         let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
         let stopped = SystemContextBuilder.cleanInstall()
         for final in [ready, stopped] {
-            let engine = InstallerEngine(systemValidator: StubSystemValidator(context: final))
+            let engine = InstallerEngine(services: InstallerServices(systemValidator: StubSystemValidator(context: final), runtime: runtime))
             let recipe = engine.recipeForAction(.startSessionRuntime)
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: .repair)
             let report = await engine.execute(plan: plan)

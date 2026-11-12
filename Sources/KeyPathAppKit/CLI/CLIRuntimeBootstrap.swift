@@ -27,7 +27,7 @@ enum CLIRuntimeBootstrap {
             return .init(status: .granted, source: "keypath-app.doctor", confidence: .high, timestamp: Date())
         }
 
-        configureCLIWizardDependencies(systemValidator: validator)
+        configureCLIInstallerServices(systemValidator: validator)
     }
 }
 

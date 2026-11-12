@@ -171,7 +171,7 @@ class MainAppStateController {
     // Cleanup would be impossible anyway since deinit is nonisolated and can't access
     // MainActor-isolated properties like task handles.
 
-    /// Inject the shared SystemValidator instance (called from configureWizardDependencies).
+    /// Inject the shared SystemValidator instance (called from configureInstallerServices).
     func setValidator(_ shared: any WizardSystemValidating) {
         validator = shared
     }

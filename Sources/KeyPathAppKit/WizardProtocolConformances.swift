@@ -33,52 +33,49 @@ extension SystemValidator: WizardSystemValidating {
 
 extension PermissionRequestService: WizardPermissionRequesting {}
 
-// MARK: - WizardDependencies Configuration
+// MARK: - InstallerServices
 
-/// Configure WizardDependencies at app launch (call from App.init or similar)
+/// Sets the installer's services at app launch.
 @MainActor
-public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) {
-    WizardDependencies.runtimeCoordinator = runtimeCoordinator
+public func configureInstallerServices(runtimeCoordinator: RuntimeCoordinator) {
     let sharedValidator = SystemValidator(kanataManager: runtimeCoordinator)
-    WizardDependencies.systemValidator = sharedValidator
-
     // Share the same validator with MainAppStateController so there's only one instance app-wide.
     // This ensures inProgressValidation dedup spans all callers.
     MainAppStateController.shared.setValidator(sharedValidator)
 
-    WizardDependencies.createUninstallCoordinator = {
-        SessionUninstallCoordinator(prepare: {
-            runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(true)
-            guard await runtimeCoordinator.stopKanata(reason: "Uninstall KeyPath") else { return false }
-            runtimeCoordinator.stopConfigFileWatching()
-            await runtimeCoordinator.configurationService.operationGate.suspendForUninstall()
-            return true
-        }, resume: {
-            await runtimeCoordinator.configurationService.operationGate.resumeAfterFailedUninstall()
-            runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(false)
-            runtimeCoordinator.startConfigFileWatching()
-        }, removeLoginItem: {
-            try await LaunchAtLoginController.shared.setEnabled(false)
-        }, stopSessionWorkers: {
-            let outcome = await SessionWorkerSweep.live(uninstalling: Bundle.main.bundleURL).stopAll()
-            AppLogger.shared.log(
-                "[Uninstall] Session worker sweep verified=\(outcome.verified) found=\(outcome.found.map(\.pid)) remaining=\(outcome.remaining.map(\.pid))"
-            )
-            return outcome.result
-        })
-    }
+    InstallerServices.current = InstallerServices(
+        systemValidator: sharedValidator,
+        runtime: runtimeCoordinator,
+        makeUninstaller: {
+            SessionUninstallCoordinator(prepare: {
+                runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(true)
+                guard await runtimeCoordinator.stopKanata(reason: "Uninstall KeyPath") else { return false }
+                runtimeCoordinator.stopConfigFileWatching()
+                await runtimeCoordinator.configurationService.operationGate.suspendForUninstall()
+                return true
+            }, resume: {
+                await runtimeCoordinator.configurationService.operationGate.resumeAfterFailedUninstall()
+                runtimeCoordinator.serviceLifecycleCoordinator.setTerminationPreparationActive(false)
+                runtimeCoordinator.startConfigFileWatching()
+            }, removeLoginItem: {
+                try await LaunchAtLoginController.shared.setEnabled(false)
+            }, stopSessionWorkers: {
+                let outcome = await SessionWorkerSweep.live(uninstalling: Bundle.main.bundleURL).stopAll()
+                AppLogger.shared.log(
+                    "[Uninstall] Session worker sweep verified=\(outcome.verified) found=\(outcome.found.map(\.pid)) remaining=\(outcome.remaining.map(\.pid))"
+                )
+                return outcome.result
+            })
+        }
+    )
 }
 
-/// Configure WizardDependencies for app-bundled CLI repair/inspect entry points.
+/// Sets the installer's services for the app-bundled CLI's repair and inspect commands.
+/// The CLI has no runtime of its own and cannot uninstall: both belong to the running app.
 @MainActor
-func configureCLIWizardDependencies(systemValidator: SystemValidator) {
-    WizardDependencies.runtimeCoordinator = nil
-    WizardDependencies.systemValidator = systemValidator
-
+func configureCLIInstallerServices(systemValidator: SystemValidator) {
     MainAppStateController.shared.setValidator(systemValidator)
-
-    // The CLI cannot uninstall: the session runtime belongs to the running app.
-    WizardDependencies.createUninstallCoordinator = nil
+    InstallerServices.current = InstallerServices(systemValidator: systemValidator)
 }
 
 public extension WizardHost {
