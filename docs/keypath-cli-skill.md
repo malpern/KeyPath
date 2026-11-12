@@ -21,7 +21,7 @@ editing config files directly.
 - When piped (non-TTY), output is JSON automatically
 - Use `--quiet` to suppress stderr decoration (spinners, progress)
 - Use `--dry-run` to preview any mutation before committing
-- Use the app-bundled CLI or the app-installed `/usr/local/bin/keypath-cli` shim
+- Use the app-bundled CLI or the app-installed `~/.local/bin/keypath-cli` link
   so config validation/simulation resolve the installed app's runtime payload.
 
 ## Command Reference

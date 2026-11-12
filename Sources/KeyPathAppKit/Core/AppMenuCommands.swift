@@ -242,7 +242,7 @@ struct AppMenuCommands: Commands {
             let alert = NSAlert()
             alert.messageText = "Command Line Tool Already Exists"
             alert.informativeText = """
-            \(CommandLineToolInstaller.linkPath) already exists and is not a KeyPath command-line tool link.
+            \(CommandLineToolInstaller.linkPath()) already exists and is not a KeyPath command-line tool link.
 
             Remove or rename the existing file before installing KeyPath's command-line tool.
             """
@@ -255,9 +255,9 @@ struct AppMenuCommands: Commands {
         alert.messageText = "Install Command Line Tool?"
         alert.informativeText = """
         This installs a terminal command at:
-        \(CommandLineToolInstaller.linkPath)
+        \(CommandLineToolInstaller.linkPath())
 
-        The command points to the signed CLI inside KeyPath.app. Opening KeyPath.app remains the primary way to launch KeyPath.
+        The command points to the signed CLI inside KeyPath.app. No administrator password is needed. Opening KeyPath.app remains the primary way to launch KeyPath.
         """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Install")
@@ -266,14 +266,15 @@ struct AppMenuCommands: Commands {
 
         Task { @MainActor in
             do {
-                try await CommandLineToolInstaller.install()
+                try CommandLineToolInstaller.install()
                 let success = NSAlert()
                 success.messageText = "Command Line Tool Installed"
                 success.informativeText = """
                 You can now run:
                 keypath-cli system inspect
 
-                The command points to the CLI inside KeyPath.app.
+                If your terminal can't find keypath-cli, add this line to ~/.zshrc and open a new window:
+                \(CommandLineToolInstaller.pathExportLine)
                 """
                 success.alertStyle = .informational
                 success.runModal()
