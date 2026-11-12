@@ -312,6 +312,8 @@ python3 "$SCRIPT_DIR/build-offline-help.py" --output "$RESOURCES/OfflineHelp"
 if [ -d "Sources/KeyPathApp/Resources" ]; then
     ditto "Sources/KeyPathApp/Resources/" "$RESOURCES"
     echo "✅ Copied app resources"
+    # Plain Text("…")/Button("…") in every module look up the main bundle.
+    "$SCRIPT_DIR/l10n/compile-strings.sh" "$RESOURCES"
 else
     echo "⚠️ WARNING: Sources/KeyPathApp/Resources directory not found"
 fi
