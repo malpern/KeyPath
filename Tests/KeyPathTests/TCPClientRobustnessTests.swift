@@ -681,11 +681,11 @@ final class TCPClientRobustnessTests: XCTestCase {
 
         async let r1 = singleFlight.run(reason: "test1", debounce: 0) {
             await counter.increment()
-            return EngineReloadResult.success(response: "ok")
+            return TCPReloadResult.success(response: "ok")
         }
         async let r2 = singleFlight.run(reason: "test2", debounce: 0) {
             await counter.increment()
-            return EngineReloadResult.success(response: "ok")
+            return TCPReloadResult.success(response: "ok")
         }
 
         let results = await (r1, r2)
@@ -699,10 +699,10 @@ final class TCPClientRobustnessTests: XCTestCase {
         let singleFlight = EngineReloadSingleFlight()
 
         let r1 = await singleFlight.run(reason: "first", debounce: 0) {
-            EngineReloadResult.success(response: "ok1")
+            TCPReloadResult.success(response: "ok1")
         }
         let r2 = await singleFlight.run(reason: "second", debounce: 0) {
-            EngineReloadResult.success(response: "ok2")
+            TCPReloadResult.success(response: "ok2")
         }
 
         XCTAssertTrue(r1.isSuccess)

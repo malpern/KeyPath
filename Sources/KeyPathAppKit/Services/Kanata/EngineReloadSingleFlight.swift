@@ -8,15 +8,15 @@ import KeyPathCore
 actor EngineReloadSingleFlight {
     static let shared = EngineReloadSingleFlight()
 
-    private var inFlight: Task<EngineReloadResult, Never>?
+    private var inFlight: Task<TCPReloadResult, Never>?
 
     /// Run `operation` after a small debounce. If another call happens while the
     /// operation is in-flight, it will await the same result.
     func run(
         reason: String,
         debounce: TimeInterval = 0.25,
-        operation: @Sendable @escaping () async -> EngineReloadResult
-    ) async -> EngineReloadResult {
+        operation: @Sendable @escaping () async -> TCPReloadResult
+    ) async -> TCPReloadResult {
         if let inFlight {
             AppLogger.shared.debug(
                 "🔁 [EngineReload] Coalescing reload request (reason=\(reason))"
@@ -25,7 +25,7 @@ actor EngineReloadSingleFlight {
         }
 
         let start = Date()
-        let task = Task { () -> EngineReloadResult in
+        let task = Task { () -> TCPReloadResult in
             if debounce > 0 {
                 try? await Task.sleep(for: .seconds(debounce))
             }

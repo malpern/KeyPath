@@ -40,19 +40,19 @@ final class EngineReloadSingleFlightTests: XCTestCase {
         let gate = Gate()
         let started = Counter()
 
-        async let r1: EngineReloadResult = singleFlight.run(reason: "t1", debounce: 0) {
+        async let r1: TCPReloadResult = singleFlight.run(reason: "t1", debounce: 0) {
             await started.inc()
             await gate.wait()
             return .success(response: "ok")
         }
 
-        async let r2: EngineReloadResult = singleFlight.run(reason: "t2", debounce: 0) {
+        async let r2: TCPReloadResult = singleFlight.run(reason: "t2", debounce: 0) {
             await started.inc()
             await gate.wait()
             return .success(response: "ok-should-not-run")
         }
 
-        async let r3: EngineReloadResult = singleFlight.run(reason: "t3", debounce: 0) {
+        async let r3: TCPReloadResult = singleFlight.run(reason: "t3", debounce: 0) {
             await started.inc()
             await gate.wait()
             return .success(response: "ok-should-not-run")
