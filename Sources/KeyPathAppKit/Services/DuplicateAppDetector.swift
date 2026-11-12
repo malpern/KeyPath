@@ -11,6 +11,10 @@ enum DuplicateAppDetector {
     // and this used to run `mdfind` with an unbounded `waitUntilExit()` on the main
     // actor, freezing Settings and the wizard behind a spinner. A slow or failed
     // scan now falls back to the canonical install locations instead.
+    //
+    // It stays a subprocess on purpose, rather than NSMetadataQuery: a stalled
+    // `mdfind` child can be timed out and killed, while a query needs a run loop
+    // and cannot be abandoned cleanly.
     #if DEBUG
         nonisolated(unsafe) static var testDuplicateAppPathsOverride: (() -> [String]?)?
         nonisolated(unsafe) static var testDuplicateScanRunner: (any SubprocessRunning)?

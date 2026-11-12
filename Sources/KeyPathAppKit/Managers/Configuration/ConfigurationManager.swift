@@ -176,11 +176,7 @@ final class ConfigurationManager {
             } catch {
                 // Fallback: Try to open with default text editor
                 do {
-                    _ = try await SubprocessRunner.shared.run(
-                        "/usr/bin/open",
-                        args: ["-t", filePath],
-                        timeout: 5
-                    )
+                    try await DefaultTextEditor.open(filePath)
                     AppLogger.shared.log("📝 [ConfigManager] Opened file in default text editor: \(filePath)")
                 } catch {
                     // Last resort: Open containing folder
