@@ -25,94 +25,65 @@ public enum AppLogLevel: Int, CaseIterable, Sendable {
     }
 }
 
-public final class AppLogger {
+public final class AppLogger: Sendable {
     public static let shared = AppLogger()
 
     // MARK: - Configuration
 
-    private let maxLogSize: Int = 5 * 1024 * 1024 // 5MB max log file size (keeps total under 10MB)
+    private let maxLogSize: Int = 5 * 1024 * 1024
     private let maxLogFiles: Int = 3 // Keep 3 rotated logs (current + 2 backups)
-    private let bufferSize: Int = 100 // Buffer up to 100 messages before writing
-    private let flushInterval: TimeInterval = 5.0 // Auto-flush every 5 seconds
 
-    /// Minimum log level to output (respects build configuration)
-    private var minimumLevel: AppLogLevel
-    private let levelLock = NSLock()
-
-    private func getMinimumLevel() -> AppLogLevel {
-        levelLock.lock()
-        defer { levelLock.unlock() }
-        return minimumLevel
+    private struct Options: Sendable {
+        var minimumLevel: AppLogLevel
+        var enableConsoleLogging: Bool
     }
 
-    private func setMinimumLevelInternal(_ level: AppLogLevel) {
-        levelLock.lock()
-        defer { levelLock.unlock() }
-        minimumLevel = level
-    }
-
-    /// Whether console logging is enabled (default: true in debug, false in release)
-    private var enableConsoleLogging: Bool
-
-    private func getConsoleLoggingEnabled() -> Bool {
-        levelLock.lock()
-        defer { levelLock.unlock() }
-        return enableConsoleLogging
-    }
-
-    public func setConsoleLoggingEnabled(_ enabled: Bool) {
-        levelLock.lock()
-        defer { levelLock.unlock() }
-        enableConsoleLogging = enabled
-    }
-
-    // MARK: - State
-
-    private var logDirectory: String
+    private let options: Mutex<Options>
+    private let logDirectory: Mutex<String>
     private let logFileName = "keypath-debug.log"
     private var logPath: String {
-        "\(logDirectory)/\(logFileName)"
+        "\(logDirectory.withLock { $0 })/\(logFileName)"
     }
 
     private let dateFormatter: DateFormatter
-    private var messageBuffer: [String] = []
-    private let bufferQueue = DispatchQueue(label: "com.keypath.logger", qos: .utility)
-    private var flushTimer: Timer?
+    private let fileQueue = DispatchQueue(label: "com.keypath.logger", qos: .utility)
 
     public init(
         minimumLevel: AppLogLevel? = nil,
         enableConsoleLogging: Bool? = nil
     ) {
-        // Determine minimum log level (environment variable override > parameter > default)
-        if let envLevel = ProcessInfo.processInfo.environment["KEYPATH_LOG_LEVEL"],
-           let levelInt = Int(envLevel),
-           let level = AppLogLevel(rawValue: levelInt)
+        // Prefer the environment override, then the parameter, then the build default.
+        let configuredLevel: AppLogLevel = if let envLevel = ProcessInfo.processInfo.environment["KEYPATH_LOG_LEVEL"],
+                                              let levelInt = Int(envLevel),
+                                              let level = AppLogLevel(rawValue: levelInt)
         {
-            self.minimumLevel = level
+            level
         } else {
-            self.minimumLevel = minimumLevel ?? AppLogLevel.defaultMinimumLevel
+            minimumLevel ?? AppLogLevel.defaultMinimumLevel
         }
 
         // Console logging (default: true in debug, false in release)
         #if DEBUG
-            self.enableConsoleLogging = enableConsoleLogging ?? true
+            let consoleEnabled = enableConsoleLogging ?? true
         #else
-            self.enableConsoleLogging = enableConsoleLogging ?? false
+            let consoleEnabled = enableConsoleLogging ?? false
         #endif
 
-        // Use overrides for tests first, then fall back to standard macOS log directory
-        if let explicitOverride = ProcessInfo.processInfo.environment["KEYPATH_LOG_DIR_OVERRIDE"],
-           !explicitOverride.isEmpty
+        options = Mutex(Options(minimumLevel: configuredLevel, enableConsoleLogging: consoleEnabled))
+
+        // Use test overrides before the standard macOS log directory.
+        var directory: String = if let explicitOverride = ProcessInfo.processInfo.environment["KEYPATH_LOG_DIR_OVERRIDE"],
+                                   !explicitOverride.isEmpty
         {
-            logDirectory = explicitOverride
+            explicitOverride
         } else if let homeOverride = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
                   !homeOverride.isEmpty
         {
-            logDirectory = homeOverride + "/Library/Logs/KeyPath"
+            homeOverride + "/Library/Logs/KeyPath"
         } else {
             // AppPaths redirects to the per-process test sandbox under test, so a
             // plain `swift test` never writes into the developer's real debug log.
-            logDirectory = AppPaths.logsDirectory.path
+            AppPaths.logsDirectory.path
         }
 
         dateFormatter = DateFormatter()
@@ -121,40 +92,37 @@ public final class AppLogger {
         // Ensure log directory exists
         do {
             try FileManager.default.createDirectory(
-                atPath: logDirectory,
+                atPath: directory,
                 withIntermediateDirectories: true,
                 attributes: nil
             )
         } catch {
             // Fallback to temporary directory if creation fails
             print(
-                "Error creating log directory at \(logDirectory): \(error.localizedDescription). Falling back to temporary directory."
+                "Error creating log directory at \(directory): \(error.localizedDescription). Falling back to temporary directory."
             )
-            logDirectory = NSTemporaryDirectory()
+            directory = NSTemporaryDirectory()
         }
 
-        // Start automatic flush timer
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            flushTimer = Timer.scheduledTimer(withTimeInterval: flushInterval, repeats: true) {
-                _ in
-                self.flushBuffer()
-            }
-        }
+        logDirectory = Mutex(directory)
     }
 
     /// Update minimum log level at runtime
     public func setMinimumLevel(_ level: AppLogLevel) {
-        bufferQueue.async {
-            self.setMinimumLevelInternal(level)
+        fileQueue.async {
+            self.options.withLock { $0.minimumLevel = level }
         }
+    }
+
+    public func setConsoleLoggingEnabled(_ enabled: Bool) {
+        options.withLock { $0.enableConsoleLogging = enabled }
     }
 
     /// Override the log directory (primarily for integration tests that sandbox HOME)
     public func overrideLogDirectory(_ directory: String) {
         guard !directory.isEmpty else { return }
-        bufferQueue.sync {
-            self.logDirectory = directory
+        fileQueue.sync {
+            logDirectory.withLock { $0 = directory }
             do {
                 try FileManager.default.createDirectory(
                     atPath: directory,
@@ -171,12 +139,7 @@ public final class AppLogger {
 
     /// Returns the current log directory path (useful for tests that override logging destinations)
     public func currentLogDirectory() -> String {
-        bufferQueue.sync { logDirectory }
-    }
-
-    deinit {
-        flushTimer?.invalidate()
-        flushBuffer()
+        fileQueue.sync { logDirectory.withLock { $0 } }
     }
 
     // MARK: - Public Interface
@@ -189,8 +152,8 @@ public final class AppLogger {
         function: String = #function,
         line: Int = #line
     ) {
-        // Check if this level should be logged
-        guard level.shouldLog(minimumLevel: getMinimumLevel()) else {
+        let options = options.withLock { $0 }
+        guard level.shouldLog(minimumLevel: options.minimumLevel) else {
             return
         }
 
@@ -200,7 +163,7 @@ public final class AppLogger {
         let logMessage = "[\(timestamp)] [\(levelPrefix)] [\(fileName):\(line) \(function)] \(message)"
 
         // Print to console if enabled
-        if getConsoleLoggingEnabled() {
+        if options.enableConsoleLogging {
             Swift.print(logMessage)
         }
 
@@ -208,9 +171,8 @@ public final class AppLogger {
         // source file) and level. The file log above stays the diagnostics record.
         Self.writeToSystemLog(message, level: level, category: (fileName as NSString).deletingPathExtension)
 
-        // Write immediately for debugging (no buffering)
-        bufferQueue.async {
-            self.writeLogMessageDirectly(logMessage)
+        fileQueue.async {
+            self.appendToFile(logMessage)
         }
     }
 
@@ -299,47 +261,14 @@ public final class AppLogger {
         }
     }
 
-    /// Force flush all buffered messages to disk
+    /// Wait for pending file writes to complete.
     public func flushBuffer() {
-        bufferQueue.async {
-            self.flushBufferUnsafe()
-        }
+        fileQueue.sync {}
     }
 
-    // MARK: - Private Implementation
+    // MARK: - File Operations
 
-    private func flushBufferUnsafe() {
-        guard !messageBuffer.isEmpty else { return }
-
-        // Check if rotation is needed before writing
-        rotateIfNeeded()
-
-        // Write all buffered messages
-        let messages = messageBuffer.joined(separator: "\n") + "\n"
-        messageBuffer.removeAll()
-
-        guard let data = messages.data(using: .utf8) else { return }
-
-        // Write to file
-        if FileManager.default.fileExists(atPath: logPath) {
-            // Append to existing file
-            do {
-                let fileHandle = try FileHandle(forWritingTo: URL(fileURLWithPath: logPath))
-                try fileHandle.seekToEnd()
-                try fileHandle.write(contentsOf: data)
-                try fileHandle.close()
-            } catch {
-                // Fallback: try to create new file
-                try? data.write(to: URL(fileURLWithPath: logPath))
-            }
-        } else {
-            // Create new file
-            try? data.write(to: URL(fileURLWithPath: logPath))
-        }
-    }
-
-    /// Write a single log message directly to file (no buffering)
-    private func writeLogMessageDirectly(_ message: String) {
+    private func appendToFile(_ message: String) {
         // Check if rotation is needed before writing
         rotateIfNeeded()
 
@@ -410,39 +339,25 @@ public final class AppLogger {
     // MARK: - Utility Methods
 
     public func getCurrentLogSize() -> Int {
-        guard FileManager.default.fileExists(atPath: logPath) else { return 0 }
-
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: logPath)
-            return attributes[.size] as? Int ?? 0
-        } catch {
-            return 0
-        }
+        fileQueue.sync { Self.fileSize(at: logPath) }
     }
 
     public func getTotalLogSize() -> Int {
-        var totalSize = getCurrentLogSize()
-
-        for backupIndex in 1 ..< maxLogFiles {
-            let backupPath = "\(logPath).\(backupIndex)"
-            if FileManager.default.fileExists(atPath: backupPath) {
-                do {
-                    let attributes = try FileManager.default.attributesOfItem(atPath: backupPath)
-                    totalSize += attributes[.size] as? Int ?? 0
-                } catch {
-                    // Ignore errors for backup files
-                }
+        fileQueue.sync {
+            let path = logPath
+            return (1 ..< maxLogFiles).reduce(Self.fileSize(at: path)) { total, backupIndex in
+                total + Self.fileSize(at: "\(path).\(backupIndex)")
             }
         }
+    }
 
-        return totalSize
+    private static func fileSize(at path: String) -> Int {
+        let attributes = try? FileManager.default.attributesOfItem(atPath: path)
+        return attributes?[.size] as? Int ?? 0
     }
 
     public func clearAllLogs() {
-        bufferQueue.async {
-            // Clear buffer first
-            self.messageBuffer.removeAll()
-
+        fileQueue.async {
             // Remove all log files
             let fileManager = FileManager.default
 
@@ -463,6 +378,3 @@ public final class AppLogger {
         }
     }
 }
-
-/// AppLogger coordinates its own internal synchronization; mark as unchecked Sendable for Swift 6.
-extension AppLogger: @unchecked Sendable {}

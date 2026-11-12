@@ -1273,7 +1273,6 @@ public final class SessionRuntimeWorker {
         attribution = nil
         // Every exit records why, so a stop with no failure is still explainable.
         AppLogger.shared.log("🛑 [SessionWorker] Finishing: state=\(state) reason=\(reason ?? "none")")
-        AppLogger.shared.flushBuffer()
         capsInput.revoke()
         capsArrivalMonitor?.stop()
         capsArrivalMonitor = nil
@@ -1309,6 +1308,7 @@ public final class SessionRuntimeWorker {
         }, acknowledge: acknowledge, unregisterObservers: {
             environmentObserver?.stop()
         })
+        AppLogger.shared.flushBuffer()
         // Process exit is the shutdown boundary for all detached bridge threads.
         exit(terminalState == .failed ? 1 : 0)
     }

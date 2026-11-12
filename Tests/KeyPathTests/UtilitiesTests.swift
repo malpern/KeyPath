@@ -156,18 +156,18 @@ final class UtilitiesTests: XCTestCase {
         XCTAssertTrue(true, "Empty or whitespace messages should not crash")
     }
 
-    func testLoggerFlushBuffer() {
-        let logger = AppLogger.shared
+    func testLoggerFlushBuffer() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keypath-logger-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
 
-        // Log several messages
-        for i in 0 ..< 10 {
-            logger.log("Test message \(i)")
-        }
-
-        // Force flush
+        let logger = AppLogger(enableConsoleLogging: false)
+        logger.overrideLogDirectory(directory.path)
+        logger.error("Pending log entry")
         logger.flushBuffer()
 
-        XCTAssertTrue(true, "Buffer flush should complete without error")
+        let log = try String(contentsOf: directory.appendingPathComponent("keypath-debug.log"), encoding: .utf8)
+        XCTAssertTrue(log.contains("Pending log entry"))
     }
 
     func testLoggerClearAllLogs() {
