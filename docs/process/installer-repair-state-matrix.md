@@ -192,10 +192,6 @@ the result as user action required and name the approval surface.
 - Runtime and installer state caches must not regrow in consumers.
   `SnapshotConsumerLintTests.testRuntimeAndInstallerStateCachesStayInKnownOwners`
   prevents new runtime/installer state caches outside the current known owners.
-  `W6DeletionPassLintTests.testAsyncRepairGatesDoNotConsumeUnboundedManagementStateCache`
-  prevents async repair/start/reload gates from consuming the unbounded
-  `currentManagementState` cache instead of refreshing through the
-  provider-backed manager.
 - User-facing CLI/reporting shape belongs in CLI contract tests.
 - The state-matrix table itself is an executable golden fixture:
   `InstallerStateMatrixGoldenTests.testEveryDocumentedStateMatrixRowHasAGoldenFixture`

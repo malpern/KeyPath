@@ -5,7 +5,7 @@ import Foundation
 /// session runtime. It must not grow a privileged execution path through
 /// launchctl, sudo, osascript, or an admin-command executor.
 final class CLIPrivilegeBoundaryLintTests: KeyPathTestCase {
-    func testCLIUsesBrokeredOrHelperBackedPrivilegedOperations() throws {
+    func testCLIHasNoPrivilegedExecutionPath() throws {
         let root = cliPrivilegeBoundaryRepositoryRoot()
         let sourceRoots = [
             "Sources/KeyPathCLI",
