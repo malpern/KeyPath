@@ -3,7 +3,7 @@ layout: default
 title: "Switching from Karabiner-Elements"
 description: "A practical guide for Karabiner-Elements users migrating to KeyPath"
 theme: parchment
-header_image: header-karabiner-users.png
+header_image: header-karabiner-users.jpg
 permalink: /migration/karabiner-users/
 ---
 

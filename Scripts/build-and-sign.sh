@@ -152,8 +152,9 @@ echo "✅ All Rust builds complete"
 if [ "${SKIP_SNAPSHOTS:-}" = "1" ]; then
     echo "⏭️  Skipping screenshot regeneration (SKIP_SNAPSHOTS=1)"
 elif [ "${SKIP_SNAPSHOTS:-}" = "0" ] || [ "${SKIP_NOTARIZE:-}" != "1" ]; then
-    echo "📸 Regenerating help screenshots..."
-    SKIP_PEEKABOO="${SKIP_PEEKABOO:-1}" ./Scripts/regenerate-screenshots.sh
+    echo "📸 Regenerating snapshot references..."
+    # Package the same checked-in help images that the website publishes.
+    REFRESH_HELP_IMAGES=0 SKIP_PEEKABOO="${SKIP_PEEKABOO:-1}" ./Scripts/regenerate-screenshots.sh
 else
     echo "⏭️  Skipping screenshot regeneration (dev build)"
 fi

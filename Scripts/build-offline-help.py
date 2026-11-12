@@ -41,8 +41,7 @@ def build(output, app_version):
         def image(match):
             raw = html.unescape(match.group(1))
             name = Path(raw).name
-            candidates = [ROOT / raw.lstrip('/'), ROOT / 'images/help' / name,
-                          ROOT / 'Sources/KeyPathAppKit/Resources' / name]
+            candidates = [ROOT / raw.lstrip('/'), ROOT / 'images/help' / name]
             local = next((p for p in candidates if p.is_file()), None)
             if local is None:
                 missing.add(raw)

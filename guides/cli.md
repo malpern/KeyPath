@@ -3,7 +3,7 @@ layout: default
 title: "Command Line"
 description: "Control KeyPath from Terminal with the keypath CLI"
 theme: parchment
-header_image: header-cli.png
+header_image: header-cli.jpg
 permalink: /guides/cli/
 ---
 

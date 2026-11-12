@@ -18,7 +18,8 @@ GHPAGES_WORKTREE="$REPO_ROOT/.worktrees/gh-pages"
 # gh-pages in the publication commit.
 SITE_PAGE_DIRS=(getting-started migration)
 
-PUBLISH_PATHS=(docs.md images/help "${SITE_PAGE_DIRS[@]}")
+BANNER=Sources/KeyPathAppKit/Resources/header-banner.png
+PUBLISH_PATHS=(docs.md images/help "$BANNER" "${SITE_PAGE_DIRS[@]}")
 if [ $# -gt 0 ]; then
     for guide in "$@"; do
         PUBLISH_PATHS+=("guides/$guide")
@@ -74,6 +75,8 @@ mkdir -p "$GHPAGES_WORKTREE/images/help"
 # Keep this additive: gh-pages also contains site-only media that is not present
 # on master. Remove retired source images explicitly in the publication commit.
 cp -R "$REPO_ROOT/images/help/." "$GHPAGES_WORKTREE/images/help/"
+# The in-app Help landing page also loads this banner from its SwiftPM bundle.
+cp "$REPO_ROOT/$BANNER" "$GHPAGES_WORKTREE/images/help/"
 echo "  synced docs.md and images/help/"
 
 # The website and downloadable offline guides share the same Markdown and assets.

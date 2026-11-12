@@ -3,7 +3,7 @@ layout: default
 title: "Setting Up KeyPath"
 description: "In two minutes your keyboard will launch apps, tile windows, and remap any key — all from the home row"
 theme: parchment
-header_image: header-installation.png
+header_image: header-installation.jpg
 permalink: /getting-started/installation/
 ---
 

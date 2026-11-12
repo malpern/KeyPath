@@ -3,7 +3,7 @@ layout: default
 title: "Privacy & Permissions"
 description: "Exactly what KeyPath accesses on your Mac, why, and what it does with your data"
 theme: parchment
-header_image: header-privacy.png
+header_image: header-privacy.jpg
 permalink: /guides/privacy/
 ---
 

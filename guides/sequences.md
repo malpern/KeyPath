@@ -3,7 +3,7 @@ layout: default
 title: "Type Memorable Shortcut Paths"
 description: "Create short key sequences for actions you can remember, then tune how long KeyPath waits between keys"
 theme: parchment
-header_image: header-leader-key.png
+header_image: header-leader-key.jpg
 permalink: /guides/sequences/
 ---
 

@@ -3,7 +3,7 @@ layout: default
 title: "Navigate Like a Keyboard Ninja"
 description: "Hold Space for hjkl arrows, copy/paste, undo, search, and line jumps — all without leaving the home row"
 theme: parchment
-header_image: header-vim-navigation.png
+header_image: header-vim-navigation.jpg
 permalink: /guides/vim-navigation/
 ---
 

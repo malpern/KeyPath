@@ -3,7 +3,7 @@ layout: default
 title: "Launch Anything Instantly"
 description: "Hold one key and press a letter to launch any app, URL, or folder instantly"
 theme: parchment
-header_image: header-quick-launcher.png
+header_image: header-quick-launcher.jpg
 permalink: /guides/quick-launcher/
 ---
 

@@ -3,7 +3,7 @@ layout: default
 title: "Quick Tweaks"
 description: "Simple on/off packs: Escape remap, delete enhancement, backup Caps Lock, and Mission Control shortcuts"
 theme: parchment
-header_image: header-concepts.png
+header_image: header-concepts.jpg
 permalink: /guides/simple-packs/
 ---
 

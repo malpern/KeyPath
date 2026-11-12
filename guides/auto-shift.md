@@ -3,7 +3,7 @@ layout: default
 title: "Symbols Without Shift"
 description: "Hold a symbol key slightly longer to get the shifted version — no Shift key needed"
 theme: parchment
-header_image: header-auto-shift.png
+header_image: header-auto-shift.jpg
 permalink: /guides/auto-shift/
 ---
 

@@ -3,7 +3,7 @@ layout: default
 title: "Packs & Layers"
 description: "Browse KeyPath's pack catalog — installable keyboard features you can add with one click"
 theme: parchment
-header_image: header-packs.png
+header_image: header-packs.jpg
 permalink: /guides/packs/
 ---
 

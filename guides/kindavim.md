@@ -3,7 +3,7 @@ layout: default
 title: "KindaVim"
 description: "Use KindaVim for real Vim modes system-wide; KeyPath layers a live mode badge, hjkl hint overlay, and mastery insights on top"
 theme: parchment
-header_image: header-kindavim.png
+header_image: header-kindavim.jpg
 permalink: /guides/kindavim/
 ---
 
