@@ -294,6 +294,13 @@ the worker's shutdown or the Caps mapping code changes before the release. To sh
 `KPUpdatesManualDownloads` to true in `Sources/KeyPathApp/Info.plist`; that
 affects only builds released afterwards.
 
+**Japanese (since 2026-11-11):** the app declares Japanese, so a Japanese-first
+Mac runs KeyPath in Japanese. Until KeyPath's own strings are translated
+(project review P8), such users would see macOS text in Japanese and
+KeyPath's in English. Do not release before the P8 translation steps are done,
+or remove `ja` from `CFBundleLocalizations` in `Sources/KeyPathApp/Info.plist`
+for that release.
+
 **In the release notes of the first release with the engine socket (ADR-046):**
 say that the engine's local port is gone, in these words or close to them:
 "KeyPath no longer opens a network port for its engine (`localhost:37001`). Only
