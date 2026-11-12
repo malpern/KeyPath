@@ -11,8 +11,8 @@ public enum TestEnvironment {
     /// run or an explicit test-only opt-in — never an env var that can leak from a
     /// developer's shell into a real KeyPath.app/keypath-cli launch. Signals
     /// rejected for exactly that reason:
-    /// - `KEYPATH_USE_SUDO=1` — a dev-workflow flag for *real* app runs (see
-    ///   useSudoForPrivilegedOps); it proves nothing about tests
+    /// - `KEYPATH_USE_SUDO=1` — a retired dev-workflow flag for real app runs;
+    ///   it proves nothing about tests
     /// - `__XCODE_BUILT_PRODUCTS_DIR_PATHS` — Xcode sets it for any scheme run,
     ///   including launching the real app
     /// - `DYLD_LIBRARY_PATH` containing ".build" — leaks from any `swift run` shell
@@ -73,75 +73,8 @@ public enum TestEnvironment {
         ]
     }
 
-    /// Allow tests to override admin operation skipping
-    private static let _adminOverrideLock = NSLock()
-    private nonisolated(unsafe) static var _allowAdminOpsInTests: Bool = false
-
-    public static var allowAdminOperationsInTests: Bool {
-        get {
-            _adminOverrideLock.lock()
-            defer { _adminOverrideLock.unlock() }
-            return _allowAdminOpsInTests
-        }
-        set {
-            _adminOverrideLock.lock()
-            _allowAdminOpsInTests = newValue
-            _adminOverrideLock.unlock()
-        }
-    }
-
-    /// Check if we should skip operations requiring administrator privileges
+    /// Tests never run privileged operations (the admin password dialog).
     public static var shouldSkipAdminOperations: Bool {
-        _adminOverrideLock.lock()
-        let allowOverride = _allowAdminOpsInTests
-        _adminOverrideLock.unlock()
-        if allowOverride {
-            return false
-        }
-        // If sudo mode is enabled, don't skip admin operations
-        if useSudoForPrivilegedOps {
-            return false
-        }
-        return isRunningTests
-    }
-
-    /// Check if we should use sudo instead of osascript for privileged operations.
-    ///
-    /// **Enabled when:**
-    /// - `KEYPATH_USE_SUDO=1` environment variable is set, AND
-    /// - Either running tests OR in a DEBUG build
-    ///
-    /// When enabled:
-    /// - Privileged operations use `sudo -n` (non-interactive) instead of osascript admin prompts
-    /// - Requires sudoers NOPASSWD configuration (see Scripts/dev-setup-sudoers.sh)
-    /// - Release builds always use osascript for user prompts (unless running tests)
-    ///
-    /// ⚠️ WARNING: Remove sudoers config before public release!
-    public static var useSudoForPrivilegedOps: Bool {
-        // Explicit env var takes precedence
-        if let envValue = ProcessInfo.processInfo.environment["KEYPATH_USE_SUDO"] {
-            if envValue == "1" {
-                // Env var explicitly set to 1 - check if we're in a valid context
-                if isRunningTests {
-                    return true
-                }
-                #if DEBUG
-                    return true
-                #else
-                    return false
-                #endif
-            } else {
-                // Explicitly set to 0 or other value - never use sudo
-                return false
-            }
-        }
-
-        // Not in tests and no env var - never use sudo
-        return false
-    }
-
-    /// Check if we should use mock data instead of real system calls
-    public static var shouldUseMockData: Bool {
         isRunningTests
     }
 

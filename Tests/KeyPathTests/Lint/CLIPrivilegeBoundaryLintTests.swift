@@ -1,11 +1,11 @@
 import Foundation
 @preconcurrency import XCTest
 
-/// The CLI is an authorized client of KeyPath's narrowly scoped XPC helper.
-/// It must not grow a second privileged execution path through launchctl, sudo,
-/// osascript, or the generic admin-command executor.
+/// The CLI runs as the user and asks the running app for anything that needs the
+/// session runtime. It must not grow a privileged execution path through
+/// launchctl, sudo, osascript, or an admin-command executor.
 final class CLIPrivilegeBoundaryLintTests: KeyPathTestCase {
-    func testCLIUsesBrokeredOrHelperBackedPrivilegedOperations() throws {
+    func testCLIHasNoPrivilegedExecutionPath() throws {
         let root = cliPrivilegeBoundaryRepositoryRoot()
         let sourceRoots = [
             "Sources/KeyPathCLI",

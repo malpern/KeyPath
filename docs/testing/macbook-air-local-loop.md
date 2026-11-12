@@ -120,15 +120,8 @@ If a filtered lane passes but the full lane fails, treat that as either a broad
 build/test-runner interaction or cross-target coupling. Preserve the focused
 passing command in the issue or PR notes before escalating to broader runs.
 
-Local lanes also default to hermetic test-mode behavior with
-`KEYPATH_USE_SUDO=0`, even if passwordless sudo is configured on the machine.
-This keeps the MacBook Air loop aligned with CI and prevents installer tests
-from probing real system services unless a run explicitly asks for it:
-
-```bash
-KEYPATH_USE_SUDO=1 ./Scripts/test-lane.sh installer
-KEYPATH_TEST_AUTO_SUDO=1 ./Scripts/test-lane.sh installer
-```
+Test lanes are hermetic: tests never run privileged operations or the admin
+password dialog, on any machine.
 
 ## Build And UI Iteration
 

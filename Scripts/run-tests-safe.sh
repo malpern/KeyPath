@@ -324,34 +324,6 @@ else
     export KEYPATH_LOG_LEVEL=${KEYPATH_LOG_LEVEL:-3}
 fi
 
-# Optional: Enable sudo mode for fully autonomous privileged operations.
-# Ordinary local/CI test lanes stay hermetic by default: they skip admin
-# operations instead of probing or mutating the real machine. Set
-# KEYPATH_USE_SUDO=1 for an explicit sudo-backed run, or set
-# KEYPATH_TEST_AUTO_SUDO=1 to restore auto-detection for a manual experiment.
-#
-# IMPORTANT: In CI we must keep tests hermetic and avoid privileged system modifications.
-# CI-safe tests should exercise "test mode" code paths (TestEnvironment.shouldSkipAdminOperations == true).
-if [ "${CI_ENVIRONMENT}" = "true" ] || [ -n "${GITHUB_ACTIONS:-}" ]; then
-    export KEYPATH_USE_SUDO=${KEYPATH_USE_SUDO:-0}
-    echo "🔒 CI mode - forcing KEYPATH_USE_SUDO=$KEYPATH_USE_SUDO"
-elif [ -z "${KEYPATH_USE_SUDO:-}" ]; then
-    if [ "${KEYPATH_TEST_AUTO_SUDO:-0}" = "1" ]; then
-        # Check if sudo -n works (NOPASSWD configured)
-        if sudo -n launchctl list com.keypath.kanata >/dev/null 2>&1 || \
-           sudo -n true >/dev/null 2>&1; then
-            export KEYPATH_USE_SUDO=1
-            echo "🔐 Auto-detected sudoers config - enabling KEYPATH_USE_SUDO=1"
-        else
-            export KEYPATH_USE_SUDO=0
-        fi
-    else
-        export KEYPATH_USE_SUDO=0
-    fi
-else
-    export KEYPATH_USE_SUDO=${KEYPATH_USE_SUDO}
-fi
-
 echo "⏱️  Timeout: ${TIMEOUT_SECONDS}s"
 echo "🛣️  Test lane: $TEST_LANE"
 if [ -n "$TEST_FILTER" ]; then
@@ -368,9 +340,6 @@ if [ "$ALLOW_RUNNER_CRASH_SUCCESS" = "1" ]; then
 fi
 if [ "$ALLOW_NONZERO_TEST_SUCCESS" = "1" ]; then
     echo "⚠️  KEYPATH_ALLOW_NONZERO_TEST_SUCCESS=1 (non-zero exits with parsed passes can pass)"
-fi
-if [ "$KEYPATH_USE_SUDO" = "1" ]; then
-    echo "🔐 KEYPATH_USE_SUDO=1 (privileged ops via sudo, no prompts)"
 fi
 
 append_runner_crash_summary() {
