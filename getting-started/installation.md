@@ -138,7 +138,7 @@ KeyPath does not remap keys in password fields and other Secure Input contexts, 
 ## Updating and Removing
 
 - **Update:** KeyPath checks for updates once a day and installs them when you quit. Choose **Check for Updates…** in the KeyPath menu to check now, or change this in **Settings → General → Updates**. Your rules are stored separately and are kept.
-- **Remove:** use **Settings → Repair/Remove → Uninstall KeyPath**. It saves a backup of your settings to Downloads, removes your rules and preferences, and moves the app to the Trash. Diagnostic logs in `~/Library/Logs/KeyPath/` stay, and so does the Accessibility grant (remove it in System Settings). If you installed the command-line tool, remove its link with `sudo rm /usr/local/bin/keypath-cli`.
+- **Remove:** use **Settings → Repair/Remove → Uninstall KeyPath**. It saves a backup of your settings to Downloads, removes your rules and preferences, and moves the app to the Trash. Diagnostic logs in `~/Library/Logs/KeyPath/` stay, and so does the Accessibility grant (remove it in System Settings). Uninstall also removes the command-line tool's link. A copy from a version before November 2026 at `/usr/local/bin/keypath-cli` stays; remove it with `sudo rm /usr/local/bin/keypath-cli`.
 
 If you upgraded from KeyPath 1.0.1 or earlier, files from the old system service may remain; see [Privacy & Permissions]({{ '/guides/privacy/' | relative_url }}) for where they are.
 

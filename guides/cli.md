@@ -11,13 +11,17 @@ permalink: /guides/cli/
 
 KeyPath includes a CLI tool (`keypath-cli`) for managing your keyboard from Terminal. Opening KeyPath.app remains the primary way to launch KeyPath; the CLI is a separate terminal entry point.
 
-For DMG installs, open KeyPath and choose **File > Install Command Line Tool**. That installs:
+For DMG installs, open KeyPath and choose **File > Install Command Line Tool**. It adds `keypath-cli` to `~/.local/bin`, your own folder, so no administrator password is needed.
+
+If your terminal can't find `keypath-cli` afterwards, add `~/.local/bin` to your PATH. Put this line in `~/.zshrc`, then open a new Terminal window:
 
 ```bash
-keypath-cli
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The installed command points at the signed CLI inside `/Applications/KeyPath.app`, so configuration validation and simulation use the same bundled engine as the app. Installing this command-line tool is separate from installing system services.
+The command points at the signed CLI inside `/Applications/KeyPath.app`, so configuration validation and simulation use the same bundled engine as the app. Uninstalling KeyPath removes the command too.
+
+Versions before November 2026 installed the command at `/usr/local/bin/keypath-cli`. To remove that older copy, run `sudo rm /usr/local/bin/keypath-cli`.
 
 You can also run the bundled CLI directly:
 
@@ -211,7 +215,7 @@ Use the CLI from AppleScript to query KeyPath state:
 
 ```applescript
 -- Get the current layer
-set currentLayer to do shell script "/usr/local/bin/keypath layer current"
+set currentLayer to do shell script "$HOME/.local/bin/keypath-cli layer current"
 
 -- Conditional logic based on layer
 if currentLayer is "nav" then
@@ -227,7 +231,7 @@ Send actions to KeyPath from AppleScript:
 do shell script "open 'keypath://launch/Obsidian'"
 
 -- Switch layers
-do shell script "/usr/local/bin/keypath layer switch nav"
+do shell script "$HOME/.local/bin/keypath-cli layer switch nav"
 ```
 
 ### Hammerspoon
@@ -236,10 +240,10 @@ Use the CLI alongside the [KeyPath.spoon]({{ '/guides/hammerspoon/' | relative_u
 
 ```lua
 -- Query current layer via CLI (synchronous)
-local layer = hs.execute("/usr/local/bin/keypath layer current"):gsub("%s+$", "")
+local layer = hs.execute(os.getenv("HOME") .. "/.local/bin/keypath-cli layer current"):gsub("%s+$", "")
 
 -- Get all layers as JSON
-local output = hs.execute("/usr/local/bin/keypath layer list --json")
+local output = hs.execute(os.getenv("HOME") .. "/.local/bin/keypath-cli layer list --json")
 local layers = hs.json.decode(output)
 ```
 
