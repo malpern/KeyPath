@@ -6,7 +6,7 @@ import Foundation
 /// `kill(pid, 0)` has privilege-boundary semantics that are easy to get wrong:
 /// EPERM means the process exists but cannot be signaled by this process, while
 /// ESRCH is the dead-process condition. Keep that logic centralized in
-/// `KeyPathSystemProbes` and delegate through `SystemStateProvider` instead of
+/// `SystemProbeClient` and delegate through `SystemStateProvider` instead of
 /// reimplementing the primitive at call sites.
 final class LivenessPredicateLintTests: XCTestCase {
     private static let allowList: Set<String> = [
@@ -38,7 +38,7 @@ final class LivenessPredicateLintTests: XCTestCase {
         XCTAssertTrue(
             violations.isEmpty,
             """
-            Direct `kill(pid, 0)` liveness probes found outside KeyPathSystemProbes. \
+            Direct `kill(pid, 0)` liveness probes found outside SystemProbeClient. \
             Delegate to SystemStateProvider.isProcessAlive(pid:) instead of adding \
             another process-liveness implementation:
             \(violations.sorted().joined(separator: "\n"))

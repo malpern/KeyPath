@@ -135,17 +135,17 @@ the result as user action required and name the approval surface.
   pins the projection contract, while
   `WizardPureLogicTests.test_systemContextStateMatrixSnapshot_classifiesStoppedRuntimeWithStaleInputCapture`
   pins the pure `SystemContext` snapshot bridge used by wizard core.
-- Raw process-liveness semantics live in `KeyPathSystemProbes` and are exposed
+- Raw process-liveness semantics live in `KeyPathCore.SystemProbeClient` and are exposed
   to consumers through `SystemStateProvider.isProcessAlive(pid:)`.
   `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
   proves the real ADR-040 primitive, and
   `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized` blocks
-  new direct `kill(pid, 0)` probes outside the probe module.
+  new direct `kill(pid, 0)` probes outside the probe client.
 - Engine readiness is the session worker's Unix socket answering
   (`SystemStateProvider.isEngineSocketResponding(path:timeoutMs:)`, ADR-046).
   Nothing probes a TCP port; `EngineTransportLintTests` keeps production code
   off TCP, including hand-written `AF_INET` sockets.
-- Raw `pgrep` process discovery lives in `KeyPathSystemProbes`; consumers use
+- Raw `pgrep` process discovery lives in `KeyPathCore.SystemProbeClient`; consumers use
   `SystemStateProvider.processIDs(matching:)`,
   `SystemStateProvider.processMatches(matching:)`, or
   `SystemStateProvider.processIDsSynchronously(matching:)` for synchronous

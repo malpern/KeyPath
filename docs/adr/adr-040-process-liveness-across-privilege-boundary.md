@@ -36,12 +36,12 @@ From the unprivileged app, probing the **root** kanata returns `EPERM` while it 
 - This is the signaling-side companion to the permissions rule in [ADR-001](adr-001-oracle-pattern.md) / [ADR-006](adr-006-apple-api-priority.md) ("never check permissions from root"): the privilege boundary changes the meaning of OS calls in both directions.
 - Phase 1 of installer reliability centralizes liveness and readiness decisions
   behind `SystemStateProvider`, with raw read-only OS probes isolated in
-  `KeyPathSystemProbes`. Migrated consumers must not regrow direct `kill(pid,
+  `SystemProbeClient`. Migrated consumers must not regrow direct `kill(pid,
   0)`, `pgrep`, launchctl read-only evidence, or TCP probe implementations.
 
 ## Reference implementation
 
-`KeyPathSystemProbes.SystemProbeClient` owns the raw `kill(pid, 0)` and `pgrep`
+`KeyPathCore.SystemProbeClient` owns the raw `kill(pid, 0)` and `pgrep`
 implementations. `SystemStateProvider` is the canonical facade for consumers:
 `isProcessAlive(pid:)` and process discovery route through it. (The read-only
 `launchctl print` probe went with the retired LaunchDaemon, and the TCP socket
@@ -53,14 +53,14 @@ only on a Unix socket since ADR-046.)
 - `SystemStateProviderLivenessTests.testProcessLivenessProbeTreatsCurrentProcessAsAliveAndExitedProcessAsDead`
   grounds the liveness primitive against real process behavior.
 - `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized` prevents
-  direct `kill(pid, 0)` probes outside `KeyPathSystemProbes`.
+  direct `kill(pid, 0)` probes outside `SystemProbeClient`.
 - `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
   grounds the TCP readiness primitive.
 - `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
   prevents migrated readiness consumers from bypassing the provider.
 - `PgrepProcessDiscoveryLintTests` and `LaunchctlEvidenceLintTests` keep
   migrated process discovery and launchctl read-only evidence centralized in
-  `KeyPathSystemProbes`, with consumers going through `SystemStateProvider`.
+  `SystemProbeClient`, with consumers going through `SystemStateProvider`.
 
 ## Related
 

@@ -243,8 +243,7 @@ class SessionVerificationTests(unittest.TestCase):
 
     def test_shell_retains_trust_and_delegates_runtime_failures(self):
         app = self.base / 'KeyPath App.app'
-        for bundle in ('KeyPath_KeyPath.bundle', 'KeyPath_KeyPathAppKit.bundle',
-                       'KeyPath_KeyPathInstallationWizard.bundle'):
+        for bundle in ('KeyPath_KeyPath.bundle', 'KeyPath_KeyPathAppKit.bundle'):
             (app / 'Contents/Resources' / bundle).mkdir(parents=True)
         (app / 'Contents/Resources/KeyPath_KeyPathAppKit.bundle/default.metallib').write_bytes(b'fixture-metallib')
         sparkle = app / 'Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle'
@@ -278,7 +277,8 @@ class SessionVerificationTests(unittest.TestCase):
         environment = dict(os.environ, APP_PATH=str(app), PATH=str(tools) + ':' + os.environ['PATH'],
                            KEYPATH_VERIFY_PYTHON=str(tools / 'python-fixture'), EXPECTED_HELPER=str(HELPER),
                            EXPECTED_HELPER_SHA=hashlib.sha256(HELPER.read_bytes()).hexdigest(),
-                           TRUST_LOG=str(log), CHECK_RUNTIME='1', REQUIRE_NOTARIZED='1', REQUIRE_STAPLED='1')
+                           TRUST_LOG=str(log), CHECK_RUNTIME='1', REQUIRE_NOTARIZED='1', REQUIRE_STAPLED='1',
+                           REQUIRE_APP_INTENTS_METADATA='0')
         script = ROOT / 'Scripts/verify-installed-app.sh'
         for architectures in ('x86_64', 'x86_64 arm64', ''):
             result = subprocess.run(['/bin/bash', str(script)],

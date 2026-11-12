@@ -21,8 +21,7 @@ fi
 
 for resource_bundle in \
     KeyPath_KeyPath.bundle \
-    KeyPath_KeyPathAppKit.bundle \
-    KeyPath_KeyPathInstallationWizard.bundle; do
+    KeyPath_KeyPathAppKit.bundle; do
     packaged_bundle="$APP_PATH/Contents/Resources/$resource_bundle"
     if [[ ! -d "$packaged_bundle" ]]; then
         echo "❌ Packaged SwiftPM resource bundle is missing: $packaged_bundle" >&2
