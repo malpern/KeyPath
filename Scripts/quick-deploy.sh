@@ -446,6 +446,9 @@ else
     cp -R "$PROJECT_DIR/Sources/KeyPathApp/Resources/." "$RESOURCES_DIR/"
 fi
 
+# Plain Text("…")/Button("…") in every module look up the main bundle.
+"$PROJECT_DIR/Scripts/l10n/compile-strings.sh" "$RESOURCES_DIR"
+
 # The app's Info.plist (declared languages, usage strings) changes too; the
 # release build copies it, so a quick deploy must as well.
 cp "$PROJECT_DIR/Sources/KeyPathApp/Info.plist" "$APP_BUNDLE/Contents/Info.plist"

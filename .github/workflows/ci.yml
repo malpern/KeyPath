@@ -219,6 +219,10 @@ jobs:
           exit 1
         fi
 
+    - name: String catalog matches the code
+      # The test lane's Debug build wrote the compiler's .stringsdata files.
+      run: ./Scripts/l10n/sync-strings.sh --check --build-dir "$SCRATCH_PATH"
+
     - name: Parse Installer Reliability Matrix from Test Log
       if: always()
       run: |
