@@ -3,8 +3,7 @@ import Foundation
 
 /// Central owner for system-state evidence used by installer and runtime decisions.
 ///
-/// Phase 1 grows this into the full snapshot provider. The first slices centralize
-/// process-liveness and TCP-readiness primitives so callers share one definition.
+/// Process liveness and engine-socket readiness live here so callers share one definition.
 public actor SystemStateProvider {
     public static let shared = SystemStateProvider()
     public static let liveProbes = SystemProbeClient.live
@@ -17,10 +16,6 @@ public actor SystemStateProvider {
 
     public nonisolated func isProcessAlive(pid: pid_t) -> Bool {
         Self.isProcessAlive(pid: pid)
-    }
-
-    public func isTCPPortResponding(port: Int, timeoutMs: Int = 300) async -> Bool {
-        probes.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }
 
     /// Whether the session worker's engine answers on its control socket (ADR-046).
@@ -54,10 +49,6 @@ public actor SystemStateProvider {
 
     public nonisolated static func canSignalProcess(pid: pid_t) -> Bool {
         SystemProbeClient.canSignalProcess(pid: pid)
-    }
-
-    public nonisolated static func probeTCPPort(port: Int, timeoutMs: Int = 300) -> Bool {
-        liveProbes.probeTCPPort(port: port, timeoutMs: timeoutMs)
     }
 
     public nonisolated static func isKanataReady(running: Bool, responding: Bool) -> Bool {

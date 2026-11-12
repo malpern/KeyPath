@@ -141,15 +141,10 @@ the result as user action required and name the approval surface.
   proves the real ADR-040 primitive, and
   `LivenessPredicateLintTests.testKillZeroLivenessProbeIsCentralized` blocks
   new direct `kill(pid, 0)` probes outside the probe module.
-- Raw TCP readiness semantics live in `KeyPathSystemProbes` and are exposed to
-  consumers through `SystemStateProvider.isTCPPortResponding(port:timeoutMs:)`.
-  `SystemStateProviderLivenessTests.testTCPReadinessProbeDetectsListeningAndClosedPorts`
-  proves the real localhost primitive,
-  `TCPReadinessLintTests.testServiceHealthCheckerDelegatesTCPReadinessToSystemStateProvider`
-  blocks `ServiceHealthChecker` from regrowing a private socket probe, and
-  `TCPReadinessLintTests.testProductionTCPProbeAdapterIsNoLongerUsed` plus
-  `TCPReadinessLintTests.testProductionRawTCPSocketProbeIsCentralized` block
-  production readiness checks from bypassing the provider.
+- Engine readiness is the session worker's Unix socket answering
+  (`SystemStateProvider.isEngineSocketResponding(path:timeoutMs:)`, ADR-046).
+  Nothing probes a TCP port; `EngineTransportLintTests` keeps production code
+  off TCP, including hand-written `AF_INET` sockets.
 - Raw `pgrep` process discovery lives in `KeyPathSystemProbes`; consumers use
   `SystemStateProvider.processIDs(matching:)`,
   `SystemStateProvider.processMatches(matching:)`, or

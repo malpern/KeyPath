@@ -7,11 +7,7 @@ import SwiftUI
 /// Static dependency container for wizard module types that can't be injected via init.
 /// Configured at app launch by KeyPathAppKit before any wizard views appear.
 ///
-/// Usage in KeyPathAppKit startup:
-///     WizardDependencies.configure(
-///         runtimeCoordinator: runtimeCoordinator,
-///         ...
-///     )
+/// KeyPathAppKit sets these in `configureWizardDependencies(runtimeCoordinator:)`.
 @MainActor
 public enum WizardDependencies {
     // MARK: - Core Manager Protocols
@@ -42,9 +38,6 @@ public enum WizardDependencies {
     /// UninstallCoordinator factory (type-erased, creates new instance each call)
     public static var createUninstallCoordinator: (() -> any WizardUninstalling)?
 
-    /// KeyPathAppKitResources bundle accessor
-    public static var resourceBundle: Bundle?
-
     // MARK: - ExternalKanataService (static methods)
 
     /// Get info about externally-running Kanata process
@@ -55,13 +48,6 @@ public enum WizardDependencies {
 
     /// Check if external Kanata is running
     public static var hasExternalKanataRunning: (() -> Bool)?
-
-    // MARK: - Ad-hoc Signature Cache
-
-    /// Whether the app is running ad-hoc signed (not notarized).
-    /// Cached at startup by KeyPathAppKit to avoid blocking the main thread
-    /// with a synchronous codesign subprocess call from SwiftUI views.
-    public static var isRunningAdHoc: Bool = false
 
     // MARK: - Test Support
 
@@ -74,11 +60,9 @@ public enum WizardDependencies {
         makeKanataMigrationPage = nil
         makeKarabinerImportPage = nil
         createUninstallCoordinator = nil
-        resourceBundle = nil
         getExternalKanataInfo = nil
         stopExternalKanata = nil
         hasExternalKanataRunning = nil
-        isRunningAdHoc = false
     }
 }
 

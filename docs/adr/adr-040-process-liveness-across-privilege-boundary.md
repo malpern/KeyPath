@@ -41,11 +41,12 @@ From the unprivileged app, probing the **root** kanata returns `EPERM` while it 
 
 ## Reference implementation
 
-`KeyPathSystemProbes.SystemProbeClient` owns the raw `kill(pid, 0)`, TCP socket,
-`pgrep`, and read-only `launchctl print` implementations. `SystemStateProvider`
-is the canonical facade for consumers: `isProcessAlive(pid:)`,
-`isTCPPortResponding(port:timeoutMs:)`, process discovery, and launchctl
-read-only evidence all route through it.
+`KeyPathSystemProbes.SystemProbeClient` owns the raw `kill(pid, 0)` and `pgrep`
+implementations. `SystemStateProvider` is the canonical facade for consumers:
+`isProcessAlive(pid:)` and process discovery route through it. (The read-only
+`launchctl print` probe went with the retired LaunchDaemon, and the TCP socket
+probe and `isTCPPortResponding` were removed in 2026-11: the engine has answered
+only on a Unix socket since ADR-046.)
 
 ## Enforcement
 

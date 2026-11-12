@@ -13,6 +13,7 @@ final class EngineTransportLintTests: XCTestCase {
         #"isTCPPortResponding\("#,
         #"\b37001\b"#,
         #"--session-port"#,
+        #"socket\s*\(\s*AF_INET"#,
     ]
 
     func testProductionCodeDoesNotReachTheEngineOverTCP() throws {
@@ -20,8 +21,8 @@ final class EngineTransportLintTests: XCTestCase {
             under: LintScanner.path("Sources"),
             patterns: Self.tcpEnginePatterns,
             // The endpoint type defines the test-only TCP case, the client its
-            // test-only initializer, and SystemStateProvider keeps a generic port probe.
-            allowFileNames: ["KanataEngineEndpoint.swift", "KanataTCPClient.swift", "SystemStateProvider.swift"]
+            // test-only initializer.
+            allowFileNames: ["KanataEngineEndpoint.swift", "KanataTCPClient.swift"]
         )
         XCTAssertTrue(
             violations.isEmpty,
@@ -38,6 +39,7 @@ final class EngineTransportLintTests: XCTestCase {
             "let client = KanataTCPClient(port: port, timeout: 3.0)",
             "await SystemStateProvider.shared.isTCPPortResponding(port: Int(report.tcpPort), timeoutMs: 300)",
             "\"--session-port\", String(port),",
+            "let sock = socket(AF_INET, SOCK_STREAM, 0)",
         ]
         let regexes = try Self.tcpEnginePatterns.map { try NSRegularExpression(pattern: $0) }
         for line in examples {

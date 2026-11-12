@@ -1,7 +1,6 @@
 import Foundation
 import KeyPathCore
 import KeyPathPermissions
-import Security
 
 // MARK: - SystemValidator Protocol
 
@@ -77,51 +76,6 @@ public protocol WizardUninstalling: Sendable {
 @MainActor
 public protocol WizardPermissionRequesting: AnyObject, Sendable {
     func requestAccessibilityPermission(ignoreCooldown: Bool) async -> Bool
-}
-
-// MARK: - PermissionService Protocol
-
-// STUB: WizardPermissionAnalyzing is an intentional no-op placeholder. Actual permission
-// analysis is deferred entirely to the Permission Oracle system (PermissionOracle.shared).
-// This type exists only to satisfy
-// call sites that historically expected a permission-analysis helper; callers should use
-// the Oracle and SystemSnapshot permission fields instead.
-public enum WizardPermissionAnalyzing {
-    public static func analyzeKanataError(_: String) -> (
-        isPermissionError: Bool, description: String, suggestedFix: String?
-    ) {
-        (
-            isPermissionError: false,
-            description: "Oracle system - see permission snapshot for details",
-            suggestedFix: "Use Permission Oracle for diagnostics"
-        )
-    }
-}
-
-// MARK: - SignatureHealthCheck Protocol
-
-public enum WizardSignatureHealthCheck {
-    /// Check if the current app is running ad-hoc signed (not notarized)
-    public static func isRunningAdHoc() -> Bool {
-        // Ask the Security framework about this process directly. This used to
-        // run `codesign -dvvv` synchronously at launch, on the main actor.
-        var code: SecCode?
-        guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return false }
-        var staticCode: SecStaticCode?
-        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return false }
-        var info: CFDictionary?
-        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info)
-            == errSecSuccess, let info = info as? [String: Any],
-            let flags = info[kSecCodeInfoFlags as String] as? UInt32
-        else { return false }
-        return flags & SecCodeSignatureFlags.adhoc.rawValue != 0
-    }
-}
-
-// MARK: - TCP readiness probe protocol
-
-public protocol WizardTCPProbing: Sendable {
-    static func probe(port: Int, timeoutMs: Int) -> Bool
 }
 
 // MARK: - Notification Names

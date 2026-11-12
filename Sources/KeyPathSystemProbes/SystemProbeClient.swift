@@ -6,20 +6,17 @@ public struct SystemProbeClient: Sendable {
     private let processMatchesHandler: @Sendable (String) async -> [SystemProcessMatch]
     private let processIDsSynchronouslyHandler: @Sendable (String) -> [pid_t]
     private let isProcessAliveHandler: @Sendable (pid_t) -> Bool
-    private let probeTCPPortHandler: @Sendable (Int, Int) -> Bool
 
     public init(
         processIDs: @escaping @Sendable (String) async -> [pid_t],
         processMatches: @escaping @Sendable (String) async -> [SystemProcessMatch],
         processIDsSynchronously: @escaping @Sendable (String) -> [pid_t],
-        isProcessAlive: @escaping @Sendable (pid_t) -> Bool,
-        probeTCPPort: @escaping @Sendable (Int, Int) -> Bool
+        isProcessAlive: @escaping @Sendable (pid_t) -> Bool
     ) {
         processIDsHandler = processIDs
         processMatchesHandler = processMatches
         processIDsSynchronouslyHandler = processIDsSynchronously
         isProcessAliveHandler = isProcessAlive
-        probeTCPPortHandler = probeTCPPort
     }
 
     public func processIDs(matching pattern: String) async -> [pid_t] {
@@ -36,10 +33,6 @@ public struct SystemProbeClient: Sendable {
 
     public func isProcessAlive(pid: pid_t) -> Bool {
         isProcessAliveHandler(pid)
-    }
-
-    public func probeTCPPort(port: Int, timeoutMs: Int) -> Bool {
-        probeTCPPortHandler(port, timeoutMs)
     }
 }
 
@@ -70,9 +63,6 @@ public extension SystemProbeClient {
             guard pid > 0 else { return false }
             if kill(pid, 0) == 0 { return true }
             return errno == EPERM
-        },
-        probeTCPPort: { port, timeoutMs in
-            probeLocalhostTCPPort(port: port, timeoutMs: timeoutMs)
         }
     )
 }
@@ -153,40 +143,4 @@ private func runProcessSynchronously(_ executable: String, args: [String], timeo
     let stdout = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     return ProbeProcessResult(exitCode: process.terminationStatus, stdout: stdout, stderr: stderr)
-}
-
-private func probeLocalhostTCPPort(port: Int, timeoutMs: Int) -> Bool {
-    guard (1 ... 65535).contains(port), timeoutMs >= 0 else { return false }
-
-    let sock = socket(AF_INET, SOCK_STREAM, 0)
-    guard sock >= 0 else { return false }
-    defer { close(sock) }
-
-    let flags = fcntl(sock, F_GETFL, 0)
-    guard flags >= 0 else { return false }
-    _ = fcntl(sock, F_SETFL, flags | O_NONBLOCK)
-
-    var addr = sockaddr_in()
-    addr.sin_family = sa_family_t(AF_INET)
-    addr.sin_port = in_port_t(UInt16(port).bigEndian)
-    addr.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
-
-    var mutableAddr = addr
-    let connectResult = withUnsafePointer(to: &mutableAddr) {
-        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-            connect(sock, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
-        }
-    }
-
-    if connectResult == 0 { return true }
-    guard errno == EINPROGRESS else { return false }
-
-    var pollFd = pollfd(fd: sock, events: Int16(POLLOUT), revents: 0)
-    let pollResult = poll(&pollFd, 1, Int32(timeoutMs))
-    guard pollResult > 0, (pollFd.revents & Int16(POLLOUT)) != 0 else { return false }
-
-    var socketError: Int32 = 0
-    var socketErrorLength = socklen_t(MemoryLayout<Int32>.size)
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, &socketError, &socketErrorLength)
-    return socketError == 0
 }

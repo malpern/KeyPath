@@ -81,8 +81,7 @@ actor SubprocessRunnerFake: SubprocessRunning {
 
     nonisolated func systemProbeClient(
         processIDsSynchronously: @escaping @Sendable (String) -> [pid_t] = { _ in [] },
-        isProcessAlive: @escaping @Sendable (pid_t) -> Bool = { $0 > 0 },
-        probeTCPPort: @escaping @Sendable (Int, Int) -> Bool = { _, _ in false }
+        isProcessAlive: @escaping @Sendable (pid_t) -> Bool = { $0 > 0 }
     ) -> SystemProbeClient {
         SystemProbeClient(
             processIDs: { pattern in
@@ -106,8 +105,7 @@ actor SubprocessRunnerFake: SubprocessRunning {
                 }
             },
             processIDsSynchronously: processIDsSynchronously,
-            isProcessAlive: isProcessAlive,
-            probeTCPPort: probeTCPPort
+            isProcessAlive: isProcessAlive
         )
     }
 
@@ -179,8 +177,7 @@ actor SubprocessRunnerFake: SubprocessRunning {
 extension SubprocessRunning {
     nonisolated func systemProbeClient(
         processIDsSynchronously: @escaping @Sendable (String) -> [pid_t] = { _ in [] },
-        isProcessAlive: @escaping @Sendable (pid_t) -> Bool = { $0 > 0 },
-        probeTCPPort: @escaping @Sendable (Int, Int) -> Bool = { _, _ in false }
+        isProcessAlive: @escaping @Sendable (pid_t) -> Bool = { $0 > 0 }
     ) -> SystemProbeClient {
         SystemProbeClient(
             processIDs: { pattern in
@@ -214,8 +211,7 @@ extension SubprocessRunning {
                 }
             },
             processIDsSynchronously: processIDsSynchronously,
-            isProcessAlive: isProcessAlive,
-            probeTCPPort: probeTCPPort
+            isProcessAlive: isProcessAlive
         )
     }
 }
