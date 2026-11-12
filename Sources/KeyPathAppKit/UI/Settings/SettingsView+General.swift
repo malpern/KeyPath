@@ -158,7 +158,7 @@ struct GeneralSettingsTabView: View {
     private func openLogFile(_ filePath: String) {
         Task {
             do {
-                _ = try await SubprocessRunner.shared.run("/usr/bin/open", args: ["-t", filePath])
+                try await DefaultTextEditor.open(filePath)
                 AppLogger.shared.log("📝 [Settings] Opened log in default text editor: \(filePath)")
             } catch {
                 AppLogger.shared.log("❌ [Settings] Failed to open log file: \(error.localizedDescription)")

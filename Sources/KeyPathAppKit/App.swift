@@ -359,8 +359,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let contents = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return }
         Task.detached {
             for name in contents {
+                // `chflags -h nohidden`: clear UF_HIDDEN on the entry itself, not a link's target.
                 let path = (dir as NSString).appendingPathComponent(name)
-                _ = try? await SubprocessRunner.shared.run("/usr/bin/chflags", args: ["-h", "nohidden", path])
+                var info = stat()
+                guard lstat(path, &info) == 0, info.st_flags & UInt32(UF_HIDDEN) != 0 else { continue }
+                _ = lchflags(path, info.st_flags & ~UInt32(UF_HIDDEN))
             }
         }
     }

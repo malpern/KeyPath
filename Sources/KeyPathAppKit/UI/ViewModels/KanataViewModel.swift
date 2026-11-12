@@ -307,22 +307,20 @@ class KanataViewModel {
             return false
         }
 
-        do {
-            let result = try await SubprocessRunner.shared.run(
-                "/usr/bin/defaults",
-                args: ["write", "-g", "com.apple.keyboard.fnState", "-bool", useStandardFKeys ? "true" : "false"]
-            )
-            if result.exitCode == 0 {
-                AppLogger.shared.log("🎹 [KanataViewModel] Set macOS fnState to \(useStandardFKeys)")
-                return true
-            } else {
-                AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to set macOS fnState, exit code: \(result.exitCode)")
-                return false
-            }
-        } catch {
-            AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to set macOS fnState: \(error)")
+        // `defaults write -g com.apple.keyboard.fnState -bool …`, in the same domain the read above uses.
+        CFPreferencesSetValue(
+            "com.apple.keyboard.fnState" as CFString,
+            useStandardFKeys as CFBoolean,
+            kCFPreferencesAnyApplication,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesAnyHost
+        )
+        guard CFPreferencesSynchronize(kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost) else {
+            AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to set macOS fnState")
             return false
         }
+        AppLogger.shared.log("🎹 [KanataViewModel] Set macOS fnState to \(useStandardFKeys)")
+        return true
     }
 
     func removeCustomRule(_ id: UUID) async {
