@@ -217,7 +217,7 @@ struct RulesTabView: View {
     }
 
     private var customRulesTitle: String {
-        "Custom Rules"
+        String(localized: "Custom Rules")
     }
 
     // collectionRow, packForCollection → RulesSummaryView+CollectionRow.swift (via extension on RulesTabView)
@@ -386,7 +386,7 @@ struct RulesTabView: View {
                                     // Close settings and open overlay with mapper tab
                                     NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
                                 },
-                                description: isSearching ? "Filtered custom rules" : "Remap any key combination or sequence",
+                                description: isSearching ? String(localized: "Filtered custom rules") : String(localized: "Remap any key combination or sequence"),
                                 activationDetail: nil,
                                 defaultExpanded: !hasAnyCustomRules,
                                 scrollID: "custom-rules",
@@ -585,7 +585,7 @@ struct RulesTabView: View {
             )
         }
         .sheet(isPresented: $showingHomeRowModsHelp) {
-            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+            MarkdownHelpSheet(resource: "home-row-mods", title: String(localized: "Home Row Mods"))
         }
         .sheet(isPresented: $showingCatalogUpdateReview) {
             CatalogUpdateReviewSheet(

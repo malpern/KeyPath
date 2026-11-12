@@ -6,6 +6,13 @@ import SwiftUI
 enum MappingEditorMode: String, CaseIterable {
     case simple = "Simple"
     case advanced = "Advanced"
+
+    var displayName: String {
+        switch self {
+        case .simple: String(localized: "Simple", comment: "Mapping editor mode")
+        case .advanced: String(localized: "Advanced", comment: "Mapping editor mode")
+        }
+    }
 }
 
 // MARK: - Mapping Behavior Editor
@@ -38,6 +45,13 @@ struct MappingBehaviorEditor: View {
     enum BehaviorType: String, CaseIterable {
         case dualRole = "Tap / Hold"
         case tapDance = "Tap Dance"
+
+        var displayName: String {
+            switch self {
+            case .dualRole: String(localized: "Tap / Hold", comment: "Key behavior type: different actions on tap and hold")
+            case .tapDance: String(localized: "Tap Dance", comment: "Key behavior type: different actions per number of taps")
+            }
+        }
     }
 
     var body: some View {
@@ -45,13 +59,13 @@ struct MappingBehaviorEditor: View {
             // Segmented control
             Picker("Mode", selection: $mode) {
                 ForEach(MappingEditorMode.allCases, id: \.self) { m in
-                    Text(m.rawValue).tag(m)
+                    Text(m.displayName).tag(m)
                 }
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("mapping-behavior-mode-picker")
             .accessibilityLabel("Mapping mode")
-            .accessibilityValue(mode.rawValue)
+            .accessibilityValue(mode.displayName)
             .onChange(of: mode) { _, newMode in
                 if newMode == .simple {
                     // Clear behavior when switching to simple
@@ -100,13 +114,13 @@ struct MappingBehaviorEditor: View {
             // Behavior type picker
             Picker("Behavior", selection: $behaviorType) {
                 ForEach(BehaviorType.allCases, id: \.self) { type in
-                    Text(type.rawValue).tag(type)
+                    Text(type.displayName).tag(type)
                 }
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("mapping-behavior-type-picker")
             .accessibilityLabel("Behavior type")
-            .accessibilityValue(behaviorType.rawValue)
+            .accessibilityValue(behaviorType.displayName)
             .onChange(of: behaviorType) { _, _ in
                 syncBehaviorFromState()
             }
@@ -211,7 +225,7 @@ struct MappingBehaviorEditor: View {
                             .onChange(of: activateHoldOnOtherKey) { _, _ in syncBehaviorFromState() }
                             .accessibilityIdentifier("mapping-behavior-activate-hold-toggle")
                             .accessibilityLabel(TimingCopy.activateHoldOnOtherKeyPress)
-                        InfoTip("Pressing another key activates the hold action.")
+                        InfoTip(String(localized: "Pressing another key activates the hold action."))
                     }
 
                     HStack(spacing: 4) {
@@ -219,7 +233,7 @@ struct MappingBehaviorEditor: View {
                             .accessibilityIdentifier("mapping-behavior-quick-tap-toggle")
                             .accessibilityLabel(TimingCopy.activateHoldOnOtherKeyRelease)
                             .onChange(of: quickTap) { _, _ in syncBehaviorFromState() }
-                        InfoTip("Releasing another key activates the hold action.")
+                        InfoTip(String(localized: "Releasing another key activates the hold action."))
                     }
 
                     HStack(spacing: 4) {
@@ -227,7 +241,11 @@ struct MappingBehaviorEditor: View {
                             .accessibilityIdentifier("mapping-behavior-release-order-toggle")
                             .accessibilityLabel("Release order")
                             .onChange(of: useReleaseOrder) { _, _ in syncBehaviorFromState() }
-                        InfoTip("Decide tap vs hold purely by release order — no timeout latency. If you release the key before any other key, it's a tap. Ideal for spacebar-as-modifier.")
+                        InfoTip(
+                            String(
+                                localized: "Decide tap vs hold purely by release order — no timeout latency. If you release the key before any other key, it's a tap. Ideal for spacebar-as-modifier."
+                            )
+                        )
                     }
                 }
                 .padding(.vertical, 4)

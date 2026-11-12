@@ -41,6 +41,18 @@ struct LauncherMappingEditor: View {
         case keystroke = "Key"
         case systemAction = "System"
 
+        /// Localized label shown in the type picker and editor header.
+        var displayName: String {
+            switch self {
+            case .app: String(localized: "App", comment: "Launcher target type: an application")
+            case .website: String(localized: "Website", comment: "Launcher target type: a web URL")
+            case .folder: String(localized: "Folder", comment: "Launcher target type: a folder")
+            case .script: String(localized: "Script", comment: "Launcher target type: a script file")
+            case .keystroke: String(localized: "Key", comment: "Launcher target type: a keystroke")
+            case .systemAction: String(localized: "System", comment: "Launcher target type: a system action")
+            }
+        }
+
         var requiresScriptExecution: Bool {
             self == .script
         }
@@ -176,11 +188,11 @@ struct LauncherMappingEditor: View {
         VStack(spacing: 0) {
             // Title + Enabled toggle
             HStack {
-                Text(mapping == nil ? "Add Launcher" : "Edit Launcher")
+                Text(mapping == nil ? String(localized: "Add Launcher") : String(localized: "Edit Launcher"))
                     .font(.headline)
                 Spacer()
                 Toggle(isOn: $isEnabled) {
-                    Text(isEnabled ? "Enabled" : "Disabled")
+                    Text(isEnabled ? String(localized: "Enabled") : String(localized: "Disabled"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -201,7 +213,7 @@ struct LauncherMappingEditor: View {
 
                     // Form fields — right-aligned labels, left-aligned controls
                     VStack(spacing: 10) {
-                        formRow("Key") {
+                        formRow(String(localized: "Key")) {
                             HStack(spacing: 8) {
                                 TextField("", text: Binding(
                                     get: { displayKey },
@@ -217,10 +229,10 @@ struct LauncherMappingEditor: View {
                             }
                         }
 
-                        formRow("Type") {
+                        formRow(String(localized: "Type")) {
                             Picker("Type", selection: $targetType) {
                                 ForEach(TargetType.allCases, id: \.self) { type in
-                                    Text(type.rawValue).tag(type)
+                                    Text(type.displayName).tag(type)
                                 }
                             }
                             .pickerStyle(.segmented)
@@ -328,11 +340,11 @@ struct LauncherMappingEditor: View {
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(currentDisplayName.isEmpty ? "New Launcher" : currentDisplayName)
+                Text(currentDisplayName.isEmpty ? String(localized: "New Launcher") : currentDisplayName)
                     .font(.title3.weight(.medium))
                     .lineLimit(1)
                     .foregroundColor(currentDisplayName.isEmpty ? .secondary : .primary)
-                Text(targetType.rawValue)
+                Text(targetType.displayName)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -369,7 +381,7 @@ struct LauncherMappingEditor: View {
     private var targetFormRows: some View {
         switch targetType {
         case .app:
-            formRow("App") {
+            formRow(String(localized: "App")) {
                 HStack {
                     TextField("Name", text: $appName)
                         .textFieldStyle(.roundedBorder)
@@ -378,20 +390,20 @@ struct LauncherMappingEditor: View {
                         .accessibilityIdentifier("launcher-editor-app-browse-button")
                 }
             }
-            formRow("Bundle ID") {
+            formRow(String(localized: "Bundle ID")) {
                 TextField("Optional", text: $bundleId)
                     .textFieldStyle(.roundedBorder)
                     .font(.caption.monospaced())
                     .accessibilityIdentifier("launcher-editor-bundle-id-field")
             }
         case .website:
-            formRow("URL") {
+            formRow(String(localized: "URL")) {
                 TextField("e.g., github.com", text: $url)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("launcher-editor-url-field")
             }
         case .folder:
-            formRow("Path") {
+            formRow(String(localized: "Path")) {
                 HStack {
                     TextField("Folder path", text: $folderPath)
                         .textFieldStyle(.roundedBorder)
@@ -404,14 +416,14 @@ struct LauncherMappingEditor: View {
                 warningLabel(warning)
                     .padding(.leading, 84)
             }
-            formRow("Name") {
+            formRow(String(localized: "Name")) {
                 TextField("Display name (optional)", text: $folderName)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("launcher-editor-folder-name-field")
             }
         case .script:
             if scriptPath.isEmpty {
-                formRow("Script") {
+                formRow(String(localized: "Script")) {
                     Button {
                         browseForScript()
                     } label: {
@@ -420,7 +432,7 @@ struct LauncherMappingEditor: View {
                     .accessibilityIdentifier("launcher-editor-script-browse-button")
                 }
             } else {
-                formRow("Script") {
+                formRow(String(localized: "Script")) {
                     HStack(spacing: 8) {
                         Image(systemName: "terminal.fill")
                             .foregroundStyle(.secondary)
@@ -485,7 +497,7 @@ struct LauncherMappingEditor: View {
                     warningLabel(warning)
                         .padding(.leading, 84)
                 }
-                formRow("Name") {
+                formRow(String(localized: "Name")) {
                     TextField("Display name (optional)", text: $scriptName)
                         .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("launcher-editor-script-name-field")
@@ -505,17 +517,17 @@ struct LauncherMappingEditor: View {
                 }
             }
         case .keystroke:
-            formRow("Key") {
+            formRow(String(localized: "Key")) {
                 TextField("e.g., esc, f5, mute", text: $keystrokeKey)
                     .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("launcher-editor-keystroke-field")
             }
         case .systemAction:
-            formRow("Action") {
+            formRow(String(localized: "Action")) {
                 Picker("", selection: $selectedSystemAction) {
                     Text("Choose...").tag(nil as SystemActionInfo?)
                     ForEach(SystemActionInfo.allActions) { action in
-                        Label(action.isSupportedInDriverlessSession ? action.name : "\(action.name) — Unsupported", systemImage: action.sfSymbol)
+                        Label(action.isSupportedInDriverlessSession ? action.name : String(localized: "\(action.name) — Unsupported"), systemImage: action.sfSymbol)
                             .tag(action as SystemActionInfo?)
                             .disabled(!action.isSupportedInDriverlessSession)
                     }
@@ -526,14 +538,14 @@ struct LauncherMappingEditor: View {
         }
 
         // Description (shown in overlay sidebar)
-        formRow("Description") {
+        formRow(String(localized: "Description")) {
             TextField("What this shortcut does (optional)", text: $userDescription)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("launcher-editor-description-field")
         }
 
         // Custom icon (available for all target types)
-        formRow("Icon") {
+        formRow(String(localized: "Icon")) {
             HStack(spacing: 8) {
                 if !customIconPath.isEmpty,
                    let img = NSImage(contentsOfFile: (customIconPath as NSString).expandingTildeInPath)
@@ -544,7 +556,7 @@ struct LauncherMappingEditor: View {
                         .frame(width: 20, height: 20)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
-                Button(customIconPath.isEmpty ? "Choose..." : "Change...") {
+                Button(customIconPath.isEmpty ? String(localized: "Choose...") : String(localized: "Change...")) {
                     browseForIcon()
                 }
                 .controlSize(.small)
@@ -594,8 +606,8 @@ struct LauncherMappingEditor: View {
         case .website: url
         case .folder: folderName.isEmpty ? (folderPath as NSString).lastPathComponent : folderName
         case .script: scriptName.isEmpty ? (scriptPath as NSString).lastPathComponent : scriptName
-        case .keystroke: keystrokeKey.isEmpty ? "Key" : keystrokeKey.uppercased()
-        case .systemAction: selectedSystemAction?.name ?? "System Action"
+        case .keystroke: keystrokeKey.isEmpty ? String(localized: "Key") : keystrokeKey.uppercased()
+        case .systemAction: selectedSystemAction?.name ?? String(localized: "System Action")
         }
     }
 
@@ -617,7 +629,7 @@ struct LauncherMappingEditor: View {
         case let .openURL(urlString):
             icon = await services.faviconFetcher.fetchFavicon(for: urlString)
         case .keystroke:
-            icon = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Key")
+            icon = NSImage(systemSymbolName: "keyboard", accessibilityDescription: String(localized: "Key"))
         case let .systemAction(id):
             if let info = SystemActionInfo.allActions.first(where: { $0.id == id }) {
                 icon = NSImage(systemSymbolName: info.sfSymbol, accessibilityDescription: info.name)
@@ -635,31 +647,31 @@ struct LauncherMappingEditor: View {
 
     private var validationError: String? {
         if normalizedKey.isEmpty {
-            return "Key is required"
+            return String(localized: "Key is required")
         }
         if !LauncherGridConfig.isValidKey(normalizedKey) {
-            return "Use a single letter or number"
+            return String(localized: "Use a single letter or number")
         }
         if let mapping, LauncherGridConfig.normalizeKey(mapping.key) == normalizedKey {
             // OK - same key
         } else if existingKeys.contains(normalizedKey) {
-            return "Key '\(displayKey.uppercased())' is already in use"
+            return String(localized: "Key '\(displayKey.uppercased())' is already in use")
         }
 
         switch targetType {
         case .app:
-            if appName.isEmpty { return "App name is required" }
+            if appName.isEmpty { return String(localized: "App name is required") }
         case .website:
-            if url.isEmpty { return "URL is required" }
+            if url.isEmpty { return String(localized: "URL is required") }
         case .folder:
-            if folderPath.isEmpty { return "Folder path is required" }
+            if folderPath.isEmpty { return String(localized: "Folder path is required") }
         case .script:
-            if scriptPath.isEmpty { return "Script path is required" }
-            if !isScriptExecutionEnabled { return "Script execution is disabled in Settings" }
+            if scriptPath.isEmpty { return String(localized: "Script path is required") }
+            if !isScriptExecutionEnabled { return String(localized: "Script execution is disabled in Settings") }
         case .keystroke:
-            if keystrokeKey.trimmingCharacters(in: .whitespaces).isEmpty { return "Key name is required" }
+            if keystrokeKey.trimmingCharacters(in: .whitespaces).isEmpty { return String(localized: "Key name is required") }
         case .systemAction:
-            if selectedSystemAction == nil { return "Choose a system action" }
+            if selectedSystemAction == nil { return String(localized: "Choose a system action") }
             if selectedSystemAction?.isSupportedInDriverlessSession == false {
                 return SystemActionInfo.driverlessMediaUnavailableReason
             }
@@ -673,10 +685,10 @@ struct LauncherMappingEditor: View {
         let expandedPath = (folderPath as NSString).expandingTildeInPath
         var isDirectory: ObjCBool = false
         if !Foundation.FileManager().fileExists(atPath: expandedPath, isDirectory: &isDirectory) {
-            return "Folder not found at this path"
+            return String(localized: "Folder not found at this path")
         }
         if !isDirectory.boolValue {
-            return "Path points to a file, not a folder"
+            return String(localized: "Path points to a file, not a folder")
         }
         return nil
     }
@@ -685,13 +697,13 @@ struct LauncherMappingEditor: View {
         guard !scriptPath.isEmpty else { return nil }
         let expandedPath = (scriptPath as NSString).expandingTildeInPath
         if !Foundation.FileManager().fileExists(atPath: expandedPath) {
-            return "Script not found at this path"
+            return String(localized: "Script not found at this path")
         }
         let securityService = ScriptSecurityService.shared
         let isScript = securityService.isRecognizedScript(expandedPath)
         let isExecutable = Foundation.FileManager().isExecutableFile(atPath: expandedPath)
         if !isScript, !isExecutable {
-            return "File may not be executable"
+            return String(localized: "File may not be executable")
         }
         return nil
     }
@@ -776,8 +788,8 @@ struct LauncherMappingEditor: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "Select a folder to open"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Select a folder to open")
+        panel.prompt = String(localized: "Select")
 
         if panel.runModal() == .OK, let url = panel.url {
             let path = url.path
@@ -797,8 +809,8 @@ struct LauncherMappingEditor: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Select a script file"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Select a script file")
+        panel.prompt = String(localized: "Select")
 
         var allowedTypes: [UTType] = [.shellScript, .unixExecutable]
         if let t = UTType(filenameExtension: "applescript") { allowedTypes.append(t) }
@@ -828,8 +840,8 @@ struct LauncherMappingEditor: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Choose an icon image"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Choose an icon image")
+        panel.prompt = String(localized: "Select")
         panel.allowedContentTypes = [.png, .jpeg, .icns, .svg, .tiff]
 
         if panel.runModal() == .OK, let url = panel.url {
@@ -847,8 +859,8 @@ struct LauncherMappingEditor: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.message = "Select an app to launch"
-        panel.prompt = "Select"
+        panel.message = String(localized: "Select an app to launch")
+        panel.prompt = String(localized: "Select")
         panel.allowedContentTypes = [.application]
 
         if panel.runModal() == .OK, let url = panel.url {

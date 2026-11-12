@@ -32,7 +32,7 @@ extension RulesTabView {
                             guard kindaVimMutationID == requestID else { return }
                             AppLogger.shared.log("⚠️ [Rules] KindaVim toggle failed: \(error.localizedDescription)")
                             isKindaVimInstalled = !newValue
-                            settingsToastManager.showError("Failed to \(newValue ? "enable" : "disable") KindaVim")
+                            settingsToastManager.showError(newValue ? String(localized: "Failed to enable KindaVim") : String(localized: "Failed to disable KindaVim"))
                         }
                     }
                 },
@@ -96,7 +96,7 @@ extension RulesTabView {
                 )
             } catch {
                 AppLogger.shared.log("⚠️ [RulesTabView] Failed to delete app rule: \(error)")
-                settingsToastManager.showError("Failed to delete rule: \(error.localizedDescription)")
+                settingsToastManager.showError(String(localized: "Failed to delete rule: \(error.localizedDescription)"))
             }
         }
     }
@@ -142,9 +142,9 @@ extension RulesTabView {
                 pendingToggles.removeAll()
                 pendingSelections.removeAll()
                 stableSortOrder = computeSortOrder()
-                settingsToastManager.showSuccess("Configuration reset to default")
+                settingsToastManager.showSuccess(String(localized: "Configuration reset to default"))
             } catch {
-                settingsToastManager.showError("Reset failed: \(error.localizedDescription)")
+                settingsToastManager.showError(String(localized: "Reset failed: \(error.localizedDescription)"))
             }
         }
     }

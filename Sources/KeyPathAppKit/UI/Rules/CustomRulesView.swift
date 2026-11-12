@@ -152,7 +152,7 @@ struct CustomRulesView: View {
                     newTitle = ""
                     newNotes = ""
                 } else {
-                    inlineError = "Rule save failed"
+                    inlineError = String(localized: "Rule save failed")
                 }
             }
         }

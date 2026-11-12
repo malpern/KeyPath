@@ -66,7 +66,7 @@ struct HomeRowLayerTogglesModalView: View {
                         holdMode: .layers,
                         selectedKey: selectedKey,
                         keyDisplayLabels: homeRowDisplayLabels,
-                        helperText: "Tap for letter, hold for layer",
+                        helperText: String(localized: "Tap for letter, hold for layer"),
                         onKeySelected: { key in
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 selectedKey = selectedKey == key ? nil : key
@@ -167,7 +167,7 @@ struct HomeRowLayerTogglesModalView: View {
                                             set: { localConfig.timing.tapWindow = $0 }
                                         ),
                                         accessibilityIdentifier: "home-row-layer-toggles-modal-tap-window-field",
-                                        accessibilityLabel: "Tap window"
+                                        accessibilityLabel: String(localized: "Tap window")
                                     )
                                     Text("ms")
                                         .font(.subheadline)
@@ -258,7 +258,7 @@ struct HomeRowLayerTogglesModalView: View {
                                                         }
                                                     ),
                                                     accessibilityIdentifier: "home-row-layer-toggles-modal-tap-offset-\(key)-field",
-                                                    accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) tap offset"
+                                                    accessibilityLabel: String(localized: "\(displayLabel(forCanonicalKey: key)) tap offset")
                                                 )
                                             }
                                         }
@@ -295,7 +295,9 @@ struct HomeRowLayerTogglesModalView: View {
                                                         }
                                                     ),
                                                     accessibilityIdentifier: "home-row-layer-toggles-modal-hold-offset-\(key)-field",
-                                                    accessibilityLabel: "\(displayLabel(forCanonicalKey: key)) \(localConfig.oppositeHandMode.decisionWindowLabel.lowercased()) offset"
+                                                    accessibilityLabel: String(
+                                                        localized: "\(displayLabel(forCanonicalKey: key)) \(localConfig.oppositeHandMode.decisionWindowLabel.lowercased()) offset"
+                                                    )
                                                 )
                                             }
                                         }
@@ -435,10 +437,10 @@ struct HomeRowLayerTogglesModalView: View {
 
     private var layerOptions: [(key: String, label: String, icon: String)] {
         [
-            ("fun", "Function", "f.cursive"),
-            ("num", "Numpad", "number"),
-            ("sym", "Symbol", "character"),
-            ("nav", "Navigation", "arrow.up.arrow.down")
+            ("fun", String(localized: "Function"), "f.cursive"),
+            ("num", String(localized: "Numpad"), "number"),
+            ("sym", String(localized: "Symbol"), "character"),
+            ("nav", String(localized: "Navigation"), "arrow.up.arrow.down")
         ]
     }
 

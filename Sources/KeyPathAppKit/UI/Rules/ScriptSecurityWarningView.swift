@@ -38,19 +38,19 @@ struct ScriptSecurityWarningView: View {
             VStack(alignment: .leading, spacing: 10) {
                 warningPoint(
                     icon: "terminal.fill",
-                    text: "Scripts can execute any command on your system"
+                    text: String(localized: "Scripts can execute any command on your system")
                 )
                 warningPoint(
                     icon: "folder.fill",
-                    text: "Scripts can read, modify, or delete your files"
+                    text: String(localized: "Scripts can read, modify, or delete your files")
                 )
                 warningPoint(
                     icon: "network",
-                    text: "Scripts can make network connections"
+                    text: String(localized: "Scripts can make network connections")
                 )
                 warningPoint(
                     icon: "lock.open.fill",
-                    text: "Malicious scripts could harm your system"
+                    text: String(localized: "Malicious scripts could harm your system")
                 )
             }
             .padding(.horizontal, 8)
@@ -182,15 +182,15 @@ struct ScriptEnableConfirmationView: View {
             VStack(alignment: .leading, spacing: 10) {
                 warningPoint(
                     icon: "terminal.fill",
-                    text: "Scripts can run any command on your Mac"
+                    text: String(localized: "Scripts can run any command on your Mac")
                 )
                 warningPoint(
                     icon: "folder.fill",
-                    text: "Scripts can read, change, or delete files"
+                    text: String(localized: "Scripts can read, change, or delete files")
                 )
                 warningPoint(
                     icon: "network",
-                    text: "Scripts can connect to the internet"
+                    text: String(localized: "Scripts can connect to the internet")
                 )
             }
             .padding(.horizontal, 8)
@@ -258,11 +258,11 @@ struct ScriptBypassConfirmationView: View {
             VStack(alignment: .leading, spacing: 10) {
                 warningPoint(
                     icon: "bolt.fill",
-                    text: "Scripts run immediately, with no confirmation"
+                    text: String(localized: "Scripts run immediately, with no confirmation")
                 )
                 warningPoint(
                     icon: "terminal.fill",
-                    text: "A mistaken or malicious script runs unchecked"
+                    text: String(localized: "A mistaken or malicious script runs unchecked")
                 )
             }
             .padding(.horizontal, 8)

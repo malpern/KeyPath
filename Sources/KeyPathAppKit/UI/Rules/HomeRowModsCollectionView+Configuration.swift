@@ -55,15 +55,15 @@ extension HomeRowModsCollectionView {
             newLayerSheet
         }
         .sheet(isPresented: $showingHelp) {
-            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+            MarkdownHelpSheet(resource: "home-row-mods", title: String(localized: "Home Row Mods"))
         }
     }
 
     var customizeSection: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text(usesTopRowKeys
-                ? "These settings control what your top-row keys do when you hold them. Tap still types letters."
-                : "These settings control what your home-row keys do when you hold them. Tap still types letters.")
+                ? String(localized: "These settings control what your top-row keys do when you hold them. Tap still types letters.")
+                : String(localized: "These settings control what your home-row keys do when you hold them. Tap still types letters."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -83,15 +83,15 @@ extension HomeRowModsCollectionView {
                     holdBehaviorOptionCard(
                         mode: .modifiers,
                         icon: "command",
-                        title: "Modifiers",
-                        subtitle: "Recommended"
+                        title: String(localized: "Modifiers"),
+                        subtitle: String(localized: "Recommended")
                     )
 
                     holdBehaviorOptionCard(
                         mode: .layers,
                         icon: "square.stack.3d.up",
-                        title: "Layers",
-                        subtitle: "Advanced"
+                        title: String(localized: "Layers"),
+                        subtitle: String(localized: "Advanced")
                     )
                 }
 
@@ -118,8 +118,8 @@ extension HomeRowModsCollectionView {
                     HStack(spacing: 10) {
                         SettingsOptionCard(
                             icon: "hand.raised",
-                            title: "While Held",
-                            subtitle: "Active only while holding",
+                            title: String(localized: "While Held"),
+                            subtitle: String(localized: "Active only while holding"),
                             isSelected: config.layerToggleMode == .whileHeld,
                             onHoverChanged: { hovering in
                                 hoveredLayerToggleMode = hovering ? .whileHeld : nil
@@ -130,12 +130,12 @@ extension HomeRowModsCollectionView {
                         }
                         .accessibilityIdentifier("home-row-mods-layer-toggle-while-held")
                         .accessibilityLabel("Layer activation while held")
-                        .accessibilityValue(config.layerToggleMode == .whileHeld ? "selected" : "not selected")
+                        .accessibilityValue(config.layerToggleMode == .whileHeld ? String(localized: "selected") : String(localized: "not selected"))
 
                         SettingsOptionCard(
                             icon: "switch.2",
-                            title: "Toggle",
-                            subtitle: "Press once to stay on",
+                            title: String(localized: "Toggle"),
+                            subtitle: String(localized: "Press once to stay on"),
                             isSelected: config.layerToggleMode == .toggle,
                             onHoverChanged: { hovering in
                                 hoveredLayerToggleMode = hovering ? .toggle : nil
@@ -146,7 +146,7 @@ extension HomeRowModsCollectionView {
                         }
                         .accessibilityIdentifier("home-row-mods-layer-toggle-mode")
                         .accessibilityLabel("Layer activation toggle")
-                        .accessibilityValue(config.layerToggleMode == .toggle ? "selected" : "not selected")
+                        .accessibilityValue(config.layerToggleMode == .toggle ? String(localized: "selected") : String(localized: "not selected"))
                     }
 
                     Text(layerActivationExplanationText)
@@ -221,7 +221,7 @@ extension HomeRowModsCollectionView {
             mode == .modifiers ? "home-row-mods-hold-mode-modifiers" : "home-row-mods-hold-mode-layers"
         )
         .accessibilityLabel("Use \(title) for home row holds")
-        .accessibilityValue(isSelected ? "selected" : "not selected")
+        .accessibilityValue(isSelected ? String(localized: "selected") : String(localized: "not selected"))
     }
 
     func applyHoldMode(_ mode: HomeRowHoldMode) {
@@ -237,21 +237,24 @@ extension HomeRowModsCollectionView {
     }
 
     var holdBehaviorExplanationText: String {
-        let keyDesc = usesTopRowKeys ? "a top-row key" : "a home-row key"
         switch hoveredHoldBehavior ?? config.holdMode {
         case .modifiers:
-            return "Best for shortcuts and general app use. Hold \(keyDesc) to get Cmd/Opt/Ctrl/Shift."
+            usesTopRowKeys
+                ? String(localized: "Best for shortcuts and general app use. Hold a top-row key to get Cmd/Opt/Ctrl/Shift.")
+                : String(localized: "Best for shortcuts and general app use. Hold a home-row key to get Cmd/Opt/Ctrl/Shift.")
         case .layers:
-            return "Best for advanced layouts. Hold \(keyDesc) to temporarily access another key layer."
+            usesTopRowKeys
+                ? String(localized: "Best for advanced layouts. Hold a top-row key to temporarily access another key layer.")
+                : String(localized: "Best for advanced layouts. Hold a home-row key to temporarily access another key layer.")
         }
     }
 
     var layerActivationExplanationText: String {
         switch hoveredLayerToggleMode ?? config.layerToggleMode {
         case .whileHeld:
-            "Momentary mode: layer turns off when you release the key."
+            String(localized: "Momentary mode: layer turns off when you release the key.")
         case .toggle:
-            "Latch mode: layer stays active until you switch it off."
+            String(localized: "Latch mode: layer stays active until you switch it off.")
         }
     }
 

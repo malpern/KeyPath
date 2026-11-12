@@ -56,7 +56,7 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
         holdMode: HomeRowHoldMode = .modifiers,
         selectedKey: String?,
         keyDisplayLabels: [String: String] = [:],
-        helperText: String = "Tap for letter, hold for modifier",
+        helperText: String = String(localized: "Tap for letter, hold for modifier"),
         keyChipSize: CGFloat = 78,
         timingPreviewPhase: HomeRowModsCollectionView.TimingPreviewPhase = .idle,
         leftHandKeys: [String] = HomeRowModsConfig.leftHandKeys,
@@ -86,7 +86,7 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
             HStack(spacing: keySpacing) {
                 // Left hand
                 VStack(alignment: .leading, spacing: keySpacing) {
-                    handHeader(emoji: "\u{1FAF2}", title: "Left", isActive: hasEnabledKey(in: leftHandKeys))
+                    handHeader(emoji: "\u{1FAF2}", title: String(localized: "Left"), isActive: hasEnabledKey(in: leftHandKeys))
                     HStack(spacing: keySpacing) {
                         ForEach(Array(leftHandKeys.enumerated()), id: \.element) { idx, key in
                             HomeRowKeyChip(
@@ -123,7 +123,7 @@ struct HomeRowKeyboardView<PopoverContent: View>: View {
 
                 // Right hand
                 VStack(alignment: .leading, spacing: keySpacing) {
-                    handHeader(emoji: "\u{1FAF1}", title: "Right", isActive: hasEnabledKey(in: rightHandKeys))
+                    handHeader(emoji: "\u{1FAF1}", title: String(localized: "Right"), isActive: hasEnabledKey(in: rightHandKeys))
                     HStack(spacing: keySpacing) {
                         ForEach(Array(rightHandKeys.enumerated()), id: \.element) { idx, key in
                             HomeRowKeyChip(
@@ -208,7 +208,7 @@ extension HomeRowKeyboardView where PopoverContent == EmptyView {
         holdMode: HomeRowHoldMode = .modifiers,
         selectedKey: String?,
         keyDisplayLabels: [String: String] = [:],
-        helperText: String = "Tap for letter, hold for modifier",
+        helperText: String = String(localized: "Tap for letter, hold for modifier"),
         keyChipSize: CGFloat = 78,
         timingPreviewPhase: HomeRowModsCollectionView.TimingPreviewPhase = .idle,
         leftHandKeys: [String] = HomeRowModsConfig.leftHandKeys,
@@ -347,11 +347,11 @@ struct HomeRowKeyChip: View {
     }
 
     private var accessibilityValue: String {
-        let state = isEnabled ? "enabled" : "disabled"
+        let state = isEnabled ? String(localized: "enabled") : String(localized: "disabled")
         let assignment = holdAssignment.map {
-            holdMode == .layers ? "layer \($0)" : "modifier \(modifierDisplay(for: $0))"
-        } ?? "no hold assignment"
-        let selection = isSelected ? ", selected" : ""
+            holdMode == .layers ? String(localized: "layer \($0)") : String(localized: "modifier \(modifierDisplay(for: $0))")
+        } ?? String(localized: "no hold assignment")
+        let selection = isSelected ? ", " + String(localized: "selected") : ""
         return "\(state), \(assignment)\(selection)"
     }
 

@@ -93,7 +93,7 @@ struct HomeRowTimingSection: View {
                 )
                 .accessibilityIdentifier("home-row-mods-raw-values-toggle")
                 .accessibilityLabel("Raw values mode")
-                .accessibilityValue(config.showExpertTiming ? "on" : "off")
+                .accessibilityValue(config.showExpertTiming ? String(localized: "on") : String(localized: "off"))
                 .accessibilityAddTraits(config.showExpertTiming ? .isSelected : [])
 
                 if hasNonDefaultTiming {
@@ -175,7 +175,7 @@ struct HomeRowTimingSection: View {
                             Text(config.oppositeHandMode.decisionWindowLabel)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            InfoTip("How long KeyPath waits before activating the hold action in this mode.")
+                            InfoTip(String(localized: "How long KeyPath waits before activating the hold action in this mode."))
                         }
                         if config.showExpertTiming {
                             HStack(spacing: 16) {
@@ -191,7 +191,7 @@ struct HomeRowTimingSection: View {
                                                 ),
                                                 range: 80 ... 350,
                                                 accessibilityIdentifier: "home-row-mods-tap-window-field",
-                                                accessibilityLabel: "Tap window"
+                                                accessibilityLabel: String(localized: "Tap window")
                                             )
                                             Text("ms").font(.caption).foregroundColor(.secondary)
                                         }
@@ -247,8 +247,8 @@ struct HomeRowTimingSection: View {
                             .font(.subheadline)
                             .accessibilityIdentifier("home-row-mods-fast-typing-protection-toggle")
                             .accessibilityLabel("Fast typing protection")
-                            .accessibilityValue(config.timing.requirePriorIdleMs > 0 ? "on" : "off")
-                            InfoTip("How long you must pause after typing before holds are allowed. Prevents accidental modifiers mid-word.")
+                            .accessibilityValue(config.timing.requirePriorIdleMs > 0 ? String(localized: "on") : String(localized: "off"))
+                            InfoTip(String(localized: "How long you must pause after typing before holds are allowed. Prevents accidental modifiers mid-word."))
                         }
                         if config.timing.requirePriorIdleMs > 0 {
                             HStack(spacing: 8) {
@@ -262,7 +262,7 @@ struct HomeRowTimingSection: View {
                                         ),
                                         range: 0 ... 500,
                                         accessibilityIdentifier: "home-row-mods-prior-idle-field",
-                                        accessibilityLabel: "Fast typing protection idle window"
+                                        accessibilityLabel: String(localized: "Fast typing protection idle window")
                                     )
                                 } else {
                                     Slider(value: Binding(
@@ -315,7 +315,9 @@ struct HomeRowTimingSection: View {
                 .frame(maxWidth: 220)
 
                 InfoTip(
-                    "Off: Hold resolves by timing, so holding a home-row key can become its modifier by itself.\n\nOn Press: Hold actions activate when you press a key with the other hand. Faster response, but more opinionated.\n\nOn Release: More forgiving — waits for the other-hand key to be released before committing."
+                    String(
+                        localized: "Off: Hold resolves by timing, so holding a home-row key can become its modifier by itself.\n\nOn Press: Hold actions activate when you press a key with the other hand. Faster response, but more opinionated.\n\nOn Release: More forgiving — waits for the other-hand key to be released before committing."
+                    )
                 )
             }
 
@@ -332,7 +334,7 @@ struct HomeRowTimingSection: View {
                 .toggleStyle(.checkbox)
                 .accessibilityIdentifier("home-row-mods-quick-tap-toggle")
                 .accessibilityLabel("Favor tap when another key is pressed (quick tap)")
-                .accessibilityValue(config.timing.quickTapEnabled ? "on" : "off")
+                .accessibilityValue(config.timing.quickTapEnabled ? String(localized: "on") : String(localized: "off"))
 
                 if config.timing.quickTapEnabled {
                     HStack(spacing: 8) {
@@ -350,7 +352,7 @@ struct HomeRowTimingSection: View {
                                 ),
                                 range: 0 ... 120,
                                 accessibilityIdentifier: "home-row-mods-quick-tap-term-field",
-                                accessibilityLabel: "Quick tap extra time"
+                                accessibilityLabel: String(localized: "Quick tap extra time")
                             )
                         } else {
                             Slider(value: Binding(
@@ -387,7 +389,7 @@ struct HomeRowTimingSection: View {
                 Text("Per-finger sensitivity")
                     .font(.body)
 
-                InfoTip("Add extra delay for slower fingers to the \(config.oppositeHandMode.decisionWindowLabel.lowercased()).")
+                InfoTip(String(localized: "Add extra delay for slower fingers to the \(config.oppositeHandMode.decisionWindowLabel.lowercased())."))
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -454,7 +456,7 @@ struct HomeRowTimingSection: View {
                     ),
                     range: 0 ... 120,
                     accessibilityIdentifier: "home-row-mods-finger-\(finger.rawValue)-field",
-                    accessibilityLabel: "\(finger.displayName) finger sensitivity"
+                    accessibilityLabel: String(localized: "\(finger.displayName) finger sensitivity")
                 )
             } else {
                 Slider(
@@ -517,7 +519,7 @@ struct HomeRowTimingSection: View {
                                     ),
                                     range: -100 ... 200,
                                     accessibilityIdentifier: "home-row-mods-tap-offset-\(key)-field",
-                                    accessibilityLabel: "\(key.uppercased()) tap offset"
+                                    accessibilityLabel: String(localized: "\(key.uppercased()) tap offset")
                                 )
                             }
                         }
@@ -553,7 +555,7 @@ struct HomeRowTimingSection: View {
                                 ),
                                 range: -100 ... 200,
                                 accessibilityIdentifier: "home-row-mods-hold-offset-\(key)-field",
-                                accessibilityLabel: "\(key.uppercased()) \(config.oppositeHandMode.decisionWindowLabel.lowercased()) offset"
+                                accessibilityLabel: String(localized: "\(key.uppercased()) \(config.oppositeHandMode.decisionWindowLabel.lowercased()) offset")
                             )
                         }
                     }
@@ -671,9 +673,9 @@ struct HomeRowTimingSection: View {
     private func hrmStatsSummary(_ stats: KanataHrmStatsSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                hrmMetricChip(title: "Decisions", value: "\(stats.decisionsTotal)")
-                hrmMetricChip(title: "Tap/Hold", value: "\(stats.tapCount)/\(stats.holdCount)")
-                hrmMetricChip(title: "Avg Latency", value: "\(Int(stats.avgDecideLatencyMs.rounded()))ms")
+                hrmMetricChip(title: String(localized: "Decisions"), value: "\(stats.decisionsTotal)")
+                hrmMetricChip(title: String(localized: "Tap/Hold"), value: "\(stats.tapCount)/\(stats.holdCount)")
+                hrmMetricChip(title: String(localized: "Avg Latency"), value: "\(Int(stats.avgDecideLatencyMs.rounded()))ms")
             }
 
             if !hrmObservability.topReasons.isEmpty {
@@ -721,7 +723,7 @@ struct HomeRowTimingSection: View {
                             .background(Color.secondary.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 3))
 
-                        Text(event.decision == .tap ? "tap" : "hold")
+                        Text(event.decision == .tap ? String(localized: "tap") : String(localized: "hold"))
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(event.decision == .tap ? .blue : .orange)
                             .frame(width: 28, alignment: .leading)
@@ -765,9 +767,9 @@ struct HomeRowTimingSection: View {
 
     private var quickTapHelperText: String {
         if config.timing.quickTapTermMs == 0 {
-            return "No extra time added. Uses base tap window only."
+            return String(localized: "No extra time added. Uses base tap window only.")
         }
-        return "Adds \(config.timing.quickTapTermMs)ms to the tap window during key rolls."
+        return String(localized: "Adds \(config.timing.quickTapTermMs)ms to the tap window during key rolls.")
     }
 
     private var usesTimedTapWindow: Bool {
@@ -776,9 +778,9 @@ struct HomeRowTimingSection: View {
 
     private var timingSliderAccessibilityValue: String {
         if usesTimedTapWindow {
-            return "tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms"
+            return String(localized: "tap window \(config.timing.tapWindow) ms, hold delay \(config.timing.holdDelay) ms")
         }
-        return "hold delay \(config.timing.holdDelay) ms"
+        return String(localized: "hold delay \(config.timing.holdDelay) ms")
     }
 
     private var hasNonDefaultTiming: Bool {
@@ -807,13 +809,13 @@ struct HomeRowTimingSection: View {
     private var hrmStatsUnavailableMessage: String {
         switch hrmObservability.availability {
         case .traceOnly:
-            "Live decisions are available, but stats and calibration require Kanata's hrm-stats capability."
+            String(localized: "Live decisions are available, but stats and calibration require Kanata's hrm-stats capability.")
         case .unsupported:
-            "Stats and calibration are unavailable because this Kanata build does not advertise HRM telemetry."
+            String(localized: "Stats and calibration are unavailable because this Kanata build does not advertise HRM telemetry.")
         case .unknown:
-            "Stats and calibration are unavailable until Kanata reports HRM telemetry support."
+            String(localized: "Stats and calibration are unavailable until Kanata reports HRM telemetry support.")
         case .disabledInRuntimeConfig:
-            "Stats and calibration are unavailable because HRM telemetry is disabled in the active runtime config."
+            String(localized: "Stats and calibration are unavailable because HRM telemetry is disabled in the active runtime config.")
         case .supported:
             ""
         }
@@ -821,19 +823,19 @@ struct HomeRowTimingSection: View {
 
     private var hrmCalibrationButtonAccessibilityHint: String {
         if hrmObservability.calibrationState == .running {
-            return "Calibration is already running."
+            return String(localized: "Calibration is already running.")
         }
         if !hrmObservability.supportsHrmStats {
             return hrmStatsUnavailableMessage
         }
-        return "Starts a 60 second home row mods calibration."
+        return String(localized: "Starts a 60 second home row mods calibration.")
     }
 
     private var hrmRefreshButtonAccessibilityHint: String {
         if !hrmObservability.supportsHrmStats {
             return hrmStatsUnavailableMessage
         }
-        return "Refreshes home row mods statistics from Kanata."
+        return String(localized: "Refreshes home row mods statistics from Kanata.")
     }
 
     @ViewBuilder
@@ -913,7 +915,7 @@ private struct OppositeHandModeControl: View {
                 )
                 .accessibilityIdentifier("home-row-mods-opposite-hand-\(mode.rawValue)")
                 .accessibilityLabel(mode.displayName)
-                .accessibilityValue(selection == mode ? "selected" : "not selected")
+                .accessibilityValue(selection == mode ? String(localized: "selected") : String(localized: "not selected"))
                 .accessibilityAddTraits(selection == mode ? .isSelected : [])
             }
         }

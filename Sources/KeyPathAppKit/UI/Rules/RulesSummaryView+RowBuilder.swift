@@ -127,7 +127,7 @@ extension RulesTabView {
             onWindowSnappingActivationModeChange: collection.id == RuleCollectionIdentifier.windowSnapping ? { mode in
                 Task {
                     if let autoEnabled = await kanataManager.updateWindowSnappingActivationMode(collectionId: collection.id, mode: mode) {
-                        settingsToastManager.showSuccess("Also enabled \(autoEnabled)")
+                        settingsToastManager.showSuccess(String(localized: "Also enabled \(autoEnabled)"))
                     }
                 }
             } : nil,

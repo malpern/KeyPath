@@ -109,8 +109,8 @@ struct RuleConflictResolutionDialog: View {
                     .font(.title2.weight(.semibold))
 
                 Text(context.existingRule.canBeDisabled
-                    ? "This will disable \(context.existingRule.name) since both use the same keys."
-                    : "\(context.existingRule.name) uses the same keys. Change it in Settings first, then enable \(context.newRule.name).")
+                    ? String(localized: "This will disable \(context.existingRule.name) since both use the same keys.")
+                    : String(localized: "\(context.existingRule.name) uses the same keys. Change it in Settings first, then enable \(context.newRule.name)."))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -207,9 +207,9 @@ extension RuleConflictInfo.Source {
         case let .collection(collection):
             collection.summary
         case let .customRule(rule):
-            rule.notes ?? "Custom key mapping"
+            rule.notes ?? String(localized: "Custom key mapping")
         case .named:
-            "Set in Settings, not a rule"
+            String(localized: "Set in Settings, not a rule")
         }
     }
 }

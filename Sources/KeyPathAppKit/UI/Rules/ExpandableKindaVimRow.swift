@@ -94,9 +94,9 @@ struct ExpandableKindaVimRow: View {
         InsetBackPlane {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    staticModeBadge("NORMAL", tint: .green)
-                    staticModeBadge("INSERT", tint: .blue)
-                    staticModeBadge("VISUAL", tint: .orange)
+                    staticModeBadge(String(localized: "NORMAL", comment: "Vim mode name"), tint: .green)
+                    staticModeBadge(String(localized: "INSERT", comment: "Vim mode name"), tint: .blue)
+                    staticModeBadge(String(localized: "VISUAL", comment: "Vim mode name"), tint: .orange)
                 }
 
                 HStack(spacing: 0) {

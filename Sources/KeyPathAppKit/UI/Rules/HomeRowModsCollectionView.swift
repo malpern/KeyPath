@@ -141,7 +141,7 @@ struct HomeRowModsCollectionView: View {
             holdMode: config.holdMode,
             selectedKey: selectedKey,
             keyDisplayLabels: homeRowDisplayLabels,
-            helperText: config.holdMode == .modifiers ? "Tap for letter, hold for modifier" : "Tap for letter, hold for layer",
+            helperText: config.holdMode == .modifiers ? String(localized: "Tap for letter, hold for modifier") : String(localized: "Tap for letter, hold for layer"),
             keyChipSize: size,
             timingPreviewPhase: timingPreviewPhase,
             leftHandKeys: usesTopRowKeys ? HomeRowModsConfig.vallackLeftHandKeys : HomeRowModsConfig.leftHandKeys,
@@ -205,9 +205,9 @@ struct HomeRowModsCollectionView: View {
 
     private var keyMappingInstructionText: String {
         if config.holdMode == .layers {
-            return "Click a key to choose its layer."
+            return String(localized: "Click a key to choose its layer.")
         }
-        return "Click a key to choose its modifier."
+        return String(localized: "Click a key to choose its modifier.")
     }
 
     var knownAvailableLayerNames: Set<String> {
