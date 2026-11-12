@@ -45,9 +45,9 @@ final class InstallerEngineFailurePathTests: KeyPathAsyncTestCase {
 
     func testExecute_StopsOnFirstRecipeFailure() async throws {
         let context = SystemContextBuilder.cleanInstall()
-        let deterministicEngine = InstallerEngine(
+        let deterministicEngine = InstallerEngine(services: InstallerServices(
             systemValidator: StubSystemValidator(context: context)
-        )
+        ))
         let plan = await deterministicEngine.makePlan(for: .install, context: context)
 
         guard plan.status == .ready else {

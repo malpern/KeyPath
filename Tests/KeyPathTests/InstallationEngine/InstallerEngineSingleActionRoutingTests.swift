@@ -8,30 +8,18 @@ import XCTest
 /// all reach the session runtime through these two single actions.
 @MainActor
 final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
-    private var previousRuntime: (any RuntimeCoordinating)?
-
-    override func setUp() async throws {
-        try await super.setUp()
-        previousRuntime = WizardDependencies.runtimeCoordinator
-    }
-
-    override func tearDown() async throws {
-        WizardDependencies.runtimeCoordinator = previousRuntime
-        try await super.tearDown()
-    }
-
-    private func engine(finalContext: SystemContext) -> InstallerEngine {
-        InstallerEngine(
-            systemValidator: StubSystemValidator(context: finalContext)
-        )
+    private func engine(finalContext: SystemContext, runtime: any RuntimeCoordinating) -> InstallerEngine {
+        InstallerEngine(services: InstallerServices(
+            systemValidator: StubSystemValidator(context: finalContext),
+            runtime: runtime
+        ))
     }
 
     func testStartActionRunsSessionStartRecipe() async {
         let runtime = SessionStartStub(startSucceeds: true)
-        WizardDependencies.runtimeCoordinator = runtime
         let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
 
-        let report = await engine(finalContext: ready).runSingleAction(.startSessionRuntime)
+        let report = await engine(finalContext: ready, runtime: runtime).runSingleAction(.startSessionRuntime)
 
         XCTAssertTrue(report.success, report.failureReason ?? "")
         XCTAssertEqual(report.executedRecipes.map(\.recipeID), [InstallerRecipeID.startSessionRuntime])
@@ -40,10 +28,9 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
 
     func testStartActionFailsWhenSessionRuntimeDoesNotStart() async {
         let runtime = SessionStartStub(startSucceeds: false)
-        WizardDependencies.runtimeCoordinator = runtime
         let stopped = SystemContextBuilder.cleanInstall()
 
-        let report = await engine(finalContext: stopped).runSingleAction(.startSessionRuntime)
+        let report = await engine(finalContext: stopped, runtime: runtime).runSingleAction(.startSessionRuntime)
 
         XCTAssertFalse(report.success)
         XCTAssertEqual(report.executedRecipes.map(\.recipeID), [InstallerRecipeID.startSessionRuntime])

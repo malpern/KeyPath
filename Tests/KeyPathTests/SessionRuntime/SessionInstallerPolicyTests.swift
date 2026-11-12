@@ -18,9 +18,9 @@ final class SessionInstallerPolicyTests: KeyPathTestCase {
     }
 
     func testWizardRefreshPreservesSessionModeThroughUIOperation() async throws {
-        let previous = WizardDependencies.systemValidator
-        defer { WizardDependencies.systemValidator = previous }
-        WizardDependencies.systemValidator = Validator(snapshot(running: false, ax: .denied, input: .denied))
+        let previous = InstallerServices.current
+        defer { InstallerServices.current = previous }
+        InstallerServices.current.systemValidator = Validator(snapshot(running: false, ax: .denied, input: .denied))
         let machine = WizardStateMachine()
         let result = try await WizardOperations.stateDetection(stateMachine: machine).execute { _ in }
         XCTAssertEqual(result.permissions?.accessibility, .denied)

@@ -230,7 +230,7 @@ struct StatusSettingsTabView: View {
             InstallationWizardView(initialPage: page)
                 .customizeSheetWindow()
                 .environment(kanataManager)
-                .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
+                .environment(\.runtimeCoordinator, InstallerServices.current.runtime)
                 .environment(\.wizardHost, .app)
                 .onAppear { PermissionRequestService.shared.enterWizardContext() }
         }

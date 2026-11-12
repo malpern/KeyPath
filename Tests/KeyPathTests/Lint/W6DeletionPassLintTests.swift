@@ -104,9 +104,9 @@ final class W6DeletionPassLintTests: XCTestCase {
         )
     }
 
-    func testWizardDependenciesRemainMainActorIsolated() throws {
+    func testInstallerServicesRemainMainActorIsolated() throws {
         let dependencies = repositoryRoot()
-            .appendingPathComponent("Sources/KeyPathWizardCore/WizardDependencies.swift")
+            .appendingPathComponent("Sources/KeyPathWizardCore/InstallerServices.swift")
 
         let violations = try matchingLines(
             in: dependencies,
@@ -115,7 +115,7 @@ final class W6DeletionPassLintTests: XCTestCase {
 
         XCTAssertTrue(
             violations.isEmpty,
-            "WizardDependencies is @MainActor; do not bypass its isolation with unsafe global state:\n\(violations.joined(separator: "\n"))"
+            "InstallerServices is @MainActor; do not bypass its isolation with unsafe global state:\n\(violations.joined(separator: "\n"))"
         )
     }
 

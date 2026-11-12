@@ -6,12 +6,10 @@ import XCTest
 @MainActor
 final class InstallerEngineUninstallTests: KeyPathTestCase {
     func testUninstallWithoutConfigBackupIsRefused() async {
-        let previous = WizardDependencies.createUninstallCoordinator
-        defer { WizardDependencies.createUninstallCoordinator = previous }
         let uninstaller = UserUninstallerStub()
-        WizardDependencies.createUninstallCoordinator = { uninstaller }
 
-        let report = await InstallerEngine().uninstall(deleteConfig: false)
+        let report = await InstallerEngine(services: InstallerServices(makeUninstaller: { uninstaller }))
+            .uninstall(deleteConfig: false)
 
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.failureReason?.contains("Use Uninstall KeyPath in Settings") ?? false)
@@ -20,22 +18,16 @@ final class InstallerEngineUninstallTests: KeyPathTestCase {
     }
 
     func testUninstallWithoutUserUninstallerIsRefused() async {
-        let previous = WizardDependencies.createUninstallCoordinator
-        defer { WizardDependencies.createUninstallCoordinator = previous }
-        WizardDependencies.createUninstallCoordinator = nil
-
-        let report = await InstallerEngine().uninstall(deleteConfig: true)
+        let report = await InstallerEngine(services: InstallerServices()).uninstall(deleteConfig: true)
 
         XCTAssertFalse(report.success)
         XCTAssertTrue(report.failureReason?.contains("Use Uninstall KeyPath in Settings") ?? false)
     }
 
     func testUserUninstallDelegatesToSessionUninstaller() async {
-        let previous = WizardDependencies.createUninstallCoordinator
-        defer { WizardDependencies.createUninstallCoordinator = previous }
         let uninstaller = UserUninstallerStub()
-        WizardDependencies.createUninstallCoordinator = { uninstaller }
-        let report = await InstallerEngine().uninstall(deleteConfig: true)
+        let report = await InstallerEngine(services: InstallerServices(makeUninstaller: { uninstaller }))
+            .uninstall(deleteConfig: true)
         XCTAssertTrue(report.success)
         XCTAssertEqual(report.logs, ["Backup saved"])
         XCTAssertEqual(uninstaller.calls, 1)

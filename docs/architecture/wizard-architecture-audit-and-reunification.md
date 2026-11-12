@@ -12,7 +12,7 @@ This document catalogs every fragmentation point, then proposes a concrete reuni
 
 **Current state:**
 - `MainAppStateController.configure()` creates its own `SystemValidator` (search: `SystemValidator()` in `MainAppStateController.configure()`)
-- The wizard uses `WizardDependencies.systemValidator` set at app startup (search: `systemValidator` in `WizardProtocolConformances`)
+- The wizard uses `InstallerServices.current.systemValidator` (formerly `WizardDependencies`) set at app startup (search: `systemValidator` in `WizardProtocolConformances`)
 - These are **separate instances** — `SystemValidator`'s single-flight guard (`inProgressValidation`) only protects within one instance
 
 **Impact:** Concurrent validations when MainAppStateController's periodic refresh and the wizard's state detection both fire. Wasted work, potential for race conditions.

@@ -60,7 +60,7 @@ enum CompositionRoot {
 
         // Wire wizard dependencies first — this creates the shared SystemValidator
         // and injects it into MainAppStateController via setValidator().
-        configureWizardDependencies(runtimeCoordinator: manager)
+        configureInstallerServices(runtimeCoordinator: manager)
 
         // Configure MainAppStateController (starts background monitoring, needs validator already set).
         if !isOneShotProbeMode {

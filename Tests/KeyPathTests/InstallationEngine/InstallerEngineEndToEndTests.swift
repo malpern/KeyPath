@@ -9,9 +9,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
     func testInspectSystemForwardsCanonicalSnapshotFreshnessPolicy() async {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
-        let engine = InstallerEngine(
+        let engine = InstallerEngine(services: InstallerServices(
             systemValidator: validator
-        )
+        ))
 
         let cachedContext = await engine.inspectSystem(freshness: .cached)
         let freshContext = await engine.inspectSystem()
@@ -28,9 +28,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             componentsInstalled: true
         ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
-        let engine = InstallerEngine(
+        let engine = InstallerEngine(services: InstallerServices(
             systemValidator: validator
-        )
+        ))
         let plan = InstallPlan(
             recipes: [],
             status: .ready,
@@ -55,9 +55,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             componentsInstalled: true
         ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
-        let engine = InstallerEngine(
+        let engine = InstallerEngine(services: InstallerServices(
             systemValidator: validator
-        )
+        ))
         let beforeSnapshotID = UUID()
         let plan = InstallPlan(
             sourceSnapshotID: beforeSnapshotID,
@@ -87,9 +87,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
     func testExecuteRejectsNoOpWhenFreshFinalStateRequiresRepair() async {
         let context = SystemContextBuilder.degradedRepair()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
-        let engine = InstallerEngine(
+        let engine = InstallerEngine(services: InstallerServices(
             systemValidator: validator
-        )
+        ))
         let plan = InstallPlan(
             sourceSnapshotID: UUID(),
             recipes: [],
@@ -115,9 +115,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
             captureStatus: .failed
         ).build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
-        let engine = InstallerEngine(
+        let engine = InstallerEngine(services: InstallerServices(
             systemValidator: validator
-        )
+        ))
         let plan = InstallPlan(recipes: [], status: .ready, intent: .repair)
 
         let report = await engine.execute(
@@ -132,9 +132,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
     func testInspectOnlyExecuteDoesNotCaptureRedundantFinalSnapshot() async {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
-        let engine = InstallerEngine(
+        let engine = InstallerEngine(services: InstallerServices(
             systemValidator: validator
-        )
+        ))
         let plan = InstallPlan(
             recipes: [],
             status: .ready,
@@ -153,9 +153,9 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
     func testFailedExecuteStillOwnsOneFreshFinalSnapshot() async {
         let context = SystemContextBuilder().build()
         let validator = StubSystemValidator(snapshot: Self.snapshot(from: context))
-        let engine = InstallerEngine(
+        let engine = InstallerEngine(services: InstallerServices(
             systemValidator: validator
-        )
+        ))
         let plan = InstallPlan(
             recipes: [
                 ServiceRecipe(id: "unknown-test-recipe", type: .installComponent),
