@@ -48,9 +48,14 @@ public final class KanataConfigMigrationService {
     private let fileManager = Foundation.FileManager()
     // Use the same config path as ConfigurationService (KeyPathConstants.Config.mainConfigPath)
     // which is ~/.config/keypath/keypath.kbd, not Application Support
-    private let keyPathConfigPath = WizardSystemPaths.userConfigPath
-    private let keyPathConfigDirectory = WizardSystemPaths.userConfigDirectory
+    private let keyPathConfigPath: String
+    private let keyPathConfigDirectory: String
     private let includeLine = "(include keypath-apps.kbd)"
+
+    init(configPath: String = WizardSystemPaths.userConfigPath) {
+        keyPathConfigPath = configPath
+        keyPathConfigDirectory = (configPath as NSString).deletingLastPathComponent
+    }
 
     // MARK: - Public Methods
 

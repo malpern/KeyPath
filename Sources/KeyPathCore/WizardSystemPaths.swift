@@ -109,12 +109,16 @@ public enum WizardSystemPaths {
 
     /// User configuration file path following industry standard ~/.config/ pattern
     public static var userConfigPath: String {
-        "\(userHomeDirectory)/.config/keypath/keypath.kbd"
+        "\(userConfigDirectory)/keypath.kbd"
     }
 
     /// User configuration directory
     public static var userConfigDirectory: String {
-        "\(userHomeDirectory)/.config/keypath"
+        userConfigDirectory(in: userHomeDirectory)
+    }
+
+    private static func userConfigDirectory(in homeDirectory: String) -> String {
+        "\(homeDirectory)/.config/keypath"
     }
 
     /// Legacy system configuration directory (no longer used)
@@ -157,10 +161,14 @@ public enum WizardSystemPaths {
 
     /// Common directories where users store Kanata configs
     public static var commonKanataConfigDirectories: [String] {
+        kanataConfigDirectories(homeDirectory: userHomeDirectory, systemConfigDirectory: systemConfigDirectory)
+    }
+
+    private static func kanataConfigDirectories(homeDirectory: String, systemConfigDirectory: String) -> [String] {
         [
-            "\(userHomeDirectory)/.config/kanata",
-            "\(userHomeDirectory)/.config/keypath",
-            userHomeDirectory,
+            "\(homeDirectory)/.config/kanata",
+            userConfigDirectory(in: homeDirectory),
+            homeDirectory,
             systemConfigDirectory
         ]
     }
@@ -168,20 +176,32 @@ public enum WizardSystemPaths {
     /// Detect existing Kanata config files in common locations
     /// Returns array of (path, displayName) tuples for found configs
     public static func detectExistingKanataConfigs() -> [(path: String, displayName: String)] {
+        detectExistingKanataConfigs(homeDirectory: userHomeDirectory, systemConfigDirectory: systemConfigDirectory)
+    }
+
+    package static func detectExistingKanataConfigs(
+        homeDirectory: String,
+        systemConfigDirectory: String
+    ) -> [(path: String, displayName: String)] {
         var foundConfigs: [(path: String, displayName: String)] = []
         let fileManager = FileManager.default
+        let keyPathConfigPath = "\(userConfigDirectory(in: homeDirectory))/keypath.kbd"
+        let directories = kanataConfigDirectories(
+            homeDirectory: homeDirectory,
+            systemConfigDirectory: systemConfigDirectory
+        )
 
-        for directory in commonKanataConfigDirectories {
+        for directory in directories {
             guard fileManager.fileExists(atPath: directory) else { continue }
 
             for configName in commonKanataConfigNames {
                 let fullPath = "\(directory)/\(configName)"
                 if fileManager.fileExists(atPath: fullPath) {
                     // Skip if it's already KeyPath's expected location
-                    if fullPath == userConfigPath {
+                    if fullPath == keyPathConfigPath {
                         continue
                     }
-                    let displayName = displayPath(for: fullPath)
+                    let displayName = displayPath(for: fullPath, homeDirectory: homeDirectory)
                     foundConfigs.append((path: fullPath, displayName: displayName))
                 }
             }
@@ -189,9 +209,9 @@ public enum WizardSystemPaths {
 
         // Also check for configs directly in home directory (e.g., ~/.kanata.kbd)
         for configName in commonKanataConfigNames {
-            let homeConfigPath = "\(userHomeDirectory)/.\(configName)"
+            let homeConfigPath = "\(homeDirectory)/.\(configName)"
             if fileManager.fileExists(atPath: homeConfigPath) {
-                let displayName = displayPath(for: homeConfigPath)
+                let displayName = displayPath(for: homeConfigPath, homeDirectory: homeDirectory)
                 foundConfigs.append((path: homeConfigPath, displayName: displayName))
             }
         }
@@ -213,7 +233,10 @@ public enum WizardSystemPaths {
 
     /// Creates a display path for user interfaces (uses ~ for home directory)
     public static func displayPath(for fullPath: String) -> String {
-        let homeDirectory = userHomeDirectory
+        displayPath(for: fullPath, homeDirectory: userHomeDirectory)
+    }
+
+    private static func displayPath(for fullPath: String, homeDirectory: String) -> String {
         if fullPath.hasPrefix(homeDirectory) {
             return fullPath.replacingOccurrences(of: homeDirectory, with: "~")
         }
