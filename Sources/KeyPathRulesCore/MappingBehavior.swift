@@ -298,7 +298,7 @@ public struct MacroBehavior: Codable, Equatable, Sendable {
 
         if source == .text, let text, !text.isEmpty {
             if let unsupported = TextToKanataKeyMapper.firstUnsupportedCharacter(in: text) {
-                errors.append(String(localized: "Unsupported character: \(unsupported)"))
+                errors.append(String(localized: "Unsupported character: \(String(unsupported))"))
             }
         }
 
