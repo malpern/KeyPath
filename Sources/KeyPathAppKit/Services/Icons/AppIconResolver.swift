@@ -6,8 +6,9 @@ import UniformTypeIdentifiers
 ///
 /// Uses `NSWorkspace` to locate apps and retrieve their icons.
 /// Falls back to generic icons if actions cannot be found.
+@MainActor
 enum AppIconResolver {
-    private nonisolated(unsafe) static var iconCache: [String: NSImage] = [:]
+    private static var iconCache: [String: NSImage] = [:]
 
     /// Get icon for any key action type, using cache when available.
     static func icon(for action: KeyAction) -> NSImage? {

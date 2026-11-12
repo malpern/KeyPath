@@ -1,19 +1,19 @@
 import Foundation
+import Synchronization
 
-public final class FeatureFlags {
+public final class FeatureFlags: Sendable {
     public static let shared = FeatureFlags()
 
-    private let stateQueue = DispatchQueue(
-        label: "com.keypath.featureflags.state", qos: .userInitiated
-    )
-
-    // MARK: - Startup Mode
-
-    private var _startupModeActive: Bool = false
+    private let startupMode = Mutex(false)
 
     // Test seam: allow injecting startup mode during unit tests
     #if DEBUG
-        public nonisolated(unsafe) static var testStartupMode: Bool?
+        private static let startupModeOverride = Mutex<Bool?>(nil)
+
+        public static var testStartupMode: Bool? {
+            get { startupModeOverride.withLock { $0 } }
+            set { startupModeOverride.withLock { $0 = newValue } }
+        }
     #endif
 
     /// True while we want to avoid potentially-blocking permission checks during early startup.
@@ -24,24 +24,20 @@ public final class FeatureFlags {
                 return override
             }
         #endif
-        return stateQueue.sync { _startupModeActive }
+        return startupMode.withLock { $0 }
     }
 
     /// Activate startup mode. Deactivated explicitly by MainAppStateController
     /// once services are ready — no auto-timeout.
     public func activateStartupMode() {
-        stateQueue.sync { _startupModeActive = true }
+        startupMode.withLock { $0 = true }
     }
 
     /// Deactivate startup mode.
     public func deactivateStartupMode() {
-        stateQueue.sync { _startupModeActive = false }
+        startupMode.withLock { $0 = false }
     }
 }
-
-/// FeatureFlags manages its own synchronization.
-/// Mark unchecked to silence Swift 6 Sendable warnings for cross-actor access.
-extension FeatureFlags: @unchecked Sendable {}
 
 // MARK: - Persisted flags (UserDefaults-backed)
 
@@ -54,28 +50,12 @@ public extension FeatureFlags {
     /// mechanism behind the #896 RemapEndToEndTests flake. Under
     /// `TestEnvironment.isRunningTests`, flag setters write here and readers resolve
     /// override-then-compiled-default, never touching real UserDefaults.
-    private enum TestOverrides {
-        static let lock = NSLock()
-        nonisolated(unsafe) static var values: [String: Any] = [:]
-
-        static func value(forKey key: String) -> Any? {
-            lock.lock()
-            defer { lock.unlock() }
-            return values[key]
-        }
-
-        static func set(_ value: Any, forKey key: String) {
-            lock.lock()
-            defer { lock.unlock() }
-            values[key] = value
-        }
-
-        static func reset() {
-            lock.lock()
-            defer { lock.unlock() }
-            values.removeAll()
-        }
+    private enum TestOverride: Sendable {
+        case bool(Bool)
+        case string(String)
     }
+
+    private static let testOverrides = Mutex<[String: TestOverride]>([:])
 
     /// Memoized: the detection signals are process-stable, and re-evaluating them
     /// (Bundle.allBundles scan) on every flag read is wasteful.
@@ -84,12 +64,13 @@ public extension FeatureFlags {
     /// Clear all in-memory test overrides, returning every flag to its compiled
     /// default. Called between tests (KeyPathTestCase) and by suites that flip flags.
     static func resetTestOverrides() {
-        TestOverrides.reset()
+        testOverrides.withLock { $0.removeAll() }
     }
 
     private static func boolFlag(forKey key: String, default defaultValue: Bool) -> Bool {
         if isRunningTests {
-            return TestOverrides.value(forKey: key) as? Bool ?? defaultValue
+            guard case let .bool(value) = testOverrides.withLock({ $0[key] }) else { return defaultValue }
+            return value
         }
         if UserDefaults.standard.object(forKey: key) == nil {
             return defaultValue
@@ -99,7 +80,7 @@ public extension FeatureFlags {
 
     private static func setBoolFlag(_ enabled: Bool, forKey key: String) {
         if isRunningTests {
-            TestOverrides.set(enabled, forKey: key)
+            testOverrides.withLock { $0[key] = .bool(enabled) }
             return
         }
         UserDefaults.standard.set(enabled, forKey: key)
@@ -107,14 +88,15 @@ public extension FeatureFlags {
 
     private static func stringFlag(forKey key: String) -> String? {
         if isRunningTests {
-            return TestOverrides.value(forKey: key) as? String
+            guard case let .string(value) = testOverrides.withLock({ $0[key] }) else { return nil }
+            return value
         }
         return UserDefaults.standard.string(forKey: key)
     }
 
     private static func setStringFlag(_ value: String, forKey key: String) {
         if isRunningTests {
-            TestOverrides.set(value, forKey: key)
+            testOverrides.withLock { $0[key] = .string(value) }
             return
         }
         UserDefaults.standard.set(value, forKey: key)
