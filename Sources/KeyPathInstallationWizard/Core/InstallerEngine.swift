@@ -51,7 +51,8 @@ public final class InstallerEngine {
     }
 
     /// Creates an engine. Tests pass their services; app and CLI callers use the
-    /// ones set at launch.
+    /// ones set at launch. Passed services replace all of them: whatever a passed
+    /// value leaves nil (a runtime, an uninstaller) is nil for this engine.
     public init(services: InstallerServices? = nil) {
         injectedServices = services
 

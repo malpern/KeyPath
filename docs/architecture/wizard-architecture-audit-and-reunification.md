@@ -17,7 +17,7 @@ This document catalogs every fragmentation point, then proposes a concrete reuni
 
 **Impact:** Concurrent validations when MainAppStateController's periodic refresh and the wizard's state detection both fire. Wasted work, potential for race conditions.
 
-**Fix:** One shared `SystemValidator` instance. MainAppStateController should receive it via DI (same instance set in `WizardDependencies`), not create its own.
+**Fix:** One shared `SystemValidator` instance. MainAppStateController should receive it via DI (same instance set in `InstallerServices.current`), not create its own.
 
 ---
 
@@ -47,7 +47,7 @@ Each conversion reinterprets data:
 **Current state:**
 - Settings Status runs its own `refreshStatus()` (search: `refreshStatus()` in `SettingsView`)
 - Tries `MainAppStateController.shared.lastValidatedSystemContext` first
-- Falls back to `kanataManager.inspectSystemContext()` — **known broken** (comment in code: "initialized before WizardDependencies.systemValidator was set, so it always returns empty context")
+- Falls back to `kanataManager.inspectSystemContext()` — **known broken** (comment in code: "initialized before WizardDependencies.systemValidator (now `InstallerServices.current`) was set, so it always returns empty context")
 - Has its own `checkTCPConfiguration()` duplicate
 - Has its own 1-second retry for "starting" state
 

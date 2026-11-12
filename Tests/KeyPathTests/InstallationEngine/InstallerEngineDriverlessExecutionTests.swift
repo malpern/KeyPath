@@ -61,7 +61,11 @@ final class InstallerEngineDriverlessExecutionTests: KeyPathTestCase {
 
     func testExternallyConstructedInspectionAndUninstallPlansCannotStartRuntime() async {
         let runtime = RuntimeStub()
-        let engine = InstallerEngine()
+        let context = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
+        let engine = InstallerEngine(services: InstallerServices(
+            systemValidator: StubSystemValidator(context: context),
+            runtime: runtime
+        ))
         let recipe = engine.recipeForAction(.startSessionRuntime)
         for intent in [InstallIntent.inspectOnly, .uninstall] {
             let plan = InstallPlan(recipes: [recipe], status: .ready, intent: intent)
