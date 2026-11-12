@@ -50,7 +50,7 @@ extension RuleCollectionsManager {
     /// Nil reload means explicitly skipped or no callback, never presumed applied.
     func persistRules(skipReload: Bool = false, conflictResolutionDepth: Int = 0, mutationPermit: ConfigurationOperationGate.Permit? = nil) async -> RulePersistenceResult {
         do {
-            return try await configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            return try await withCollectionMutation(using: mutationPermit) { @MainActor [self] permit in
                 dedupeRuleCollectionsInPlace()
 
                 AppLogger.shared.log("🔄 [RuleCollections] regenerateConfigFromCollections: \(ruleCollections.count) collections, \(customRules.count) custom rules")

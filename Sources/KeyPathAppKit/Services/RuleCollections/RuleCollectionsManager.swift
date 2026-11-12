@@ -2,6 +2,7 @@ import Foundation
 import KeyPathCore
 import KeyPathPermissions
 import KeyPathRulesCore
+import Observation
 
 // MARK: - Rule Conflict Detection
 
@@ -88,10 +89,25 @@ struct CatalogUpdateApplicationResult {
 /// - Layer state management
 /// - Configuration regeneration on changes
 @MainActor
+@Observable
 final class RuleCollectionsManager {
     // MARK: - State
 
-    var ruleCollections: [RuleCollection] = []
+    /// The last settled collections. Views observe this value directly.
+    private(set) var committedRuleCollections: [RuleCollection] = []
+    @ObservationIgnored private var stagedRuleCollections: [RuleCollection]?
+
+    var ruleCollections: [RuleCollection] {
+        get { stagedRuleCollections ?? committedRuleCollections }
+        set {
+            if stagedRuleCollections != nil {
+                stagedRuleCollections = newValue
+            } else {
+                committedRuleCollections = newValue
+            }
+        }
+    }
+
     var customRules: [CustomRule] = []
     /// Remains set when recovered files cannot yet be read completely.
     var needsRecoveredRuleStateRefresh = false
@@ -110,7 +126,7 @@ final class RuleCollectionsManager {
 
     // MARK: - Active Tasks
 
-    var eventMonitoringTask: Task<Void, Never>?
+    @ObservationIgnored var eventMonitoringTask: Task<Void, Never>?
 
     // MARK: - Dependencies
 
@@ -197,6 +213,25 @@ final class RuleCollectionsManager {
         self.eventListener = eventListener
         self.keymapPreferences = keymapPreferences
         self.preferencesService = preferencesService ?? PreferencesService.shared
+    }
+
+    /// Hold collection changes for the duration of a write, including reload
+    /// and recovery. Nested operations using the same permit share the draft.
+    func withCollectionMutation<Result: Sendable>(
+        using permit: ConfigurationOperationGate.Permit? = nil,
+        _ operation: @escaping @MainActor @Sendable (ConfigurationOperationGate.Permit) async throws -> Result
+    ) async throws -> Result {
+        try await configurationService.operationGate.withOperation(using: permit) { @MainActor [self] admitted in
+            guard stagedRuleCollections == nil else { return try await operation(admitted) }
+            stagedRuleCollections = committedRuleCollections
+            defer {
+                if let stagedRuleCollections, committedRuleCollections != stagedRuleCollections {
+                    committedRuleCollections = stagedRuleCollections
+                }
+                stagedRuleCollections = nil
+            }
+            return try await operation(admitted)
+        }
     }
 
     deinit {

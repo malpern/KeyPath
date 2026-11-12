@@ -6,17 +6,8 @@ import KeyPathWizardCore
 import Observation
 import SwiftUI
 
-/// MVVM ViewModel for RuntimeCoordinator
-///
-/// This class provides a thin UI-focused layer between SwiftUI views and RuntimeCoordinator.
-/// It owns all observed properties for UI reactivity and delegates business logic to RuntimeCoordinator.
-///
-/// Architecture:
-/// - @Observable for SwiftUI reactivity
-/// - All observed properties for UI reactivity
-/// - Thin adapter - no business logic
-/// - Observes RuntimeCoordinator state changes
-/// - Delegates all actions to RuntimeCoordinator
+/// Presents runtime status, dialogs, and toasts to SwiftUI.
+/// Collection views observe the settled state on RuleCollectionsManager directly.
 @MainActor
 @Observable
 class KanataViewModel {
@@ -26,7 +17,10 @@ class KanataViewModel {
     var lastError: String?
     var lastWarning: String?
     var keyMappings: [KeyMapping] = []
-    var ruleCollections: [RuleCollection] = []
+    var ruleCollections: [RuleCollection] {
+        manager.ruleCollectionsManager.committedRuleCollections
+    }
+
     var customRules: [CustomRule] = []
     var currentLayerName: String = RuleCollectionLayer.base.displayName
     var diagnostics: [KanataDiagnostic] = []
@@ -126,7 +120,6 @@ class KanataViewModel {
         }
         lastError = state.lastError
         keyMappings = state.keyMappings
-        ruleCollections = state.ruleCollections
         customRules = state.customRules
         currentLayerName = state.currentLayerName
         diagnostics = state.diagnostics
@@ -227,9 +220,7 @@ class KanataViewModel {
         manager.clearValidationError()
     }
 
-    // MARK: - Action Delegation to RuntimeCoordinator
-
-    // Note: Removed manual syncFromManager() calls - AsyncStream automatically updates UI
+    // MARK: - Rule Collection Actions
 
     func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
         manager.catalogUpdatePreviews()
@@ -244,13 +235,13 @@ class KanataViewModel {
     }
 
     func toggleRuleCollection(_ id: UUID, enabled: Bool) async {
-        AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection called: id=\(id), enabled=\(enabled)")
-        let success = await manager.toggleRuleCollection(id: id, isEnabled: enabled)
-        AppLogger.shared.log("🎚️ [KanataViewModel] toggleRuleCollection completed (success=\(success))")
+        let result = await manager.ruleCollectionsManager.toggleCollectionResult(id: id, isEnabled: enabled)
+        manager.refreshRuleMappings()
 
-        guard success else {
-            // Validation failed and state was rolled back — the onError callback
-            // already showed the error dialog, so no success toast here.
+        guard result.success else {
+            if let error = result.error, !(error is CancellationError) {
+                showToast(error.localizedDescription, type: .error)
+            }
             return
         }
 
@@ -354,38 +345,31 @@ class KanataViewModel {
 
     func updateCollectionOutput(_ id: UUID, output: String) async {
         await manager.updateCollectionOutput(id: id, output: output)
-        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateCollectionTapOutput(_ id: UUID, tapOutput: String) async {
         await manager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
-        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateCollectionHoldOutput(_ id: UUID, holdOutput: String) async {
         await manager.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
-        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateCollectionLayerPreset(_ id: UUID, presetId: String) async {
         await manager.updateCollectionLayerPreset(id, presetId: presetId)
-        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateWindowKeyConvention(_ id: UUID, convention: WindowKeyConvention) async {
         await manager.updateWindowKeyConvention(id, convention: convention)
-        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     func updateFunctionKeyMode(_ id: UUID, mode: FunctionKeyMode) async {
         await manager.updateFunctionKeyMode(id, mode: mode)
-        ruleCollections = manager.rulesManager.ruleCollections
     }
 
     @discardableResult
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async -> HomeRowModsConfig {
         let wasNewlyEnabled = await manager.updateHomeRowModsConfig(collectionId: collectionId, config: config)
-        ruleCollections = manager.rulesManager.ruleCollections
         let persistedConfig = Self.persistedHomeRowModsConfig(
             collectionId: collectionId,
             collections: ruleCollections
@@ -415,7 +399,6 @@ class KanataViewModel {
 
     func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async {
         let wasNewlyEnabled = await manager.updateHomeRowLayerTogglesConfig(collectionId: collectionId, config: config)
-        ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
             showToast(String(localized: "Turned on \(name)"), type: .success)
@@ -424,7 +407,6 @@ class KanataViewModel {
 
     func updateChordGroupsConfig(collectionId: UUID, config: ChordGroupsConfig) async {
         let wasNewlyEnabled = await manager.updateChordGroupsConfig(collectionId: collectionId, config: config)
-        ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
             showToast(String(localized: "Turned on \(name)"), type: .success)
@@ -433,7 +415,6 @@ class KanataViewModel {
 
     func updateSequencesConfig(collectionId: UUID, config: SequencesConfig) async {
         let wasNewlyEnabled = await manager.updateSequencesConfig(collectionId: collectionId, config: config)
-        ruleCollections = manager.rulesManager.ruleCollections
         if wasNewlyEnabled {
             let name = ruleCollections.first(where: { $0.id == collectionId })?.name ?? String(localized: "Collection", comment: "Fallback name in a toast")
             showToast(String(localized: "Turned on \(name)"), type: .success)

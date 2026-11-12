@@ -110,6 +110,7 @@ final class SystemPackTransactionTests: KeyPathTestCase {
         var reloads = 0
         manager.onRulesChanged = {
             reloads += 1
+            XCTAssertEqual(self.manager.committedRuleCollections, collections)
             if reloads == 2 { XCTAssertEqual(try? self.files(), before) }
             return Self.reload(reloads == 1 ? .rejected : .applied)
         }
@@ -118,6 +119,7 @@ final class SystemPackTransactionTests: KeyPathTestCase {
         XCTAssertEqual(reloads, 2)
         XCTAssertEqual(try files(), before)
         XCTAssertEqual(manager.ruleCollections, collections)
+        XCTAssertEqual(manager.committedRuleCollections, collections)
     }
 
     func testMetadataFailureDoesNotApplyOrLeaveSnapshotRecord() async throws {

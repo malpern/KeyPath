@@ -76,7 +76,7 @@ extension RuleCollectionsManager {
         }
 
         do {
-            return try await configurationService.operationGate.withOperation { @MainActor [self] permit in
+            return try await withCollectionMutation { @MainActor [self] permit in
                 try await recoverRuleState(mutationPermit: permit)
                 let previews = catalogUpdatePreviews().filter { ids.contains($0.id) }
                 guard previews.count == ids.count else {
@@ -199,7 +199,7 @@ extension RuleCollectionsManager {
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> SaveResult {
         do {
-            return try await configurationService.operationGate.withOperation(using: mutationPermit) { @MainActor [self] permit in
+            return try await withCollectionMutation(using: mutationPermit) { @MainActor [self] permit in
                 AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
 
                 try await recoverRuleState(mutationPermit: permit)

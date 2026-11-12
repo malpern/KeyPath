@@ -103,10 +103,11 @@ extension RulesTabView {
             kanataManager.underlyingManager.notifyStateChanged()
         } catch {
             AppLogger.shared.log("⚠️ [Rules] Pack toggle failed for '\(pack.name)': \(error.localizedDescription)")
-            await kanataManager.toggleRuleCollection(
-                pack.associatedCollectionID ?? UUID(),
-                enabled: isOn
-            )
+            if let collectionID = pack.associatedCollectionID {
+                await kanataManager.toggleRuleCollection(collectionID, enabled: isOn)
+            } else {
+                settingsToastManager.showError(error.localizedDescription)
+            }
         }
     }
 
