@@ -398,7 +398,7 @@ public struct WizardKanataServicePage: View {
 
     @MainActor
     private func applyStatusUpdate(
-        runtimeStatus: WizardRuntimeStatus,
+        runtimeStatus: RuntimeStatus,
         processStatus: ServiceProcessStatus,
         isInTransientStartupWindow: Bool
     ) {

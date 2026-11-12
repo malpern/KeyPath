@@ -85,21 +85,6 @@ final class ServiceLifecycleCoordinator {
         !startsSuppressed && generation == sessionIntentGeneration && sessionWantsRunning && !Task.isCancelled
     }
 
-    // MARK: - Runtime Status
-
-    enum RuntimeStatus: Equatable, Sendable {
-        case running(pid: Int)
-        case stopped
-        case failed(reason: String)
-        case starting
-        case unknown
-
-        var isRunning: Bool {
-            if case .running = self { return true }
-            return false
-        }
-    }
-
     #if DEBUG
         /// Lifecycle tests inject session operations without launching an application.
         nonisolated(unsafe) static var testSessionStart: (@MainActor (String) async -> Bool)?

@@ -16,6 +16,7 @@ public struct WizardContentHeightKey: PreferenceKey {
 public struct InstallationWizardView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.runtimeCoordinator) var kanataManager
+    @Environment(\.wizardHost) var wizardHost
 
     @MainActor
     public func showStatusBanner(_ message: String) {

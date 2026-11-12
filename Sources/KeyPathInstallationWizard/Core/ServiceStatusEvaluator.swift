@@ -19,7 +19,7 @@ public enum ServiceStatusEvaluator {
     /// A verified running worker supersedes an earlier instruction to start it.
     /// Keep permission and actual runtime-failure issues intact.
     public static func evaluateObservedRuntime(
-        runtimeStatus: WizardRuntimeStatus,
+        runtimeStatus: RuntimeStatus,
         systemState: WizardSystemState,
         issues: [WizardIssue]
     ) -> ServiceProcessStatus {
@@ -40,7 +40,7 @@ public enum ServiceStatusEvaluator {
     public static let transientRefreshAttemptLimit = 30
 
     public static func shouldRetryTransientStatus(
-        runtimeStatus: WizardRuntimeStatus,
+        runtimeStatus: RuntimeStatus,
         isInTransientStartupWindow: Bool,
         completedAttempts: Int
     ) -> Bool {
@@ -52,7 +52,7 @@ public enum ServiceStatusEvaluator {
     }
 
     public static func didExhaustTransientStatus(
-        runtimeStatus: WizardRuntimeStatus,
+        runtimeStatus: RuntimeStatus,
         isInTransientStartupWindow: Bool,
         completedAttempts: Int
     ) -> Bool {
@@ -64,7 +64,7 @@ public enum ServiceStatusEvaluator {
     }
 
     private static func isTransientStartupStatus(
-        runtimeStatus: WizardRuntimeStatus,
+        runtimeStatus: RuntimeStatus,
         isInTransientStartupWindow: Bool
     ) -> Bool {
         switch runtimeStatus {

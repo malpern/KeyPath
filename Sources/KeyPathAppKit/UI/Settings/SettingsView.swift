@@ -231,6 +231,7 @@ struct StatusSettingsTabView: View {
                 .customizeSheetWindow()
                 .environment(kanataManager)
                 .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
+                .environment(\.wizardHost, .app)
                 .onAppear { PermissionRequestService.shared.enterWizardContext() }
         }
         .alert("Permissions Required", isPresented: $showingPermissionAlert) {

@@ -82,11 +82,13 @@ final class WizardWindowController {
             WizardHostingView(rootView:
                 styledView
                     .environment(viewModel)
-                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator))
+                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
+                    .environment(\.wizardHost, .app))
         } else {
             WizardHostingView(rootView:
                 styledView
-                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator))
+                    .environment(\.runtimeCoordinator, WizardDependencies.runtimeCoordinator)
+                    .environment(\.wizardHost, .app))
         }
 
         let window = NSWindow(
