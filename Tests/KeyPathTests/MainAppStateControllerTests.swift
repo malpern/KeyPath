@@ -694,14 +694,6 @@ struct MainAppStateControllerBehaviorTests {
         }
     }
 
-    @Test("Recovery completion refreshes validation even if runtime remains stopped")
-    func failedRecoveryRefreshesUnchangedHealth() {
-        let controller = MainAppStateController()
-        #expect(controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 1))
-        #expect(!controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 1))
-        #expect(controller.runtimeValidationNeedsRefresh(isHealthy: false, recoveryRevision: 2))
-    }
-
     @Test("Recovery finishing during capture discards the retired runtime snapshot")
     func wakeRecoveryDuringSnapshotRevalidates() async {
         let controller = MainAppStateController()

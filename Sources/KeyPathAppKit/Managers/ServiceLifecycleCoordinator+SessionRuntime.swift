@@ -196,7 +196,7 @@ extension ServiceLifecycleCoordinator {
                         onError?(nil)
                         onWarning?(sessionCapsNotice ?? sessionCapsPaused)
                         sessionCapsNotice = nil
-                        onStateChanged?()
+                        notifyStateChanged()
                         guard sessionStartIsCurrent(generation), sessionApplication === application,
                               sessionNonce == nonce, !application.isTerminated else { return false }
                         superviseSessionRuntime(generation: generation)
@@ -242,7 +242,7 @@ extension ServiceLifecycleCoordinator {
             {
                 sessionWakeRetryGeneration = generation
                 onWarning?(String(localized: "Waiting for your keyboard to become ready."))
-                onStateChanged?()
+                notifyStateChanged()
                 return false
             }
             if scheduleInterruptedStartupRecovery(terminalReport, nonce: nonce,
@@ -254,7 +254,7 @@ extension ServiceLifecycleCoordinator {
             if didLaunch { _ = await stopSessionRuntime() }
             if sessionStartIsCurrent(generation) { onError?(String(localized: "Driverless runtime launch failed: \(error.localizedDescription)")) }
         }
-        onStateChanged?()
+        notifyStateChanged()
         return false
     }
 
@@ -328,7 +328,7 @@ extension ServiceLifecycleCoordinator {
         sessionReportURL = nil
         sessionNonce = nil
         sessionOutputsRecovered = false
-        onStateChanged?()
+        notifyStateChanged()
         return true
     }
 
@@ -445,11 +445,13 @@ extension ServiceLifecycleCoordinator {
               let application = sessionApplication, application.processIdentifier == pid else { return false }
         if !application.isTerminated {
             guard let report = currentSessionReport() else {
+                publishRuntimeValidationState(report: nil)
                 _ = try? await sessionOperationGate.withOperation { [self] _ in
                     await stopUnresponsiveSession(expectedGeneration: generation, nonce: expectedNonce)
                 }
                 return false
             }
+            publishRuntimeValidationState(report: report)
             if !SessionCapsRuntimeSupport.selectedKeyboardOnly(),
                sessionCapsIntermediate != nil
             {
@@ -460,11 +462,12 @@ extension ServiceLifecycleCoordinator {
                 if warning != sessionCapsPaused {
                     sessionCapsPaused = warning
                     onWarning?(warning)
-                    onStateChanged?()
+                    notifyStateChanged()
                 }
             }
             return true
         }
+        publishRuntimeValidationState(report: nil)
         let terminalReport = recoverSessionOutputs(for: application)
         let restored = await (try? sessionOperationGate.withOperation { @MainActor [self] _ in
             guard sessionStartIsCurrent(generation), sessionApplication === application,
@@ -477,11 +480,12 @@ extension ServiceLifecycleCoordinator {
             let recoveryID = UUID()
             sessionWakeRecoveryRevision &+= 1
             sessionWakeRecovery = (generation, recoveryID)
+            publishRuntimeValidationState(report: nil)
             defer {
                 if sessionWakeRecovery?.id == recoveryID {
                     sessionWakeRecovery = nil
                     sessionWakeRecoveryRevision &+= 1
-                    onStateChanged?()
+                    notifyStateChanged()
                 }
             }
             onWarning?(String(localized: "Remapping is paused during secure typing."))
@@ -530,7 +534,7 @@ extension ServiceLifecycleCoordinator {
         let recovery = terminalReport?.failure.map(Self.sessionFailureRecoveryMessage)
             ?? String(localized: "Quit and reopen KeyPath to recover.")
         onError?(String(localized: "Driverless remapping stopped. Original keyboard input remains available. \(recovery)"))
-        onStateChanged?()
+        notifyStateChanged()
         return false
     }
 
@@ -578,7 +582,7 @@ extension ServiceLifecycleCoordinator {
             if sessionWakeRecovery?.id == recoveryID {
                 sessionWakeRecovery = nil
                 sessionWakeRecoveryRevision &+= 1
-                onStateChanged?()
+                notifyStateChanged()
             }
         }
         // This supervisor now owns recovery rather than the retired worker.
@@ -586,7 +590,7 @@ extension ServiceLifecycleCoordinator {
         // Stop, Quit and newer starts still invalidate its intent generation.
         sessionSupervisionTask = nil
         onWarning?(String(localized: "Remapping will resume when your keyboard session is ready."))
-        onStateChanged?()
+        notifyStateChanged()
         let recoveryStarted = Date()
         var lastBlocker: String?
         var heldSince: Date?
@@ -773,7 +777,7 @@ extension ServiceLifecycleCoordinator {
                 sessionRecoveryRefusal = reason
                 onError?(reason)
             }
-            onStateChanged?()
+            notifyStateChanged()
             return false
         }
     }
@@ -1053,7 +1057,7 @@ extension ServiceLifecycleCoordinator {
         guard sessionCapsPaused != nil || sessionCapsDisconnectedName != nil else { return }
         sessionCapsPaused = nil
         sessionCapsDisconnectedName = nil
-        onStateChanged?()
+        notifyStateChanged()
     }
 
     /// Why a running session leaves Caps Lock rules inactive. nil when the

@@ -115,8 +115,6 @@ class MainAppStateController {
 
     // MARK: - Service Health Monitoring (Fix for stale overlay state)
 
-    @ObservationIgnored private var lastKnownRuntimeHealthy: Bool?
-    @ObservationIgnored private var lastKnownRecoveryRevision: UInt64?
     @ObservationIgnored private var serviceHealthTask: Task<Void, Never>?
     @ObservationIgnored private var periodicRefreshTask: Task<Void, Never>?
     @ObservationIgnored private let definitiveStartupGracePeriod: TimeInterval = 3.0
@@ -202,38 +200,17 @@ class MainAppStateController {
 
     // MARK: - Service Health Monitoring
 
-    /// Subscribe to runtime state changes to trigger revalidation when runtime health changes.
-    /// This fixes the "System Not Ready" stale state bug where the overlay shows stale state.
-    func runtimeValidationNeedsRefresh(isHealthy: Bool, recoveryRevision: UInt64) -> Bool {
-        let changed = lastKnownRuntimeHealthy != isHealthy || lastKnownRecoveryRevision != recoveryRevision
-        lastKnownRuntimeHealthy = isHealthy
-        lastKnownRecoveryRevision = recoveryRevision
-        return changed
-    }
-
     private func subscribeToServiceHealth() {
         guard let serviceLifecycle else { return }
-
-        // Cancel any previous polling task to prevent duplicate loops
         serviceHealthTask?.cancel()
-
-        // Poll runtime status for health transitions.
+        let updates = serviceLifecycle.runtimeValidationUpdates()
         serviceHealthTask = Task { @MainActor [weak self] in
-            while let self, !Task.isCancelled {
-                let runtimeStatus = await serviceLifecycle.currentRuntimeStatus()
-                let isHealthy = runtimeStatus.isRunning
-                let wasHealthy = lastKnownRuntimeHealthy
-
-                if runtimeValidationNeedsRefresh(isHealthy: isHealthy,
-                                                 recoveryRevision: serviceLifecycle.sessionWakeRecoveryRevision)
-                {
-                    AppLogger.shared.log(
-                        "🔄 [MainAppStateController] Runtime health changed: \(wasHealthy.map { String($0) } ?? "nil") → \(isHealthy)"
-                    )
-                    await revalidate()
-                }
-
-                try? await Task.sleep(for: .seconds(2))
+            for await state in updates {
+                guard let self, !Task.isCancelled else { return }
+                AppLogger.shared.log(
+                    "🔄 [MainAppStateController] Runtime health update: \(state.isHealthy), recovery revision \(state.recoveryRevision)"
+                )
+                await revalidate()
             }
         }
 
@@ -243,6 +220,7 @@ class MainAppStateController {
     /// Start periodic background refresh (60s) as a fallback for cases where service state
     /// doesn't change but validation becomes stale.
     private func startPeriodicRefresh() {
+        periodicRefreshTask?.cancel()
         periodicRefreshTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60)) // 60 seconds
