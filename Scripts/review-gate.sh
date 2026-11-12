@@ -63,7 +63,14 @@ base=$(git merge-base origin/master HEAD)
 diff_file=$(mktemp "${TMPDIR:-/tmp}/keypath-review-diff.XXXXXX")
 output_file=""
 trap 'rm -f "$diff_file" ${output_file:+"$output_file"}' EXIT
-git diff --find-renames "$base" > "$diff_file"
+# String catalogs are translation data, often tens of thousands of lines, and
+# would crowd out the code. CI checks them (Scripts/l10n/sync-strings.sh --check);
+# the review gets a note that they changed instead of their content.
+git diff --find-renames "$base" -- . ':(exclude)*.xcstrings' > "$diff_file"
+catalog_lines=$(git diff --numstat "$base" -- '*.xcstrings' | awk '{n += $1 + $2} END {print n + 0}')
+if [[ "$catalog_lines" -gt 0 ]]; then
+    printf '\n# review-gate note: %s changed lines in .xcstrings string catalogs are omitted (translation data).\n' "$catalog_lines" >> "$diff_file"
+fi
 while IFS= read -r -d '' untracked; do
     git diff --no-index -- /dev/null "$untracked" >> "$diff_file" || true
 done < <(git ls-files -z --others --exclude-standard)
