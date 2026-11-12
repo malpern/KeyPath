@@ -649,7 +649,7 @@ struct PackDetailView: View {
         let base = dep?.description ?? ""
         guard pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods,
               holdMode == .layers,
-              base.contains("Home Row Mods assigns F to Command")
+              base == String(localized: "Both use F as a hold key — Home Row Mods assigns F to Command, Home Row Arrows assigns F to a navigation layer")
         else {
             return base
         }
