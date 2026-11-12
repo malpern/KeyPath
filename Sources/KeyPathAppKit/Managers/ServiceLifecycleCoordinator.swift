@@ -4,11 +4,13 @@ import KeyPathCore
 import KeyPathInstallationWizard
 import KeyPathPermissions
 import KeyPathWizardCore
+import Observation
 
 /// Manages the lifecycle of the Kanata runtime service (start, stop, restart, status).
 ///
 /// Owns the unprivileged session application and its readiness evidence.
 @MainActor
+@Observable
 final class ServiceLifecycleCoordinator {
     var sessionApplication: NSRunningApplication?
     var sessionReportURL: URL?
@@ -43,7 +45,7 @@ final class ServiceLifecycleCoordinator {
     /// Set only after an owned held-key startup refusal has been fully cleaned up.
     var sessionWakeRetryGeneration: UInt64?
     var sessionLastWakeSignalAt: Date?
-    private var sessionWakeObservationTasks: [Task<Void, Never>] = []
+    @ObservationIgnored private var sessionWakeObservationTasks: [Task<Void, Never>] = []
     // Process ownership is serialized across suspension points, independently of
     // configuration persistence. Intent changes immediately, before admission.
     let sessionOperationGate = ConfigurationOperationGate()
@@ -162,7 +164,7 @@ final class ServiceLifecycleCoordinator {
         let recoveryRevision: UInt64
     }
 
-    private var validationUpdates: AsyncStream<RuntimeValidationState>.Continuation?
+    @ObservationIgnored private var validationUpdates: AsyncStream<RuntimeValidationState>.Continuation?
     private var publishedValidationState: RuntimeValidationState?
 
     /// MainAppStateController consumes the latest state while its validation is in flight.

@@ -113,7 +113,6 @@ private final class RuntimeStub: RuntimeCoordinating {
         true
     }
 
-    func updateStatus() async {}
     func currentRuntimeStatus() async -> RuntimeStatus {
         .stopped
     }

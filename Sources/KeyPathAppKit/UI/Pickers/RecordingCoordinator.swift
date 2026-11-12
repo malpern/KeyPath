@@ -214,7 +214,6 @@ final class RecordingCoordinator {
             AppLogger.shared.log("📝 [RecordingCoordinator] Using SIMPLE path: \(inKey) → \(outKey)")
             do {
                 try await kanataManager.saveConfiguration(input: inKey, output: outKey)
-                await kanataManager.updateStatus()
                 await MainActor.run {
                     onSuccess(String(localized: "Key mapping saved: \(inKey) → \(outKey)"))
                     clearCapturedSequences()

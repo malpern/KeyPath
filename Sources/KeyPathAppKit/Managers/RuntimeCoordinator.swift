@@ -8,6 +8,7 @@ import KeyPathPermissions
 import KeyPathRulesCore
 import KeyPathWizardCore
 import Network
+import Observation
 
 // Thin orchestrator for Kanata process management and configuration.
 //
@@ -36,24 +37,15 @@ import Network
 // **RuntimeCoordinator+RuleCollections.swift** (separate extension)
 // - Rule collection operations and runtime mapping refresh
 //
-// ## MVVM Architecture Note:
-//
-// RuntimeCoordinator is **not** an ObservableObject. UI state is handled by `KanataViewModel`,
-// which reads snapshots via `getCurrentUIState()`. This separation keeps business logic
-// independent of SwiftUI reactivity.
-//
 // ## Public API (Views → ViewModel → Manager)
 // The UI should call ONLY the following methods via `KanataViewModel`:
 // - Lifecycle
 //   - `startAutoLaunch(presentWizardOnFailure:)`
 //   - `manualStart()` / `manualStop()`
 //   - `startKanata()` / `stopKanata()`
-//   - `forceRefreshStatus()`
 // - Wizard
 //   - `requestWizardPresentation(initialPage:)`
 //   - `onWizardClosed()`
-// - UI State
-//   - `getCurrentUIState()` (snapshot for ViewModel sync)
 // - Configuration (UI-level operations)
 //   - `createDefaultUserConfigIfMissing()`
 //   - `backupFailedConfigAndApplySafe(failedConfig:mappings:)`
@@ -62,7 +54,9 @@ import Network
 //
 // All other methods are internal implementation details and may change.
 
+/// UI reads runtime-owned status and requests through Swift Observation.
 @MainActor
+@Observable
 public class RuntimeCoordinator: SaveCoordinatorDelegate {
     final class NotificationTokenStore: @unchecked Sendable {
         private var tokens: [NSObjectProtocol] = []
@@ -89,11 +83,31 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // MARK: - Internal State Properties
 
     // Note: These are internal (not private) to allow extensions to access them
-    // ViewModel reads these via getCurrentUIState() snapshot method
 
-    // Core status tracking
-    public var lastError: String?
-    var lastWarning: String?
+    /// Core status tracking
+    struct ReportedError: Equatable {
+        let message: String
+        private let id = UUID()
+    }
+
+    private(set) var reportedError: ReportedError?
+    public var lastError: String? {
+        get { reportedError?.message }
+        // A retry can fail with the same message and still needs a new alert.
+        set { reportedError = newValue.map(ReportedError.init(message:)) }
+    }
+
+    @ObservationIgnored private(set) var lastWarning: String? {
+        didSet {
+            if let lastWarning, lastWarning != oldValue {
+                onWarning?(lastWarning)
+            }
+        }
+    }
+
+    /// Delivers transient warnings to the app's presentation layer.
+    @ObservationIgnored var onWarning: ((String) -> Void)?
+
     /// Legacy single-flight guard for grab-failure recovery (#625).
     /// W3 keeps grab-failure detection passive, but the guard remains until the
     /// deletion pass removes the old recovery state machine.
@@ -139,23 +153,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         diagnosticsManager.getDiagnostics()
     }
 
-    /// Validation-specific UI state
-    var validationError: ConfigValidationError?
-
     /// Save progress feedback
-    var saveStatus: SaveStatus = .idle {
-        didSet {
-            notifyStateChanged()
-        }
-    }
-
-    /// State publisher for reactive ViewModel updates
-    let statePublisher = StatePublisherService<KanataUIState>()
-
-    /// Stream of UI state changes for reactive ViewModel updates
-    nonisolated var stateChanges: AsyncStream<KanataUIState> {
-        statePublisher.stateChanges
-    }
+    var saveStatus: SaveStatus = .idle
 
     let configDirectory = KeyPathConstants.Config.directory
 
@@ -198,7 +197,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     var lastServiceKickstart: Date? // Still used for grace period tracking
 
     // Configuration file watching for hot reload
-    var configFileWatcher: ConfigFileWatcher?
+    @ObservationIgnored var configFileWatcher: ConfigFileWatcher?
     let configHotReloadService = ConfigHotReloadService.shared
 
     var configPath: String {
@@ -326,9 +325,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log("🤖 [RuntimeCoordinator] Initialized in headless mode")
         }
 
-        // Configure state publisher for reactive UI updates
-        configureStatePublisher()
-
         // Wire up SaveCoordinator delegate for status change notifications
         saveCoordinator.delegate = self
 
@@ -338,9 +334,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         serviceLifecycleCoordinator.onWarning = { [weak self] warning in
             self?.lastWarning = warning
-        }
-        serviceLifecycleCoordinator.onStateChanged = { [weak self] in
-            self?.notifyStateChanged()
         }
         serviceLifecycleCoordinator.onAdmissionEnvironment = { [weak self] environment in
             self?.ruleCollectionsManager.admissionEnvironment = environment
@@ -389,7 +382,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
             self?.currentLayerName = layerName
-            self?.notifyStateChanged()
             // Notify overlay about layer change
             NotificationCenter.default.post(
                 name: .kanataLayerChanged,
@@ -400,12 +392,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         ruleCollectionsManager.onError = { [weak self] error in
             AppLogger.shared.debug("🚨 [RuntimeCoordinator] onError callback received: \(error)")
             self?.lastError = error
-            AppLogger.shared.debug("🚨 [RuntimeCoordinator] lastError set, calling notifyStateChanged()")
-            self?.notifyStateChanged()
         }
         ruleCollectionsManager.onWarning = { [weak self] warning in
             self?.lastWarning = warning
-            self?.notifyStateChanged()
             SoundManager.shared.playWarningSound()
             self?.warningExpiryTask?.cancel()
             self?.warningExpiryTask = Task { @MainActor [weak self] in
@@ -429,10 +418,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             return await withCheckedContinuation { continuation in
                 self.pendingRuleSetup = RuleSetupSession(context: context, apply: apply) { [weak self] result in
                     self?.pendingRuleSetup = nil
-                    self?.notifyStateChanged()
                     continuation.resume(returning: result)
                 }
-                self.notifyStateChanged()
                 openPreferencesTab(.openSettingsRules)
             }
         }
@@ -504,10 +491,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     // Note: RuleCollectionsManager handles its own cleanup in deinit
 
     // MARK: - Public Interface
-
-    public func updateStatus() async {
-        notifyStateChanged()
-    }
 
     /// Fetch layer names reported by Kanata over TCP.
     /// Falls back to empty list if the service is unavailable.
@@ -686,13 +669,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         return snapshot.isReady
     }
 
-    // MARK: - Configuration Management
-
-    func clearValidationError() {
-        validationError = nil
-        notifyStateChanged()
-    }
-
     // MARK: - Methods Expected by Tests
 
     func isServiceInstalled() -> Bool {
@@ -764,9 +740,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         await ruleCollectionsManager.bootstrap()
 
         AppLogger.shared.log("🔄 [Reset] Updated stores and manager properties to match default state")
-
-        // Notify ViewModel of state change so UI updates
-        notifyStateChanged()
 
         // Skip TCP/service operations in test environment to avoid timeouts
         guard !TestEnvironment.isRunningTests else {
@@ -885,57 +858,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         applyKeyMappings(mappings)
     }
 
-    // MARK: - UI State Snapshot (Phase 4: MVVM - delegates to StatePublisherService)
-
-    /// Configure state publisher (called during init)
-    func configureStatePublisher() {
-        statePublisher.configure { [weak self] in
-            self?.buildUIState() ?? KanataUIState.empty
-        }
-    }
-
-    /// Notify observers that state has changed
-    /// Call this after any operation that modifies UI-visible state
-    func notifyStateChanged() {
-        statePublisher.notifyStateChanged()
-    }
-
-    /// Refresh process running state from system (call after service operations)
-    /// This is more efficient than checking on every UI state sync
-    func refreshProcessState() {
-        notifyStateChanged()
-    }
-
-    /// Returns a snapshot of current UI state for ViewModel synchronization
-    /// This method allows KanataViewModel to read UI state without @Published properties
-    func getCurrentUIState() -> KanataUIState {
-        buildUIState()
-    }
-
-    /// Build the current UI state snapshot
-    func buildUIState() -> KanataUIState {
-        if let error = lastError {
-            AppLogger.shared.debug("🚨 [RuntimeCoordinator] buildUIState: lastError = \(error)")
-        }
-
-        return KanataUIState(
-            // Core Status
-            lastError: lastError,
-            lastWarning: lastWarning,
-            currentLayerName: currentLayerName,
-
-            // Validation
-            validationError: validationError,
-
-            // Rule conflict resolution
-            pendingRuleConflict: pendingRuleConflict,
-            pendingMappingConflict: pendingMappingConflict,
-            pendingPrerequisiteResolution: pendingPrerequisiteResolution,
-            pendingDependentResolution: pendingDependentResolution,
-            capsPausedMessage: serviceLifecycleCoordinator.sessionCapsPaused
-        )
-    }
-
     // MARK: - Configuration Initialization
 
     func createInitialConfigIfNeeded() async {
@@ -984,7 +906,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     /// consistent without issuing a duplicate reload.
     func applyPersistedRuleChanges(recoverStoppedRuntime: Bool = false) async -> ReloadResult {
         let result = await configReloadCoordinator.triggerConfigReload(recoverStoppedRuntime: recoverStoppedRuntime)
-        notifyStateChanged()
         AppLogger.shared.debug(
             "🔔 [RuntimeCoordinator] Posting kanataConfigChanged notification"
         )
@@ -1020,7 +941,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             AppLogger.shared.log("✅ [Init] Verified user config exists at \(configPath)")
         }
 
-        await updateStatus()
         await saveCoordinator.ensureBackupExists()
 
         await MainActor.run {
@@ -1092,7 +1012,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             if grabGiveUpErrorActive {
                 grabGiveUpErrorActive = false
                 lastError = nil
-                notifyStateChanged()
             }
 
         case .suppressedDuringTransition:
@@ -1119,14 +1038,12 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 )
                 lastError = String(localized: "Keyboard remapping is not active: kanata could not capture the keyboard. Try quitting other keyboard tools, then restart KeyPath.")
                 grabGiveUpErrorActive = true
-                notifyStateChanged()
             case let .giveUp(attempts):
                 AppLogger.shared.error(
                     "❌ [RuntimeCoordinator] kanata still not grabbing the keyboard after \(attempts) observations — manual intervention / reboot may be needed"
                 )
                 lastError = String(localized: "Keyboard remapping is not active: kanata could not capture the keyboard after repeated checks. Try quitting other keyboard tools, then restart KeyPath.")
                 grabGiveUpErrorActive = true
-                notifyStateChanged()
             }
         }
     }
@@ -1260,7 +1177,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         if let mappings = result.mappings {
             applyKeyMappings(mappings)
         }
-        notifyStateChanged()
     }
 
     func removeAppRule(bundleIdentifier: String, overrideID: UUID, store: AppKeymapStore = .shared) async throws {
@@ -1288,7 +1204,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         saveStatus = saveCoordinator.saveStatus
         if result.success, let mappings = result.mappings {
             applyKeyMappings(mappings)
-            notifyStateChanged()
         }
         return result
     }
@@ -1313,9 +1228,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         if result.success, let mappings = result.mappings {
             applyKeyMappings(mappings)
-            notifyStateChanged()
         } else if let error = result.error {
-            notifyStateChanged()
             throw error
         }
     }
@@ -1340,10 +1253,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         if result.success, let mappings = result.mappings {
             applyKeyMappings(mappings)
-            notifyStateChanged()
             AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
         } else if let error = result.error {
-            notifyStateChanged()
             throw error
         }
     }
@@ -1358,7 +1269,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         conflictResolutionContinuation = nil
 
         pendingRuleConflict = context
-        notifyStateChanged()
 
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
@@ -1369,7 +1279,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 self.conflictResolutionContinuation?.resume(returning: nil)
                 self.conflictResolutionContinuation = nil
                 self.pendingRuleConflict = nil
-                self.notifyStateChanged()
             }
         }
     }
@@ -1379,7 +1288,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingRuleConflict = nil
         conflictResolutionContinuation?.resume(returning: choice)
         conflictResolutionContinuation = nil
-        notifyStateChanged()
     }
 
     /// Prompt the user to resolve a save-time mapping conflict by disabling a
@@ -1391,7 +1299,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         mappingConflictContinuation = nil
 
         pendingMappingConflict = context
-        notifyStateChanged()
 
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
@@ -1402,7 +1309,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 self.mappingConflictContinuation?.resume(returning: nil)
                 self.mappingConflictContinuation = nil
                 self.pendingMappingConflict = nil
-                self.notifyStateChanged()
             }
         }
     }
@@ -1412,7 +1318,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingMappingConflict = nil
         mappingConflictContinuation?.resume(returning: collectionID)
         mappingConflictContinuation = nil
-        notifyStateChanged()
     }
 
     /// Prompts before applying an enable or save that introduces an unmet
@@ -1425,7 +1330,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         prerequisiteResolutionContinuation = nil
 
         pendingPrerequisiteResolution = RulePrerequisiteDialogModel(context: context)
-        notifyStateChanged()
         openPreferencesTab(.openSettingsRules)
 
         return await withTaskCancellationHandler {
@@ -1437,7 +1341,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 self.prerequisiteResolutionContinuation?.resume(returning: nil)
                 self.prerequisiteResolutionContinuation = nil
                 self.pendingPrerequisiteResolution = nil
-                self.notifyStateChanged()
             }
         }
     }
@@ -1448,7 +1351,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingPrerequisiteResolution = nil
         prerequisiteResolutionContinuation?.resume(returning: choice)
         prerequisiteResolutionContinuation = nil
-        notifyStateChanged()
     }
 
     /// Prompts before disabling a provider that is still required by enabled rules.
@@ -1462,7 +1364,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingDependentResolution = RuleDependentResolutionDialogModel(
             context: context
         )
-        notifyStateChanged()
         openPreferencesTab(.openSettingsRules)
 
         return await withTaskCancellationHandler {
@@ -1474,7 +1375,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
                 self.dependentResolutionContinuation?.resume(returning: nil)
                 self.dependentResolutionContinuation = nil
                 self.pendingDependentResolution = nil
-                self.notifyStateChanged()
             }
         }
     }
@@ -1485,7 +1385,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         pendingDependentResolution = nil
         dependentResolutionContinuation?.resume(returning: choice)
         dependentResolutionContinuation = nil
-        notifyStateChanged()
     }
 
     // MARK: - Diagnostics

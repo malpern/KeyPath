@@ -100,7 +100,6 @@ extension RulesTabView {
             } else {
                 try await PackInstaller.shared.uninstall(packID: pack.id, manager: manager)
             }
-            kanataManager.underlyingManager.notifyStateChanged()
         } catch {
             AppLogger.shared.log("⚠️ [Rules] Pack toggle failed for '\(pack.name)': \(error.localizedDescription)")
             if let collectionID = pack.associatedCollectionID {

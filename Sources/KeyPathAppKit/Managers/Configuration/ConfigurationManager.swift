@@ -7,7 +7,6 @@ import KeyPathRulesCore
 @MainActor
 final class ConfigurationManager {
     let configPath: String
-    let configDirectory: String
 
     private let configurationService: ConfigurationService
 
@@ -15,7 +14,6 @@ final class ConfigurationManager {
         self.configurationService = configurationService
 
         configPath = configurationService.configurationPath
-        configDirectory = configurationService.configDirectory
     }
 
     func buildKanataArguments(checkOnly: Bool = false) -> [String] {
@@ -48,86 +46,6 @@ final class ConfigurationManager {
         // Use CLI validation (TCP-only mode)
         AppLogger.shared.log("📄 [ConfigManager] Using file-based validation")
         return await configurationService.validateConfigViaFile()
-    }
-
-    /// Ensures a valid configuration exists on startup, handling invalid configs by backing them up and resetting to default
-    func ensureValidStartupConfig() async -> (mappings: [KeyMapping], validationError: ConfigValidationError?) {
-        AppLogger.shared.log("📂 [ConfigManager] Ensuring valid startup configuration")
-
-        guard Foundation.FileManager().fileExists(atPath: configPath) else {
-            AppLogger.shared.log("ℹ️ [ConfigManager] No existing config file found at: \(configPath)")
-            AppLogger.shared.log("ℹ️ [ConfigManager] Starting with empty mappings")
-            return ([], nil)
-        }
-
-        do {
-            AppLogger.shared.log("📖 [ConfigManager] Reading config file from: \(configPath)")
-            let configContent = try String(contentsOfFile: configPath, encoding: .utf8)
-            AppLogger.shared.log("📖 [ConfigManager] Config file size: \(configContent.count) characters")
-
-            // Strict CLI validation to match engine behavior on startup
-            AppLogger.shared.log("🔍 [ConfigManager] Running CLI validation of existing configuration...")
-            let cli = await configurationService.validateConfigViaFile()
-            if cli.isValid {
-                AppLogger.shared.log("✅ [ConfigManager] CLI validation PASSED")
-                let config = try await configurationService.reload()
-                AppLogger.shared.log(
-                    "✅ [ConfigManager] Successfully loaded \(config.keyMappings.count) existing mappings"
-                )
-                return (config.keyMappings, nil)
-            } else {
-                AppLogger.shared.log(
-                    "❌ [ConfigManager] CLI validation FAILED with \(cli.errors.count) errors"
-                )
-
-                // Handle invalid startup config
-                let backupPath = await handleInvalidStartupConfig(configContent: configContent, errors: cli.errors)
-
-                // Return default mapping (caps->esc) and the validation error for UI
-                let defaultMapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
-                return ([defaultMapping], .invalidStartup(errors: cli.errors, backupPath: backupPath))
-            }
-        } catch {
-            AppLogger.shared.log("❌ [ConfigManager] Failed to load existing config: \(error)")
-            AppLogger.shared.log("❌ [ConfigManager] Error type: \(type(of: error))")
-            return ([], nil)
-        }
-    }
-
-    /// Handle invalid startup configuration with backup and fallback
-    private func handleInvalidStartupConfig(configContent: String, errors _: [String]) async -> String {
-        AppLogger.shared.log("🛡️ [ConfigManager] Handling invalid startup configuration...")
-
-        // Create backup of invalid config
-        let timestamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(
-            of: ":", with: "-"
-        )
-        let backupPath = "\(configDirectory)/invalid-config-backup-\(timestamp).kbd"
-
-        AppLogger.shared.log("💾 [ConfigManager] Creating backup of invalid config...")
-        do {
-            try configContent.write(toFile: backupPath, atomically: true, encoding: .utf8)
-            AppLogger.shared.log("💾 [ConfigManager] Successfully backed up invalid config to: \(backupPath)")
-        } catch {
-            AppLogger.shared.error("❌ [ConfigManager] Failed to backup invalid config: \(error)")
-        }
-
-        // Generate default configuration
-        AppLogger.shared.log("🔧 [ConfigManager] Generating default fallback configuration...")
-        let defaultMapping = KeyMapping(input: "caps", action: .keystroke(key: "esc"))
-        let defaultConfig = generateConfig(mappings: [defaultMapping])
-        AppLogger.shared.log("🔧 [ConfigManager] Default config generated with mapping: caps → esc")
-
-        do {
-            AppLogger.shared.log("📝 [ConfigManager] Writing default config to: \(configPath)")
-            try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-            AppLogger.shared.info("✅ [ConfigManager] Successfully replaced invalid config with default")
-        } catch {
-            AppLogger.shared.error("❌ [ConfigManager] Failed to write default config: \(error)")
-        }
-
-        AppLogger.shared.log("🛡️ [ConfigManager] Invalid startup config handling complete")
-        return backupPath
     }
 
     func backupFailedConfigAndApplySafe(failedConfig: String, mappings: [KeyMapping]) async throws -> String {

@@ -273,23 +273,7 @@ final class KeyPathTests: KeyPathTestCase {
         XCTAssertTrue(true)
     }
 
-    func testDaemonManagement() async throws {
-        let manager = RuntimeCoordinator()
-
-        // Test that daemon checking doesn't crash
-        // We can't test actual daemon operations without system permissions
-        // But we can ensure the functions exist and don't crash
-
-        // This should complete without throwing
-        await manager.updateStatus()
-
-        // Check that error handling works
-        if manager.lastError != nil {
-            XCTAssertFalse(try XCTUnwrap(manager.lastError?.isEmpty))
-        }
-    }
-
-    func testAutoStartErrorHandling() async {
+    func testAutoStartErrorHandling() {
         let manager = RuntimeCoordinator()
 
         // Test that errors are properly set when Kanata isn't installed
@@ -297,8 +281,6 @@ final class KeyPathTests: KeyPathTestCase {
         // but it shouldn't crash
 
         if !manager.isInstalled() {
-            await manager.updateStatus()
-
             if let error = manager.lastError {
                 XCTAssertFalse(error.isEmpty)
             } else {

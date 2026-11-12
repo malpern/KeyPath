@@ -35,8 +35,6 @@ public protocol RuntimeCoordinating: AnyObject, Sendable {
     @discardableResult
     func restartKanata(reason: String) async -> Bool
 
-    func updateStatus() async
-
     func currentRuntimeStatus() async -> RuntimeStatus
     func isInTransientRuntimeStartupWindow() async -> Bool
 

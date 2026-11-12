@@ -11,11 +11,14 @@ import SwiftUI
 @MainActor
 @Observable
 class KanataViewModel {
-    // MARK: - Observable Properties (moved from RuntimeCoordinator)
+    var lastError: String? {
+        manager.lastError
+    }
 
-    // Core Status Properties
-    var lastError: String?
-    var lastWarning: String?
+    var reportedError: RuntimeCoordinator.ReportedError? {
+        manager.reportedError
+    }
+
     var ruleCollections: [RuleCollection] {
         manager.ruleCollectionsManager.committedRuleCollections
     }
@@ -24,15 +27,14 @@ class KanataViewModel {
         manager.ruleCollectionsManager.committedCustomRules
     }
 
-    var currentLayerName: String = RuleCollectionLayer.base.displayName
-    /// Why the running session leaves Caps Lock rules inactive, if it does.
-    var capsPausedMessage: String?
+    var currentLayerName: String {
+        manager.currentLayerName
+    }
 
-    // Validation-specific UI state
-    var showingValidationAlert = false
-    var validationAlertTitle = ""
-    var validationAlertMessage = ""
-    var validationAlertActions: [ValidationAlertAction] = []
+    /// Why the running session leaves Caps Lock rules inactive, if it does.
+    var capsPausedMessage: String? {
+        manager.serviceLifecycleCoordinator.sessionCapsPaused
+    }
 
     /// Emergency stop state
     var emergencyStopActivated: Bool = false
@@ -42,22 +44,53 @@ class KanataViewModel {
     var toastType: ToastType = .success
     @ObservationIgnored private var toastTask: Task<Void, Never>?
 
-    // Rule conflict resolution
-    var showRuleConflictDialog = false
-    var pendingRuleConflict: RuleConflictContext?
+    var pendingRuleConflict: RuleConflictContext? {
+        manager.pendingRuleConflict
+    }
 
-    // Save-time mapping conflict resolution (#460)
-    var showMappingConflictDialog = false
-    var pendingMappingConflict: MappingConflictContext?
+    var showRuleConflictDialog: Bool {
+        get { pendingRuleConflict != nil }
+        set {
+            if !newValue, pendingRuleConflict != nil { resolveRuleConflict(with: nil) }
+        }
+    }
 
-    // Enable/save prerequisite resolution (#869)
-    var pendingRuleSetup: RuleSetupSession?
-    var showPrerequisiteResolutionDialog = false
-    var pendingPrerequisiteResolution: RulePrerequisiteDialogModel?
+    var pendingMappingConflict: MappingConflictContext? {
+        manager.pendingMappingConflict
+    }
 
-    // Disable-time dependent resolution (#868)
-    var showDependentResolutionDialog = false
-    var pendingDependentResolution: RuleDependentResolutionDialogModel?
+    var showMappingConflictDialog: Bool {
+        get { pendingMappingConflict != nil }
+        set {
+            if !newValue, pendingMappingConflict != nil { resolveMappingConflict(disabling: nil) }
+        }
+    }
+
+    var pendingRuleSetup: RuleSetupSession? {
+        manager.pendingRuleSetup
+    }
+
+    var pendingPrerequisiteResolution: RulePrerequisiteDialogModel? {
+        manager.pendingPrerequisiteResolution
+    }
+
+    var showPrerequisiteResolutionDialog: Bool {
+        get { pendingPrerequisiteResolution != nil }
+        set {
+            if !newValue, pendingPrerequisiteResolution != nil { resolvePrerequisiteResolution(with: nil) }
+        }
+    }
+
+    var pendingDependentResolution: RuleDependentResolutionDialogModel? {
+        manager.pendingDependentResolution
+    }
+
+    var showDependentResolutionDialog: Bool {
+        get { pendingDependentResolution != nil }
+        set {
+            if !newValue, pendingDependentResolution != nil { resolveDependentResolution(with: nil) }
+        }
+    }
 
     enum ToastType {
         case success
@@ -69,7 +102,6 @@ class KanataViewModel {
     // MARK: - Private Properties
 
     @ObservationIgnored private let manager: RuntimeCoordinator
-    @ObservationIgnored private var stateObservationTask: Task<Void, Never>?
 
     // MARK: - Manager Access
 
@@ -83,124 +115,19 @@ class KanataViewModel {
 
     init(manager: RuntimeCoordinator) {
         self.manager = manager
-        setupObservation()
+        manager.onWarning = { [weak self] warning in self?.showRuntimeWarning(warning) }
+        if let warning = manager.lastWarning {
+            showRuntimeWarning(warning)
+        }
     }
 
     deinit {
-        stateObservationTask?.cancel()
+        toastTask?.cancel()
     }
 
-    // MARK: - Observation Setup
-
-    /// Observe RuntimeCoordinator state changes via AsyncStream (event-driven, not polling)
-    /// This dramatically reduces unnecessary UI updates by only reacting to actual state changes
-    private func setupObservation() {
-        stateObservationTask = Task { @MainActor in
-            for await state in manager.stateChanges {
-                guard !Task.isCancelled else { break }
-                updateUI(with: state)
-            }
-        }
-    }
-
-    /// Update UI properties from state snapshot
-    /// Only called when state actually changes (not on a timer)
-    private func updateUI(with state: KanataUIState) {
-        if let error = state.lastError {
-            AppLogger.shared.debug("🚨 [KanataViewModel] updateUI: receiving lastError = \(error)")
-        }
-        lastError = state.lastError
-        currentLayerName = state.currentLayerName
-        capsPausedMessage = state.capsPausedMessage
-        // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
-
-        // Show warning toast if there's a new warning
-        if let warning = state.lastWarning, warning != lastWarning {
-            lastWarning = warning
-            // Conflict warnings get 2x duration (10s vs 5s) since they're important
-            let isConflictWarning = warning.contains("conflicts")
-            let duration: TimeInterval = isConflictWarning ? 10.0 : 5.0
-            showToast(warning, type: .warning, duration: duration)
-        } else {
-            lastWarning = state.lastWarning
-        }
-
-        // Handle rule conflict resolution dialog
-        pendingRuleConflict = state.pendingRuleConflict
-        showRuleConflictDialog = state.pendingRuleConflict != nil
-
-        // Handle save-time mapping conflict resolution dialog (#460)
-        pendingMappingConflict = state.pendingMappingConflict
-        showMappingConflictDialog = state.pendingMappingConflict != nil
-
-        pendingRuleSetup = manager.pendingRuleSetup
-        pendingPrerequisiteResolution = state.pendingPrerequisiteResolution
-        showPrerequisiteResolutionDialog = state.pendingPrerequisiteResolution != nil
-
-        pendingDependentResolution = state.pendingDependentResolution
-        showDependentResolutionDialog = state.pendingDependentResolution != nil
-
-        // Map validation error to alert properties
-        if let error = state.validationError {
-            showingValidationAlert = true
-
-            switch error {
-            case let .invalidStartup(errors, backupPath):
-                validationAlertTitle = String(localized: "Configuration File Invalid")
-                validationAlertMessage = String(localized: """
-                KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.
-
-                Errors found:
-                \(errors.joined(separator: "\n• "))
-
-                Your original configuration has been backed up to:
-                \(backupPath)
-
-                KeyPath is now using a default configuration (Caps Lock → Escape).
-                """)
-                validationAlertActions = [
-                    ValidationAlertAction(title: String(localized: "OK"), style: .default) { [weak self] in
-                        self?.clearValidationError()
-                    },
-                    ValidationAlertAction(title: String(localized: "Open Backup Location"), style: .default) { [weak self] in
-                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: backupPath)])
-                        self?.clearValidationError()
-                    }
-                ]
-
-            case let .saveFailed(title, errors):
-                validationAlertTitle = title
-                validationAlertMessage = String(localized: """
-                KeyPath found errors in the configuration:
-
-                \(errors.joined(separator: "\n• "))
-
-                What would you like to do?
-                """)
-                validationAlertActions = [
-                    ValidationAlertAction(title: String(localized: "Cancel"), style: .cancel) { [weak self] in
-                        self?.clearValidationError()
-                    },
-                    ValidationAlertAction(title: String(localized: "Use Default Config"), style: .destructive) { [weak self] in
-                        Task {
-                            do {
-                                try await self?.resetToDefaultConfig()
-                            } catch {
-                                AppLogger.shared.warn("⚠️ [KanataViewModel] Failed to reset to default config: \(error.localizedDescription)")
-                            }
-                            self?.clearValidationError()
-                        }
-                    }
-                ]
-            }
-        } else {
-            showingValidationAlert = false
-            validationAlertActions = []
-        }
-    }
-
-    private func clearValidationError() {
-        manager.clearValidationError()
+    private func showRuntimeWarning(_ warning: String) {
+        // Conflict warnings need more reading time.
+        showToast(warning, type: .warning, duration: warning.contains("conflicts") ? 10.0 : 5.0)
     }
 
     // MARK: - Rule Collection Actions
@@ -497,10 +424,6 @@ class KanataViewModel {
 
     // MARK: - Service Maintenance Actions
 
-    func updateStatus() async {
-        await manager.updateStatus()
-    }
-
     func inspectSystemContext() async -> SystemContext {
         await manager.inspectSystemContext()
     }
@@ -532,10 +455,10 @@ class KanataViewModel {
         toastMessage = message
         toastType = type
 
-        toastTask = Task {
+        toastTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(duration))
             guard !Task.isCancelled else { return }
-            toastMessage = nil
+            self?.toastMessage = nil
         }
     }
 
@@ -562,42 +485,24 @@ class KanataViewModel {
 
     /// Called when user makes a choice in the conflict resolution dialog
     func resolveRuleConflict(with choice: RuleConflictChoice?) {
-        showRuleConflictDialog = false
         manager.resolveConflict(with: choice)
     }
 
     /// Called when the user resolves (or dismisses) a save-time mapping conflict (#460).
     /// Pass the collection id to disable, or nil to cancel.
     func resolveMappingConflict(disabling collectionID: UUID?) {
-        showMappingConflictDialog = false
         manager.resolveMappingConflict(disabling: collectionID)
     }
 
     func resolvePrerequisiteResolution(
         with choice: RulePrerequisiteResolutionChoice?
     ) {
-        showPrerequisiteResolutionDialog = false
         manager.resolvePrerequisiteResolution(with: choice)
     }
 
     func resolveDependentResolution(
         with choice: RuleDependentResolutionChoice?
     ) {
-        showDependentResolutionDialog = false
         manager.resolveDependentResolution(with: choice)
-    }
-}
-
-/// Actions available in validation error dialogs
-struct ValidationAlertAction: Identifiable {
-    let id = UUID()
-    let title: String
-    let style: ActionStyle
-    let action: () -> Void
-
-    enum ActionStyle {
-        case `default`
-        case cancel
-        case destructive
     }
 }

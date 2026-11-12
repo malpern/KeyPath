@@ -832,9 +832,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         WizardWindowController.shared.showWindow(
             initialPage: initialPage,
             kanataViewModel: vm,
-            onDismiss: { [weak self] in
+            onDismiss: {
                 Task { @MainActor in
-                    await self?.viewModel?.updateStatus()
                     await MainAppStateController.shared.revalidate()
                 }
             }

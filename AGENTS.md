@@ -311,7 +311,7 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
 | Class | Responsibility |
 |-------|----------------|
 | `InstallerEngine` | The facade for all install, repair, uninstall, and system inspection |
-| `RuntimeCoordinator` | Service orchestration; not an `ObservableObject` |
+| `RuntimeCoordinator` | Service orchestration and observable runtime UI state |
 | `ServiceLifecycleCoordinator` | Start, stop, and restart Kanata |
 | `ServiceHealthChecker` | Health checks and service state evidence |
 | `ConfigReloadCoordinator` | Engine reload after rule changes |
