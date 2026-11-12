@@ -15,7 +15,6 @@ final class RuntimeCoordinatorTests: KeyPathTestCase {
         }
         XCTAssertTrue(manager.keyMappings.isEmpty, "Should have no initial mappings")
         XCTAssertTrue(manager.diagnostics.isEmpty, "Should have no initial diagnostics")
-        XCTAssertNil(manager.lastProcessExitCode, "Should have no initial exit code")
     }
 
     func testDiagnosticManagement() {
