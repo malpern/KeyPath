@@ -24,14 +24,9 @@ final class KanataViewModelTests: KeyPathTestCase {
         XCTAssertFalse(viewModel.configPath.isEmpty)
     }
 
-    func testStateSnapshotMethod() {
-        // Verify KanataManager can create state snapshots
+    func testStateSnapshotIncludesRuntimeError() {
         let manager = RuntimeCoordinator()
-        let snapshot = manager.getCurrentUIState()
-
-        // Snapshot should contain current state
-        // XCTAssertNotNil(snapshot.isRunning) // Removed
-        // XCTAssertNotNil(snapshot.currentState) // Removed
-        XCTAssertNotNil(snapshot.keyMappings)
+        manager.lastError = "Runtime stopped"
+        XCTAssertEqual(manager.getCurrentUIState().lastError, "Runtime stopped")
     }
 }

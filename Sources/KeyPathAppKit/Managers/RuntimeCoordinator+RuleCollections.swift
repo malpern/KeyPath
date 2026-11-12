@@ -22,14 +22,13 @@ extension RuntimeCoordinator {
     }
 
     @MainActor
-    func applyKeyMappings(_ mappings: [KeyMapping], persistCollections _: Bool = true) {
+    func applyKeyMappings(_ mappings: [KeyMapping]) {
         keyMappings = mappings
-        lastConfigUpdate = Date()
     }
 
     func refreshRuleMappings() {
         let mappings = ruleCollectionsManager.committedRuleCollections.enabledMappings() + ruleCollectionsManager.committedCustomRules.enabledMappings()
-        applyKeyMappings(mappings, persistCollections: false)
+        applyKeyMappings(mappings)
         notifyStateChanged()
     }
 

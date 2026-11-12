@@ -136,9 +136,9 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         set { /* Write access via coordinator methods only */ }
     }
 
-    var diagnostics: [KanataDiagnostic] = []
-    var lastProcessExitCode: Int32?
-    var lastConfigUpdate: Date = .init()
+    var diagnostics: [KanataDiagnostic] {
+        diagnosticsManager.getDiagnostics()
+    }
 
     /// Validation-specific UI state
     var validationError: ConfigValidationError?
@@ -378,7 +378,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Configure RuleCollectionsCoordinator callbacks (after all initialization)
         ruleCollectionsCoordinator.configure(
             applyMappings: { [weak self] mappings in
-                self?.applyKeyMappings(mappings, persistCollections: false)
+                self?.applyKeyMappings(mappings)
             },
             notifyStateChanged: { [weak self] in
                 self?.notifyStateChanged()
@@ -931,9 +931,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     /// Build the current UI state snapshot
     func buildUIState() -> KanataUIState {
-        // Sync diagnostics from DiagnosticsManager
-        diagnostics = diagnosticsManager.getDiagnostics()
-
         if let error = lastError {
             AppLogger.shared.debug("🚨 [RuntimeCoordinator] buildUIState: lastError = \(error)")
         }
@@ -942,17 +939,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             // Core Status
             lastError: lastError,
             lastWarning: lastWarning,
-            keyMappings: keyMappings,
             currentLayerName: currentLayerName,
-            diagnostics: diagnostics,
-            lastProcessExitCode: lastProcessExitCode,
-            lastConfigUpdate: lastConfigUpdate,
-            activeRuntimePathTitle: nil,
-            activeRuntimePathDetail: nil,
 
-            // Validation & Save Status
+            // Validation
             validationError: validationError,
-            saveStatus: saveStatus,
 
             // Rule conflict resolution
             pendingRuleConflict: pendingRuleConflict,
@@ -1285,9 +1275,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             throw result.error ?? AppConfigError.validationUnavailable
         }
         if let mappings = result.mappings {
-            applyKeyMappings(mappings, persistCollections: false)
+            applyKeyMappings(mappings)
         }
-        lastConfigUpdate = Date()
         notifyStateChanged()
     }
 
@@ -1315,8 +1304,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         saveStatus = saveCoordinator.saveStatus
         if result.success, let mappings = result.mappings {
-            applyKeyMappings(mappings, persistCollections: false)
-            lastConfigUpdate = Date()
+            applyKeyMappings(mappings)
             notifyStateChanged()
         }
         return result
@@ -1341,7 +1329,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         saveStatus = saveCoordinator.saveStatus
 
         if result.success, let mappings = result.mappings {
-            lastConfigUpdate = Date()
             applyKeyMappings(mappings)
             notifyStateChanged()
         } else if let error = result.error {
@@ -1369,7 +1356,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         saveStatus = saveCoordinator.saveStatus
 
         if result.success, let mappings = result.mappings {
-            applyKeyMappings(mappings, persistCollections: false)
+            applyKeyMappings(mappings)
             notifyStateChanged()
             AppLogger.shared.log("⚡ [Config] Validation-on-demand save completed")
         } else if let error = result.error {
@@ -1522,13 +1509,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     func addDiagnostic(_ diagnostic: KanataDiagnostic) {
         diagnosticsManager.addDiagnostic(diagnostic)
-        // Update local diagnostics array for UI state
-        diagnostics = diagnosticsManager.getDiagnostics()
     }
 
     func clearDiagnostics() {
         diagnosticsManager.clearDiagnostics()
-        diagnostics = []
     }
 
     // MARK: - Auto-Fix Capabilities

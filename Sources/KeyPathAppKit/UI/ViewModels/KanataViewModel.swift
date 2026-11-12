@@ -16,7 +16,6 @@ class KanataViewModel {
     // Core Status Properties
     var lastError: String?
     var lastWarning: String?
-    var keyMappings: [KeyMapping] = []
     var ruleCollections: [RuleCollection] {
         manager.ruleCollectionsManager.committedRuleCollections
     }
@@ -26,11 +25,6 @@ class KanataViewModel {
     }
 
     var currentLayerName: String = RuleCollectionLayer.base.displayName
-    var diagnostics: [KanataDiagnostic] = []
-    var lastProcessExitCode: Int32?
-    var lastConfigUpdate: Date = .init()
-    var activeRuntimePathTitle: String?
-    var activeRuntimePathDetail: String?
     /// Why the running session leaves Caps Lock rules inactive, if it does.
     var capsPausedMessage: String?
 
@@ -39,9 +33,6 @@ class KanataViewModel {
     var validationAlertTitle = ""
     var validationAlertMessage = ""
     var validationAlertActions: [ValidationAlertAction] = []
-
-    /// Save progress feedback
-    var saveStatus: SaveStatus = .idle
 
     /// Emergency stop state
     var emergencyStopActivated: Bool = false
@@ -119,15 +110,8 @@ class KanataViewModel {
             AppLogger.shared.debug("🚨 [KanataViewModel] updateUI: receiving lastError = \(error)")
         }
         lastError = state.lastError
-        keyMappings = state.keyMappings
         currentLayerName = state.currentLayerName
-        diagnostics = state.diagnostics
-        lastProcessExitCode = state.lastProcessExitCode
-        lastConfigUpdate = state.lastConfigUpdate
-        activeRuntimePathTitle = state.activeRuntimePathTitle
-        activeRuntimePathDetail = state.activeRuntimePathDetail
         capsPausedMessage = state.capsPausedMessage
-        saveStatus = state.saveStatus
         // Note: emergencyStopActivated is managed locally in ViewModel, not synced from manager
 
         // Show warning toast if there's a new warning

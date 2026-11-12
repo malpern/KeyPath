@@ -1,6 +1,4 @@
 import Foundation
-import KeyPathRulesCore
-import KeyPathWizardCore
 
 /// Save operation status for UI feedback
 enum SaveStatus: Equatable, Sendable {
@@ -33,17 +31,10 @@ struct KanataUIState: Sendable {
     // Core Status
     let lastError: String?
     let lastWarning: String?
-    let keyMappings: [KeyMapping]
     let currentLayerName: String
-    let diagnostics: [KanataDiagnostic]
-    let lastProcessExitCode: Int32?
-    let lastConfigUpdate: Date
-    let activeRuntimePathTitle: String?
-    let activeRuntimePathDetail: String?
 
-    // Validation & Save Status
+    /// Validation
     let validationError: ConfigValidationError?
-    let saveStatus: SaveStatus
 
     /// Rule conflict resolution
     let pendingRuleConflict: RuleConflictContext?
@@ -64,15 +55,8 @@ struct KanataUIState: Sendable {
     static let empty = KanataUIState(
         lastError: nil,
         lastWarning: nil,
-        keyMappings: [],
         currentLayerName: "base",
-        diagnostics: [],
-        lastProcessExitCode: nil,
-        lastConfigUpdate: Date(),
-        activeRuntimePathTitle: nil,
-        activeRuntimePathDetail: nil,
         validationError: nil,
-        saveStatus: .idle,
         pendingRuleConflict: nil,
         pendingMappingConflict: nil,
         pendingPrerequisiteResolution: nil,
