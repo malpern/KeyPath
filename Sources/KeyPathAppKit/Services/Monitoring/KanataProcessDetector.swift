@@ -31,7 +31,7 @@ final class KanataProcessDetector {
     /// Every running Kanata binary is an external conflict.
     func detectConflicts() async -> Conflicts {
         // Skip process detection in test environment
-        if TestEnvironment.shouldSkipAdminOperations {
+        if TestEnvironment.isRunningTests {
             return Conflicts(externalProcesses: [])
         }
 

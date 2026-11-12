@@ -340,6 +340,18 @@ Test targets: `KeyPathTests` (`Tests/KeyPathTests/`), `KeyPathSmokeTests`,
   [ADR-047](docs/adr/adr-047-pre-release-cleanup.md) (macOS 27 minimum, retired
   stack, one permission set, backend-switching layers) are deliberate PRs.
 
+### Services and Views
+- Services are `static let shared` instances. Do not add a second way to
+  construct or look one up.
+- SwiftUI views reach the services in `ServiceContainer` (preferences, app
+  keymaps, rule collections, icons, favicons) through `@Environment(\.services)`,
+  not `.shared`, so previews and tests can swap them. Add a service to the
+  container when a view needs it.
+- About 50 older view call sites still use `.shared` directly. Move one to the
+  environment when you are already editing that view (ADR-043); do not open a
+  PR just to migrate them.
+- Non-view code uses `.shared` or takes the service as an init parameter.
+
 ### Permissions
 - **Always use `PermissionOracle.shared`** for permission checks.
 - Never call `IOHIDCheckAccess` directly **outside of PermissionOracle**.

@@ -73,11 +73,6 @@ public enum TestEnvironment {
         ]
     }
 
-    /// Tests never run privileged operations (the admin password dialog).
-    public static var shouldSkipAdminOperations: Bool {
-        isRunningTests
-    }
-
     /// True when tests should keep expected fixture/setup diagnostics out of
     /// default warning output. Set `KEYPATH_TEST_VERBOSE_LOGS=1` to show them.
     public static var shouldQuietExpectedTestDiagnostics: Bool {
@@ -117,7 +112,6 @@ public enum TestEnvironment {
     /// Log test environment status
     public static func logEnvironmentStatus() {
         AppLogger.shared.log("🧪 [TestEnvironment] Running in tests: \(isRunningTests)")
-        AppLogger.shared.log("🧪 [TestEnvironment] Should skip admin ops: \(shouldSkipAdminOperations)")
         AppLogger.shared.log("🧪 [TestEnvironment] Process name: \(ProcessInfo.processInfo.processName)")
 
         if isRunningTests {

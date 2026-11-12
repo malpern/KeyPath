@@ -214,9 +214,10 @@ Updates.
   saves a backup to Downloads, removes your rules and preferences, and moves
   the app to the Trash. Diagnostic logs remain in `~/Library/Logs/KeyPath/`
   until you delete them. Uninstalling does not revoke the Accessibility grant;
-  remove it in System Settings. If you installed the command-line tool, its
-  link at `/usr/local/bin/keypath-cli` also stays; removing it needs an
-  administrator password (`sudo rm /usr/local/bin/keypath-cli`).
+  remove it in System Settings. The command-line tool's link in
+  `~/.local/bin` is removed too. A copy installed by a version before
+  November 2026 at `/usr/local/bin/keypath-cli` stays; remove it with
+  `sudo rm /usr/local/bin/keypath-cli`.
 
 ---
 

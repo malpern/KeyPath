@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathCore
 import KeyPathWizardCore
 
 /// What a sweep of this user's KeyPath session workers proved.
@@ -135,6 +136,16 @@ final class SessionUninstallCoordinator: WizardUninstalling {
                 if (try? files.attributesOfItem(atPath: source.path)) != nil {
                     try files.removeItem(at: source)
                 }
+            }
+            // The command-line link points into the app that is about to be
+            // trashed. It is a convenience, so a failure is logged, not fatal.
+            do {
+                try CommandLineToolInstaller.uninstall(
+                    toolPath: app.appendingPathComponent("Contents/MacOS/keypath-cli").path,
+                    home: home
+                )
+            } catch {
+                AppLogger.shared.warn("[Uninstall] Could not remove the keypath-cli link: \(error.localizedDescription)")
             }
             defaults.removePersistentDomain(forName: domain)
             guard defaults.synchronize() else {
