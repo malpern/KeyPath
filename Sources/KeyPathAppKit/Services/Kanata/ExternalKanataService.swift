@@ -72,7 +72,7 @@ public enum ExternalKanataService: Sendable {
 
     // MARK: - Private Helpers
 
-    private static func killProcess(pid: Int) async throws {
+    static func killProcess(pid: Int) async throws {
         let target = pid_t(pid)
         // Try graceful kill first (SIGTERM)
         guard kill(target, SIGTERM) == 0 else {
@@ -89,10 +89,18 @@ public enum ExternalKanataService: Sendable {
         // Wait a moment for graceful shutdown
         try? await Task.sleep(for: .milliseconds(500))
 
-        // Force kill if still running
-        if SystemStateProvider.isProcessAlive(pid: target) {
-            _ = kill(target, SIGKILL)
+        // Force kill if still running, then confirm it is gone.
+        guard SystemStateProvider.isProcessAlive(pid: target) else { return }
+        _ = kill(target, SIGKILL)
+        for _ in 0 ..< 20 {
+            try? await Task.sleep(for: .milliseconds(50))
+            if !SystemStateProvider.isProcessAlive(pid: target) { return }
         }
+        throw NSError(
+            domain: "ExternalKanataService",
+            code: Int(ETIMEDOUT),
+            userInfo: [NSLocalizedDescriptionKey: "Kanata (PID \(pid)) is still running after SIGKILL"]
+        )
     }
 
     private static func disableLaunchAgent(at path: String) async throws {
