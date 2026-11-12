@@ -21,7 +21,7 @@ import Network
 // - **ConfigReloadCoordinator**: TCP-based config reload, safety checks
 // - **SaveCoordinator**: Save operations with rollback
 // - **RecoveryCoordinator**: recording pause/resume, diagnostic auto-fix
-// - **RuleCollectionsCoordinator**: Rule collection CRUD and persistence
+// - **RuleCollectionsManager**: Rule collection CRUD and persistence
 // - **ConfigurationManager**: Config file management (create, validate, backup)
 // - **DiagnosticsManager**: System diagnostics and health checks
 // - **ServiceHealthMonitor**: Health monitoring and restart cooldown
@@ -34,7 +34,7 @@ import Network
 //   config hot reload, config maintenance, conflict resolution, diagnostics)
 //
 // **RuntimeCoordinator+RuleCollections.swift** (separate extension)
-// - Rule collection CRUD, delegates to RuleCollectionsCoordinator
+// - Rule collection operations and runtime mapping refresh
 //
 // ## MVVM Architecture Note:
 //
@@ -125,14 +125,13 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     var dependentResolutionContinuation:
         CheckedContinuation<RuleDependentResolutionChoice?, Never>?
 
-    /// Rule collections are now managed by RuleCollectionsCoordinator
     var ruleCollections: [RuleCollection] {
-        get { ruleCollectionsCoordinator.ruleCollections }
+        get { ruleCollectionsManager.ruleCollections }
         set { /* Write access via coordinator methods only */ }
     }
 
     var customRules: [CustomRule] {
-        get { ruleCollectionsCoordinator.customRules }
+        get { ruleCollectionsManager.customRules }
         set { /* Write access via coordinator methods only */ }
     }
 
@@ -185,7 +184,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
     let saveCoordinator: SaveCoordinator
     let recoveryCoordinator: RecoveryCoordinator // internal for extension access
-    let ruleCollectionsCoordinator: RuleCollectionsCoordinator
     let serviceHealthMonitor: ServiceHealthMonitor
     let serviceLifecycleCoordinator: ServiceLifecycleCoordinator
     let configReloadCoordinator: ConfigReloadCoordinator
@@ -312,11 +310,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             }
         )
 
-        // Initialize RuleCollectionsCoordinator (after all managers, before Task captures self)
-        ruleCollectionsCoordinator = RuleCollectionsCoordinator(
-            ruleCollectionsManager: ruleCollectionsManager
-        )
-
         // Dispatch heavy initialization work to background thread (skip during unit tests)
         // Prefer structured concurrency; a plain Task{} runs off the main actor by default
         if !TestEnvironment.isRunningTests, !isOneShotProbeMode {
@@ -374,16 +367,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         configReloadCoordinator.onDeferredReloadSuccess = {
             await AppContextService.shared.reloadMappings(afterRuntimeReload: true)
         }
-
-        // Configure RuleCollectionsCoordinator callbacks (after all initialization)
-        ruleCollectionsCoordinator.configure(
-            applyMappings: { [weak self] mappings in
-                self?.applyKeyMappings(mappings)
-            },
-            notifyStateChanged: { [weak self] in
-                self?.notifyStateChanged()
-            }
-        )
 
         // Recording pause uses the same session owner; no process-wide termination.
         recoveryCoordinator.configure(

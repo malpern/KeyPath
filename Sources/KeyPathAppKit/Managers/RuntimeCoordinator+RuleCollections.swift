@@ -3,22 +3,21 @@ import KeyPathCore
 import KeyPathRulesCore
 
 extension RuntimeCoordinator {
-    // MARK: - Rule Collections (delegates to RuleCollectionsCoordinator)
+    // MARK: - Rule Collections
 
     func catalogUpdatePreviews() -> [CatalogUpdatePreview] {
-        ruleCollectionsCoordinator.catalogUpdatePreviews()
+        ruleCollectionsManager.catalogUpdatePreviews()
     }
 
     func applyCatalogUpdates(ids: Set<UUID>) async -> CatalogUpdateApplicationResult {
-        await ruleCollectionsCoordinator.applyCatalogUpdates(ids: ids)
+        let result = await ruleCollectionsManager.applyCatalogUpdates(ids: ids)
+        if result.saveResult.success { refreshRuleMappings() }
+        return result
     }
 
     func replaceRuleCollections(_ collections: [RuleCollection]) async {
-        await ruleCollectionsCoordinator.replaceRuleCollections(collections)
-    }
-
-    func enabledMappingsFromCollections() -> [KeyMapping] {
-        ruleCollectionsCoordinator.enabledMappings()
+        await ruleCollectionsManager.replaceCollections(collections)
+        refreshRuleMappings()
     }
 
     @MainActor
@@ -33,79 +32,105 @@ extension RuntimeCoordinator {
     }
 
     func batchEnableCollections(ids: [UUID]) async {
-        await ruleCollectionsCoordinator.batchEnableCollections(ids: ids)
+        await ruleCollectionsManager.batchEnableCollections(ids: ids)
+        refreshRuleMappings()
     }
 
     @discardableResult
     func addRuleCollection(_ collection: RuleCollection) async -> Bool {
-        await ruleCollectionsCoordinator.addRuleCollection(collection)
+        let result = await ruleCollectionsManager.addCollection(collection)
+        refreshRuleMappings()
+        return result
     }
 
     func updateCollectionOutput(id: UUID, output: String) async {
-        await ruleCollectionsCoordinator.updateCollectionOutput(id: id, output: output)
+        await ruleCollectionsManager.updateCollectionOutput(id: id, output: output)
+        refreshRuleMappings()
     }
 
     func updateCollectionTapOutput(id: UUID, tapOutput: String) async {
-        await ruleCollectionsCoordinator.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+        await ruleCollectionsManager.updateCollectionTapOutput(id: id, tapOutput: tapOutput)
+        refreshRuleMappings()
     }
 
     func updateCollectionHoldOutput(id: UUID, holdOutput: String) async {
-        await ruleCollectionsCoordinator.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+        await ruleCollectionsManager.updateCollectionHoldOutput(id: id, holdOutput: holdOutput)
+        refreshRuleMappings()
     }
 
     func updateCollectionLayerPreset(_ id: UUID, presetId: String) async {
-        await ruleCollectionsCoordinator.updateCollectionLayerPreset(id: id, presetId: presetId)
+        await ruleCollectionsManager.updateCollectionLayerPreset(id: id, presetId: presetId)
+        refreshRuleMappings()
     }
 
     func updateWindowKeyConvention(_ id: UUID, convention: WindowKeyConvention) async {
-        await ruleCollectionsCoordinator.updateWindowKeyConvention(id: id, convention: convention)
+        await ruleCollectionsManager.updateWindowKeyConvention(id: id, convention: convention)
+        refreshRuleMappings()
     }
 
     func updateFunctionKeyMode(_ id: UUID, mode: FunctionKeyMode) async {
-        await ruleCollectionsCoordinator.updateFunctionKeyMode(id: id, mode: mode)
+        await ruleCollectionsManager.updateFunctionKeyMode(id: id, mode: mode)
+        refreshRuleMappings()
     }
 
     @discardableResult
     func updateHomeRowModsConfig(collectionId: UUID, config: HomeRowModsConfig) async -> Bool {
-        await ruleCollectionsCoordinator.updateHomeRowModsConfig(id: collectionId, config: config)
+        let result = await ruleCollectionsManager.updateHomeRowModsConfig(id: collectionId, config: config)
+        refreshRuleMappings()
+        return result
     }
 
     @discardableResult
     func updateHomeRowLayerTogglesConfig(collectionId: UUID, config: HomeRowLayerTogglesConfig) async -> Bool {
-        await ruleCollectionsCoordinator.updateHomeRowLayerTogglesConfig(id: collectionId, config: config)
+        let result = await ruleCollectionsManager.updateHomeRowLayerTogglesConfig(id: collectionId, config: config)
+        refreshRuleMappings()
+        return result
     }
 
     @discardableResult
     func updateChordGroupsConfig(collectionId: UUID, config: ChordGroupsConfig) async -> Bool {
-        await ruleCollectionsCoordinator.updateChordGroupsConfig(id: collectionId, config: config)
+        let result = await ruleCollectionsManager.updateChordGroupsConfig(id: collectionId, config: config)
+        refreshRuleMappings()
+        return result
     }
 
     @discardableResult
     func updateSequencesConfig(collectionId: UUID, config: SequencesConfig) async -> Bool {
-        await ruleCollectionsCoordinator.updateSequencesConfig(id: collectionId, config: config)
+        let result = await ruleCollectionsManager.updateSequencesConfig(id: collectionId, config: config)
+        refreshRuleMappings()
+        return result
     }
 
     @discardableResult
     func updateLauncherConfig(collectionId: UUID, config: LauncherGridConfig) async -> Bool {
-        await ruleCollectionsCoordinator.updateLauncherConfig(id: collectionId, config: config)
+        let result = await ruleCollectionsManager.updateLauncherConfig(id: collectionId, config: config)
+        refreshRuleMappings()
+        return result
     }
 
     @discardableResult
     func updateAutoShiftSymbolsConfig(collectionId: UUID, config: AutoShiftSymbolsConfig) async -> Bool {
-        await ruleCollectionsCoordinator.updateAutoShiftSymbolsConfig(id: collectionId, config: config)
+        let result = await ruleCollectionsManager.updateAutoShiftSymbolsConfig(id: collectionId, config: config)
+        refreshRuleMappings()
+        return result
     }
 
     @discardableResult
     func updateKeyRepeatControlConfig(collectionId: UUID, config: KeyRepeatControlConfig) async -> Bool {
-        await ruleCollectionsCoordinator.updateKeyRepeatControlConfig(id: collectionId, config: config)
+        let result = await ruleCollectionsManager.updateKeyRepeatControlConfig(id: collectionId, config: config)
+        refreshRuleMappings()
+        return result
     }
 
     func updateWindowSnappingActivationMode(collectionId: UUID, mode: WindowSnappingActivationMode) async -> String? {
-        await ruleCollectionsCoordinator.updateWindowSnappingActivationMode(id: collectionId, mode: mode)
+        let result = await ruleCollectionsManager.updateWindowSnappingActivationMode(id: collectionId, mode: mode)
+        refreshRuleMappings()
+        return result
     }
 
     func updateLeaderKey(_ newKey: String) async {
-        await ruleCollectionsCoordinator.updateLeaderKey(newKey)
+        await ruleCollectionsManager.updateLeaderKey(newKey)
+        refreshRuleMappings()
     }
 
     @discardableResult
@@ -133,31 +158,32 @@ extension RuntimeCoordinator {
 
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
-        await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload, autoResolveConflicts: autoResolveConflicts)
+        let saved = await ruleCollectionsManager.saveCustomRule(rule, skipReload: skipReload, autoResolveConflicts: autoResolveConflicts)
+        refreshRuleMappings()
+        if saved { SoundManager.shared.playGlassSound() }
+        return saved
     }
 
     func removeCustomRule(withID id: UUID) async {
-        await ruleCollectionsCoordinator.removeCustomRule(withID: id)
+        await ruleCollectionsManager.removeCustomRule(id: id)
+        refreshRuleMappings()
     }
 
     /// Clear all custom rules without affecting rule collections
     func clearAllCustomRules() async {
-        await ruleCollectionsCoordinator.clearAllCustomRules()
-    }
-
-    func makeCustomRuleForSave(input: String, output: String) -> CustomRule {
-        ruleCollectionsCoordinator.makeCustomRule(input: input, output: output)
+        await ruleCollectionsManager.clearAllCustomRules()
+        refreshRuleMappings()
     }
 
     /// Creates or returns an existing custom rule for the given input key.
     /// If a rule already exists with the same input, returns a copy with the same ID but updated output.
     /// This prevents duplicate keys in the generated Kanata config.
     func makeCustomRule(input: String, output: String) -> CustomRule {
-        ruleCollectionsCoordinator.makeCustomRule(input: input, output: output)
+        ruleCollectionsManager.makeCustomRule(input: input, output: output)
     }
 
     /// Get existing custom rule for the given input key, if any
     func getCustomRule(forInput input: String) -> CustomRule? {
-        ruleCollectionsCoordinator.getCustomRule(forInput: input)
+        ruleCollectionsManager.getCustomRule(forInput: input)
     }
 }
