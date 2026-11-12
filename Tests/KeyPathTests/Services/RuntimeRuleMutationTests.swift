@@ -5,14 +5,14 @@ import Testing
 
 // MARK: - Test Helpers
 
-/// Creates a RuleCollectionsManager backed by temp-directory stores, pre-loaded with catalog defaults.
+/// Creates a runtime backed by temporary stores and a stub engine reload.
 @MainActor
-private func makeTestManager() throws -> (RuleCollectionsManager, URL) {
-    TestEnvironment.forceTestMode = true
+private func makeTestRuntime() throws -> (RuntimeCoordinator, URL) {
     let tempDir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("rcc-\(UUID().uuidString)")
+        .appendingPathComponent("runtime-rule-mutation-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
+    let configuration = ConfigurationService(configDirectory: tempDir.path)
     let manager = RuleCollectionsManager(
         ruleCollectionStore: RuleCollectionStore(
             fileURL: tempDir.appendingPathComponent("RuleCollections.json")
@@ -20,13 +20,16 @@ private func makeTestManager() throws -> (RuleCollectionsManager, URL) {
         customRulesStore: CustomRulesStore(
             fileURL: tempDir.appendingPathComponent("CustomRules.json")
         ),
-        configurationService: ConfigurationService(configDirectory: tempDir.path),
+        configurationService: configuration,
         eventListener: KanataEventListener()
     )
     let catalog = RuleCollectionCatalog()
     manager.ruleCollections = catalog.defaultCollections()
 
-    return (manager, tempDir)
+    let runtime = RuntimeCoordinator(injectedConfigurationService: configuration,
+                                     injectedRuleCollectionsManager: manager)
+    manager.onRulesChanged = { .init(success: true, response: nil, errorMessage: nil, protocol: nil, disposition: .applied) }
+    return (runtime, tempDir)
 }
 
 /// Removes a temp directory, ignoring errors.
@@ -36,15 +39,13 @@ private func cleanUp(_ url: URL) {
 
 // MARK: - Batch Operations
 
-@Suite("RuleCollectionsCoordinator — Batch Operations")
+@Suite("Runtime rule mutations — Batch Operations")
 @MainActor
-struct RuleCollectionsCoordinatorBatchTests {
+struct RuntimeRuleBatchTests {
     @Test("batchEnableCollections enables multiple collections")
     func batchEnablesMultiple() async throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
+        let (coordinator, tempDir) = try makeTestRuntime()
+        defer { cleanUp(tempDir) }
 
         let disabledIDs = coordinator.ruleCollections
             .filter { !$0.isEnabled }
@@ -62,20 +63,17 @@ struct RuleCollectionsCoordinatorBatchTests {
         }
     }
 
-    @Test("batchEnableCollections calls callbacks once")
-    func batchCallsCallbacksOnce() async throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
+    @Test("batchEnableCollections reloads once and refreshes the runtime mappings")
+    func batchRefreshesMappingsAfterOneReload() async throws {
+        let (coordinator, tempDir) = try makeTestRuntime()
+        defer { cleanUp(tempDir) }
 
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
-
-        var applyCount = 0
-        var notifyCount = 0
-
-        coordinator.configure(
-            applyMappings: { _ in applyCount += 1 },
-            notifyStateChanged: { notifyCount += 1 }
-        )
+        let manager = coordinator.ruleCollectionsManager
+        var reloadCount = 0
+        manager.onRulesChanged = {
+            reloadCount += 1
+            return .init(success: true, response: nil, errorMessage: nil, protocol: nil, disposition: .applied)
+        }
 
         let disabledIDs = coordinator.ruleCollections
             .filter { !$0.isEnabled }
@@ -86,22 +84,20 @@ struct RuleCollectionsCoordinatorBatchTests {
 
         await coordinator.batchEnableCollections(ids: Array(disabledIDs))
 
-        #expect(applyCount == 1, "applyMappings should be called exactly once for a batch operation")
-        #expect(notifyCount == 1, "notifyStateChanged should be called exactly once for a batch operation")
+        #expect(reloadCount == 1)
+        #expect(coordinator.keyMappings == manager.enabledMappings())
     }
 }
 
 // MARK: - Custom Rules
 
-@Suite("RuleCollectionsCoordinator — Custom Rules")
+@Suite("Runtime rule mutations — Custom Rules")
 @MainActor
-struct RuleCollectionsCoordinatorCustomRuleTests {
+struct RuntimeCustomRuleTests {
     @Test("makeCustomRule creates rule with correct input and output")
     func makeCustomRuleCorrectFields() throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
+        let (coordinator, tempDir) = try makeTestRuntime()
+        defer { cleanUp(tempDir) }
 
         let rule = coordinator.makeCustomRule(input: "caps_lock", output: "escape")
 
@@ -111,10 +107,8 @@ struct RuleCollectionsCoordinatorCustomRuleTests {
 
     @Test("saveCustomRule adds rule to customRules")
     func saveCustomRuleAddsRule() async throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
+        let (coordinator, tempDir) = try makeTestRuntime()
+        defer { cleanUp(tempDir) }
 
         let rule = coordinator.makeCustomRule(input: "a", output: "b")
         let saved = await coordinator.saveCustomRule(rule, skipReload: true)
@@ -126,10 +120,8 @@ struct RuleCollectionsCoordinatorCustomRuleTests {
 
     @Test("removeCustomRule removes the rule")
     func removeCustomRuleRemovesIt() async throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
+        let (coordinator, tempDir) = try makeTestRuntime()
+        defer { cleanUp(tempDir) }
 
         let rule = coordinator.makeCustomRule(input: "q", output: "w")
         _ = await coordinator.saveCustomRule(rule, skipReload: true)
@@ -143,10 +135,8 @@ struct RuleCollectionsCoordinatorCustomRuleTests {
 
     @Test("clearAllCustomRules empties the list")
     func clearAllCustomRulesEmptiesList() async throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
+        let (coordinator, tempDir) = try makeTestRuntime()
+        defer { cleanUp(tempDir) }
 
         // Save two rules
         let rule1 = coordinator.makeCustomRule(input: "m", output: "n")
@@ -163,36 +153,17 @@ struct RuleCollectionsCoordinatorCustomRuleTests {
 
 // MARK: - Read-Only Access
 
-@Suite("RuleCollectionsCoordinator — Read-Only Access")
+@Suite("Runtime rule mutations — Read-Only Access")
 @MainActor
-struct RuleCollectionsCoordinatorReadOnlyTests {
+struct RuntimeRuleReadOnlyTests {
     @Test("ruleCollections returns manager's collections matching catalog count")
     func ruleCollectionsMatchesCatalog() throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
+        let (coordinator, tempDir) = try makeTestRuntime()
+        defer { cleanUp(tempDir) }
         let catalog = RuleCollectionCatalog()
         let expected = catalog.defaultCollections()
 
         #expect(coordinator.ruleCollections.count == expected.count,
                 "Coordinator should expose the same number of collections as the catalog")
-    }
-
-    @Test("enabledMappings returns non-empty for catalog defaults")
-    func enabledMappingsNonEmpty() throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
-
-        // The catalog ships with some enabled-by-default collections that produce mappings
-        let mappings = coordinator.enabledMappings()
-
-        // At minimum, verify the method runs and returns an array.
-        // Some catalogs may have no enabled-by-default mappings, so we check >= 0
-        // but also verify the count matches what the manager would return directly.
-        #expect(mappings.count == manager.enabledMappings().count,
-                "Coordinator's enabledMappings should mirror manager's enabledMappings")
     }
 }

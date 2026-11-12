@@ -168,18 +168,15 @@ final class CollectionMembershipRecoveryTests: KeyPathTestCase {
         XCTAssertTrue(viewModel.toastMessage?.contains("driverless session") == true)
     }
 
-    func testCoordinatorReturnsRejectionAndPublishesRestoredMappings() async throws {
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
-        var observedMappings: [KeyMapping]?
-        var notifications = 0
-        coordinator.configure(applyMappings: { observedMappings = $0 }, notifyStateChanged: { notifications += 1 })
+    func testRuntimeReturnsRejectionAndRefreshesRestoredMappings() async throws {
+        let coordinator = RuntimeCoordinator(injectedConfigurationService: manager.configurationService,
+                                             injectedRuleCollectionsManager: manager)
         let originalMappings = manager.enabledMappings()
         try await assertRejectedMutationRestores {
             let saved = await coordinator.addRuleCollection(self.collection("New"))
             XCTAssertFalse(saved)
         }
-        XCTAssertEqual(observedMappings, originalMappings)
-        XCTAssertEqual(notifications, 1)
+        XCTAssertEqual(coordinator.keyMappings, originalMappings)
     }
 
     func testMapperDoesNotSelectRejectedNewLayer() async {

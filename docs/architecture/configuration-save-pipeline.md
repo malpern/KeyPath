@@ -367,9 +367,8 @@ committed (applied, pending, or explicitly headless); creation logs completion o
 on success. Existing membership/conflict policy is unchanged. Leader preference
 writes and other collection mutators remain separate migration work.
 
-Collection addition's Boolean now propagates through RuleCollectionsCoordinator,
-RuntimeCoordinator and KanataViewModel. Both Karabiner import surfaces include
-unsaved collections in their existing partial-import error instead of completing
+The collection-addition success flag reaches RuntimeCoordinator and KanataViewModel.
+Both Karabiner import surfaces include unsaved collections in their existing partial-import error instead of completing
 or dismissing. Mapper creation selects the new layer only after a successful
 save and refresh, and preserves navigation made while saving. This corrects
 existing failure handling; no new status UI or import atomicity is introduced.
