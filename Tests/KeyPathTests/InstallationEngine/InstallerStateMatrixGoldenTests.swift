@@ -131,7 +131,7 @@ final class InstallerStateMatrixGoldenTests: XCTestCase {
                 expectedPlan: [.restartOrRecoverKanataRuntime]
             ),
             GoldenCase(
-                name: "Session tap active and TCP responding",
+                name: "Session tap active and engine responding",
                 snapshot: matrixSnapshot(),
                 expectedRow: .sessionRuntimeReady,
                 expectedPlan: []

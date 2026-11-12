@@ -12,7 +12,7 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
             XCTAssertEqual(result.0, .serviceNotRunning)
             let issue = try XCTUnwrap(result.1.first)
             XCTAssertEqual(issue.identifier, .daemon)
-            XCTAssertEqual(issue.autoFixAction, .restartCommServer)
+            XCTAssertEqual(issue.autoFixAction, .startSessionRuntime)
             XCTAssertFalse(issue.description.contains("approval"))
             XCTAssertFalse(issue.description.contains("Full Disk Access"))
         }
@@ -58,14 +58,14 @@ final class SessionInspectorPermissionEvidenceTests: XCTestCase {
         let result = inspect(appAX: .unknown)
         XCTAssertEqual(result.0, .serviceNotRunning)
         XCTAssertEqual(result.1.first?.identifier, .daemon)
-        XCTAssertEqual(result.1.first?.autoFixAction, .restartCommServer)
+        XCTAssertEqual(result.1.first?.autoFixAction, .startSessionRuntime)
     }
 
     func testGrantedChecksWithInactiveTapRequestRuntimeRepair() {
         let result = inspect(tapActive: false)
         XCTAssertEqual(result.0, .serviceNotRunning)
         XCTAssertEqual(result.1.first?.identifier, .daemon)
-        XCTAssertEqual(result.1.first?.autoFixAction, .restartCommServer)
+        XCTAssertEqual(result.1.first?.autoFixAction, .startSessionRuntime)
     }
 
     func testGrantedPermissionsWithReadyRuntimeAreActive() {

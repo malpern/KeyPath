@@ -5,7 +5,7 @@ import KeyPathWizardCore
 /// Rows from `docs/process/installer-repair-state-matrix.md`.
 public enum InstallerStateMatrixRow: String, CaseIterable, Sendable, Equatable {
     case sessionRuntimeStopped = "Session runtime stopped or not ready"
-    case sessionRuntimeReady = "Session tap active and TCP responding"
+    case sessionRuntimeReady = "Session tap active and engine responding"
 }
 
 /// A value captured from system evidence, preserving the difference between

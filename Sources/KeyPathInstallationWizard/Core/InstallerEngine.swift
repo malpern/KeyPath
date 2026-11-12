@@ -558,8 +558,6 @@ public final class InstallerEngine {
         case InstallerRecipeID.startSessionRuntime:
             return recipe.type == .installComponent
                 && recipe.expectedPostconditions == [.runtimeReadyOrApprovalPending]
-        case InstallerRecipeID.synchronizeConfigPaths:
-            return recipe.type == .checkRequirement && recipe.expectedPostconditions.isEmpty
         default:
             return false
         }
@@ -583,10 +581,6 @@ public final class InstallerEngine {
             guard await WizardDependencies.runtimeCoordinator?.startKanata(reason: "Driverless setup") == true else {
                 throw InstallerError.healthCheckFailed("Session runtime did not become ready")
             }
-        case InstallerRecipeID.synchronizeConfigPaths:
-            guard FileManager.default.fileExists(atPath: KeyPathConstants.Config.mainConfigPath) else {
-                throw InstallerError.healthCheckFailed("User configuration is missing")
-            }
         default:
             throw InstallerError.unknownRecipe("Recipe unavailable in the driverless build: \(recipe.id)")
         }
@@ -595,7 +589,7 @@ public final class InstallerEngine {
 
     // MARK: - Public Health Check API
 
-    /// Check Kanata session runtime health (running + TCP responsive + input capture)
+    /// Check Kanata session runtime health (running + engine socket responding + input capture)
     public func checkKanataServiceHealth() async -> KanataRuntimeReadiness {
         await ServiceHealthChecker.shared.checkKanataServiceHealth()
     }
@@ -708,7 +702,7 @@ public extension InstallerEngine {
     nonisolated static func actions(for intent: InstallIntent, context: SystemContext) -> [AutoFixAction] {
         switch intent {
         case .install, .repair:
-            context.services.kanataRuntimeReadiness.isReady ? [] : [.restartCommServer]
+            context.services.kanataRuntimeReadiness.isReady ? [] : [.startSessionRuntime]
         case .uninstall, .inspectOnly:
             []
         }
@@ -716,20 +710,17 @@ public extension InstallerEngine {
 
     nonisolated static func recipeID(for action: AutoFixAction) -> String {
         switch action {
-        case .restartCommServer: InstallerRecipeID.startSessionRuntime
-        case .synchronizeConfigPaths: InstallerRecipeID.synchronizeConfigPaths
+        case .startSessionRuntime: InstallerRecipeID.startSessionRuntime
         }
     }
 
     func recipeForAction(_ action: AutoFixAction) -> ServiceRecipe {
         switch action {
-        case .restartCommServer:
+        case .startSessionRuntime:
             ServiceRecipe(
                 id: InstallerRecipeID.startSessionRuntime, type: .installComponent,
                 expectedPostconditions: [.runtimeReadyOrApprovalPending]
             )
-        case .synchronizeConfigPaths:
-            ServiceRecipe(id: InstallerRecipeID.synchronizeConfigPaths, type: .checkRequirement)
         }
     }
 }

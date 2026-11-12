@@ -32,7 +32,7 @@ final class SystemStateProjectionPermissionSeverityTests: XCTestCase {
                        "An unverified permission must not be presented as a consent the user has to give")
         let evidenceIssue = result.issues.first { $0.identifier == .daemon }
         XCTAssertNotNil(evidenceIssue, "Projection should ask the runtime for fresh evidence")
-        XCTAssertEqual(evidenceIssue?.autoFixAction, .restartCommServer)
+        XCTAssertEqual(evidenceIssue?.autoFixAction, .startSessionRuntime)
         XCTAssertFalse(
             evidenceIssue?.description.localizedCaseInsensitiveContains("denied") ?? true,
             "Unknown/not verified should not claim permission is denied"

@@ -26,7 +26,7 @@ final class WizardRecipeParityTests: KeyPathTestCase {
 
     func testSupportedActionIDsMatchRestrictedRecipes() {
         let engine = InstallerEngine()
-        for action in [AutoFixAction.restartCommServer, .synchronizeConfigPaths] {
+        for action in [AutoFixAction.startSessionRuntime] {
             let recipe = engine.recipeForAction(action)
             XCTAssertEqual(recipe.id, InstallerEngine.recipeID(for: action))
             XCTAssertTrue(recipe.dependencies.isEmpty)
@@ -38,7 +38,7 @@ final class WizardRecipeParityTests: KeyPathTestCase {
         for intent in [InstallIntent.install, .repair] {
             let captured = context(running: false)
             let plan = await engine.makePlan(for: intent, context: captured)
-            XCTAssertEqual(plan.recipes.map(\.id), [InstallerEngine.recipeID(for: .restartCommServer)])
+            XCTAssertEqual(plan.recipes.map(\.id), [InstallerEngine.recipeID(for: .startSessionRuntime)])
             XCTAssertEqual(plan.recipes.first?.expectedPostconditions, [.runtimeReadyOrApprovalPending])
             XCTAssertEqual(plan.sourceSnapshotID, captured.snapshotID)
         }

@@ -485,10 +485,8 @@ public struct WizardError: LocalizedError {
 public extension AutoFixAction {
     var displayName: String {
         switch self {
-        case .synchronizeConfigPaths:
-            "Synchronize Config Paths"
-        case .restartCommServer:
-            "Restart TCP Server"
+        case .startSessionRuntime:
+            "Start Remapping Engine"
         }
     }
 }

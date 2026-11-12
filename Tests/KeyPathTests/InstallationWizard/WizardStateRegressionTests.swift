@@ -54,7 +54,7 @@ final class WizardStateRegressionTests: XCTestCase {
         )
         let result = SystemStateResult.projecting(context)
         XCTAssertEqual(result.state, .serviceNotRunning)
-        XCTAssertEqual(result.autoFixActions, [.restartCommServer])
+        XCTAssertEqual(result.autoFixActions, [.startSessionRuntime])
         XCTAssertTrue(result.issues.contains { $0.identifier == .daemon })
         XCTAssertFalse(result.issues.contains { $0.category == .permissions })
     }

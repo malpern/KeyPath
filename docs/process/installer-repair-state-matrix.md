@@ -40,7 +40,7 @@ process that never reported, or old log-derived diagnosis.
 
 When signals disagree, prefer evidence in this order:
 
-1. Current runtime readiness: `running + TCP responding`.
+1. Current runtime readiness: `running + engine socket responding`.
 2. KeyPath's current Accessibility grant and the runtime's key-access report.
 3. Bundled payload (file) existence.
 4. Old logs, cached issue strings, restart-window heuristics.
@@ -56,8 +56,8 @@ backend switch with them (ADR-047); see git history for them.
 
 | State | Typical Evidence | Planner Should | Success Postcondition | Test Requirement |
 |-------|------------------|----------------|-----------------------|------------------|
-| Session runtime stopped or not ready | Current tap/process/TCP or bundled payload evidence is missing | Start/recover through the session lifecycle owner; request Accessibility only if needed | Current tap active, process live, TCP responding and bundled payload present; otherwise explicit failure or user action | Session golden fixture, plus unknown-capture and missing-payload rejection |
-| Session tap active and TCP responding | Current independently verified tap, process, TCP and bundled payload | Nothing to install or repair | Runtime ready | Session ready golden fixture |
+| Session runtime stopped or not ready | Current tap/process/engine socket or bundled payload evidence is missing | Start/recover through the session lifecycle owner; request Accessibility only if needed | Current tap active, process live, engine socket responding and bundled payload present; otherwise explicit failure or user action | Session golden fixture, plus unknown-capture and missing-payload rejection |
+| Session tap active and engine responding | Current independently verified tap, process, engine socket and bundled payload | Nothing to install or repair | Runtime ready | Session ready golden fixture |
 
 ## Uninstall
 

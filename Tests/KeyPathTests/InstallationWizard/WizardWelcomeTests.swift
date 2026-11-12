@@ -73,7 +73,7 @@ final class WizardWelcomeTests: XCTestCase {
         let runtimeIssue = WizardIssue(
             identifier: .daemon, severity: .error, category: .daemon,
             title: "Start driverless remapping", description: "The session keyboard runtime is stopped or not ready.",
-            autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+            autoFixAction: .startSessionRuntime, userAction: "Start the keyboard service"
         )
         let next = WizardRouter.nextPage(
             after: .welcome, state: .serviceNotRunning, issues: [runtimeIssue]

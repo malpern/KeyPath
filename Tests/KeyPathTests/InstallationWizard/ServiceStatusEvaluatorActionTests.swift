@@ -8,7 +8,7 @@ final class ServiceStatusEvaluatorActionTests: XCTestCase {
         let issue = WizardIssue(
             identifier: .daemon, severity: .error, category: .daemon,
             title: "Start driverless remapping", description: "Runtime was stopped",
-            autoFixAction: .restartCommServer, userAction: "Start the keyboard service"
+            autoFixAction: .startSessionRuntime, userAction: "Start the keyboard service"
         )
         XCTAssertEqual(ServiceStatusEvaluator.evaluateObservedRuntime(
             runtimeStatus: .running(pid: 42), systemState: .serviceNotRunning, issues: [issue]

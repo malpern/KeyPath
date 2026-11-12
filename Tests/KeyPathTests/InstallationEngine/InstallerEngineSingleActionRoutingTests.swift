@@ -31,7 +31,7 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         WizardDependencies.runtimeCoordinator = runtime
         let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
 
-        let report = await engine(finalContext: ready).runSingleAction(.restartCommServer)
+        let report = await engine(finalContext: ready).runSingleAction(.startSessionRuntime)
 
         XCTAssertTrue(report.success, report.failureReason ?? "")
         XCTAssertEqual(report.executedRecipes.map(\.recipeID), [InstallerRecipeID.startSessionRuntime])
@@ -43,57 +43,12 @@ final class InstallerEngineSingleActionRoutingTests: KeyPathAsyncTestCase {
         WizardDependencies.runtimeCoordinator = runtime
         let stopped = SystemContextBuilder.cleanInstall()
 
-        let report = await engine(finalContext: stopped).runSingleAction(.restartCommServer)
+        let report = await engine(finalContext: stopped).runSingleAction(.startSessionRuntime)
 
         XCTAssertFalse(report.success)
         XCTAssertEqual(report.executedRecipes.map(\.recipeID), [InstallerRecipeID.startSessionRuntime])
         XCTAssertEqual(report.executedRecipes.first?.success, false)
         XCTAssertEqual(runtime.starts, 1)
-    }
-
-    func testSynchronizeConfigPathsRunsConfigCheckRecipe() async throws {
-        let runtime = SessionStartStub(startSucceeds: true)
-        WizardDependencies.runtimeCoordinator = runtime
-        let restore = try ensureUserConfig(present: true)
-        defer { restore() }
-        let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
-
-        let report = await engine(finalContext: ready).runSingleAction(.synchronizeConfigPaths)
-
-        XCTAssertTrue(report.success, report.failureReason ?? "")
-        XCTAssertEqual(report.executedRecipes.map(\.recipeID), [InstallerRecipeID.synchronizeConfigPaths])
-        XCTAssertEqual(runtime.starts, 0, "The config check must not start the runtime")
-    }
-
-    func testSynchronizeConfigPathsFailsWithoutUserConfig() async throws {
-        WizardDependencies.runtimeCoordinator = SessionStartStub(startSucceeds: true)
-        let restore = try ensureUserConfig(present: false)
-        defer { restore() }
-        let ready = SystemContextBuilder(servicesHealthy: true, componentsInstalled: true).build()
-
-        let report = await engine(finalContext: ready).runSingleAction(.synchronizeConfigPaths)
-
-        XCTAssertFalse(report.success)
-        XCTAssertTrue(report.failureReason?.contains("User configuration is missing") ?? false)
-    }
-
-    /// Puts the sandboxed user config into the requested state and returns a restore closure.
-    private func ensureUserConfig(present: Bool) throws -> () -> Void {
-        let fm = FileManager.default
-        let path = KeyPathConstants.Config.mainConfigPath
-        let backup = path + ".single-action-test-backup"
-        let existed = fm.fileExists(atPath: path)
-        if existed { try? fm.removeItem(atPath: backup); try fm.copyItem(atPath: path, toPath: backup) }
-        if present {
-            try fm.createDirectory(atPath: KeyPathConstants.Config.directory, withIntermediateDirectories: true)
-            if !existed { try "(defsrc)\n(deflayer base)\n".write(toFile: path, atomically: true, encoding: .utf8) }
-        } else if existed {
-            try fm.removeItem(atPath: path)
-        }
-        return {
-            try? fm.removeItem(atPath: path)
-            if existed { try? fm.moveItem(atPath: backup, toPath: path) }
-        }
     }
 }
 

@@ -8,9 +8,7 @@ import KeyPathWizardCore
 public enum AutoFixActionDescriptions {
     public static func describe(_ action: AutoFixAction) -> String {
         switch action {
-        case .synchronizeConfigPaths:
-            "Fix config path mismatch between KeyPath and Kanata"
-        case .restartCommServer:
+        case .startSessionRuntime:
             "Start KeyPath's remapping engine"
         }
     }

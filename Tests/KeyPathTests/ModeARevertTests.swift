@@ -26,7 +26,7 @@ final class ModeARevertTests: XCTestCase {
             "A historical daemon rejection must not override granted session capabilities"
         )
         XCTAssertFalse(result.issues.contains { $0.identifier.isPermission })
-        XCTAssertEqual(result.issues.first { $0.identifier == .daemon }?.autoFixAction, .restartCommServer)
+        XCTAssertEqual(result.issues.first { $0.identifier == .daemon }?.autoFixAction, .startSessionRuntime)
     }
 
     func testAdapterDoesNotEmitRuntimeIssueWhenPermissionRejected() {
