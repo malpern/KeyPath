@@ -27,12 +27,10 @@ extension RuntimeCoordinator {
         lastConfigUpdate = Date()
     }
 
-    @discardableResult
-    func toggleRuleCollection(id: UUID, isEnabled: Bool) async -> Bool {
-        AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection: id=\(id), isEnabled=\(isEnabled)")
-        let success = await ruleCollectionsCoordinator.toggleRuleCollection(id: id, isEnabled: isEnabled)
-        AppLogger.shared.log("🎚️ [RuntimeCoordinator] toggleRuleCollection completed (success=\(success))")
-        return success
+    func refreshRuleMappings() {
+        let mappings = ruleCollectionsManager.committedRuleCollections.enabledMappings() + customRules.enabledMappings()
+        applyKeyMappings(mappings, persistCollections: false)
+        notifyStateChanged()
     }
 
     func batchEnableCollections(ids: [UUID]) async {

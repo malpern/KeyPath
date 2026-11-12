@@ -958,7 +958,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             lastError: lastError,
             lastWarning: lastWarning,
             keyMappings: keyMappings,
-            ruleCollections: ruleCollections,
             customRules: customRules,
             currentLayerName: currentLayerName,
             diagnostics: diagnostics,

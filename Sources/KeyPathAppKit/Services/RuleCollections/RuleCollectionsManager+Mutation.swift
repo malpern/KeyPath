@@ -126,7 +126,7 @@ extension RuleCollectionsManager {
         _ operation: @escaping @MainActor @Sendable (ConfigurationOperationGate.Permit) async -> Result
     ) async -> Result {
         do {
-            return try await configurationService.operationGate.withOperation(using: permit) { @MainActor admitted in
+            return try await withCollectionMutation(using: permit) { @MainActor admitted in
                 await operation(admitted)
             }
         } catch is CancellationError {

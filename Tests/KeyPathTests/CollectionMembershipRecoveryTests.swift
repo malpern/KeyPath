@@ -1,6 +1,7 @@
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathRulesCore
+import Observation
 @preconcurrency import XCTest
 
 @MainActor
@@ -58,7 +59,11 @@ final class CollectionMembershipRecoveryTests: KeyPathTestCase {
         let snapshot = manager.snapshotRuleState()
         var reloads = 0
         var errors: [String] = []
-        manager.onError = { errors.append($0) }
+        let reportError = manager.onError
+        manager.onError = {
+            errors.append($0)
+            reportError?($0)
+        }
         manager.onRulesChanged = {
             reloads += 1
             if reloads == 2 {
@@ -82,6 +87,85 @@ final class CollectionMembershipRecoveryTests: KeyPathTestCase {
             let saved = await self.manager.addCollection(self.collection("New"))
             XCTAssertFalse(saved)
         }
+    }
+
+    func testViewModelTogglePublishesAfterSavingAndReloading() async throws {
+        let runtime = RuntimeCoordinator(injectedConfigurationService: manager.configurationService,
+                                         injectedRuleCollectionsManager: manager)
+        let viewModel = KanataViewModel(manager: runtime)
+        let id = try XCTUnwrap(viewModel.ruleCollections.first?.id)
+        let before = try files()
+        let collectionChanged = expectation(description: "View observes settled collections")
+        withObservationTracking {
+            XCTAssertEqual(viewModel.ruleCollections.first?.isEnabled, true)
+        } onChange: {
+            collectionChanged.fulfill()
+        }
+
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            XCTAssertEqual(viewModel.ruleCollections.first?.isEnabled, true, "Reload has not settled yet")
+            do {
+                let candidate = try self.files()
+                XCTAssertNotEqual(candidate["keypath.kbd"], before["keypath.kbd"])
+                XCTAssertNotEqual(candidate["RuleCollections.json"], before["RuleCollections.json"])
+            } catch {
+                XCTFail("Could not read staged rule files: \(error)")
+            }
+            return Self.reload(.applied)
+        }
+
+        await viewModel.toggleRuleCollection(id, enabled: false)
+
+        await fulfillment(of: [collectionChanged], timeout: 1)
+        XCTAssertEqual(reloads, 1)
+        let storedCollections = try await manager.ruleCollectionStore.loadForMutation()
+        XCTAssertEqual(storedCollections.first { $0.id == id }?.isEnabled, false)
+        XCTAssertEqual(viewModel.ruleCollections.first { $0.id == id }?.isEnabled, false)
+        XCTAssertEqual(runtime.keyMappings, manager.enabledMappings())
+        XCTAssertEqual(viewModel.toastType, .info)
+        XCTAssertNotNil(viewModel.toastMessage)
+    }
+
+    func testViewModelToggleReportsReloadRejectionAndKeepsPreviousRules() async throws {
+        let runtime = RuntimeCoordinator(injectedConfigurationService: manager.configurationService,
+                                         injectedRuleCollectionsManager: manager)
+        let viewModel = KanataViewModel(manager: runtime)
+        let id = try XCTUnwrap(viewModel.ruleCollections.first?.id)
+        let previousCollections = viewModel.ruleCollections
+
+        try await assertRejectedMutationRestores {
+            await viewModel.toggleRuleCollection(id, enabled: false)
+        }
+
+        XCTAssertEqual(viewModel.ruleCollections, previousCollections)
+        XCTAssertEqual(runtime.keyMappings, manager.enabledMappings())
+        XCTAssertTrue(runtime.lastError?.contains("injected rejected") == true)
+        XCTAssertEqual(viewModel.toastType, .error)
+        XCTAssertTrue(viewModel.toastMessage?.contains("injected rejected") == true)
+    }
+
+    func testViewModelToggleReportsValidationFailureWithoutReloading() async throws {
+        var unsupported = collection("Unsupported output", enabled: false)
+        unsupported.mappings = [KeyMapping(input: "f13", action: .keystroke(key: "fn"))]
+        manager.ruleCollections.append(unsupported)
+        try await persistFixture()
+        let before = try files()
+        let runtime = RuntimeCoordinator(injectedConfigurationService: manager.configurationService,
+                                         injectedRuleCollectionsManager: manager)
+        let viewModel = KanataViewModel(manager: runtime)
+        manager.onRulesChanged = {
+            XCTFail("An invalid configuration must not reach reload")
+            return Self.reload(.applied)
+        }
+
+        await viewModel.toggleRuleCollection(unsupported.id, enabled: true)
+
+        XCTAssertEqual(try files(), before)
+        XCTAssertEqual(viewModel.ruleCollections.first { $0.id == unsupported.id }?.isEnabled, false)
+        XCTAssertEqual(viewModel.toastType, .error)
+        XCTAssertTrue(viewModel.toastMessage?.contains("driverless session") == true)
     }
 
     func testCoordinatorReturnsRejectionAndPublishesRestoredMappings() async throws {

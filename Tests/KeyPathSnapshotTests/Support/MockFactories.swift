@@ -235,10 +235,8 @@ extension MockFactories {
     @MainActor
     static func kanataViewModel() -> KanataViewModel {
         let coordinator = RuntimeCoordinator()
-        let vm = KanataViewModel(manager: coordinator)
-        let catalog = RuleCollectionCatalog()
-        vm.ruleCollections = catalog.defaultCollections()
-        return vm
+        coordinator.ruleCollectionsManager.ruleCollections = RuleCollectionCatalog().defaultCollections()
+        return KanataViewModel(manager: coordinator)
     }
 
     @MainActor
@@ -278,8 +276,6 @@ extension MockFactories {
             injectedConfigurationService: configService,
             injectedRuleCollectionsManager: manager
         )
-        let vm = KanataViewModel(manager: coordinator)
-        vm.ruleCollections = collections
-        return vm
+        return KanataViewModel(manager: coordinator)
     }
 }

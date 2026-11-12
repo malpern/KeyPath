@@ -55,17 +55,6 @@ final class RuleCollectionsCoordinator {
         return result
     }
 
-    /// Toggle a rule collection's enabled state
-    /// - Returns: `true` if the toggle was applied successfully
-    @discardableResult
-    func toggleRuleCollection(id: UUID, isEnabled: Bool) async -> Bool {
-        AppLogger.shared.log("🎚️ [RuleCollectionsCoordinator] toggleRuleCollection: id=\(id), isEnabled=\(isEnabled)")
-        let success = await ruleCollectionsManager.toggleCollection(id: id, isEnabled: isEnabled)
-        applyMappings(ruleCollectionsManager.enabledMappings())
-        notifyStateChanged()
-        return success
-    }
-
     /// Enable multiple collections in a single batch (one config regeneration)
     func batchEnableCollections(ids: [UUID]) async {
         AppLogger.shared.log("🎚️ [RuleCollectionsCoordinator] batchEnableCollections: \(ids.count) collections")

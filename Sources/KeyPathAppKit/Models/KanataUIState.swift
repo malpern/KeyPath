@@ -34,7 +34,6 @@ struct KanataUIState: Sendable {
     let lastError: String?
     let lastWarning: String?
     let keyMappings: [KeyMapping]
-    let ruleCollections: [RuleCollection]
     let customRules: [CustomRule]
     let currentLayerName: String
     let diagnostics: [KanataDiagnostic]
@@ -67,7 +66,6 @@ struct KanataUIState: Sendable {
         lastError: nil,
         lastWarning: nil,
         keyMappings: [],
-        ruleCollections: [],
         customRules: [],
         currentLayerName: "base",
         diagnostics: [],
