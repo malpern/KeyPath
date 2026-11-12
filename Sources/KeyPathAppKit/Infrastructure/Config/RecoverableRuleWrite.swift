@@ -166,7 +166,7 @@ enum RecoverableRuleWrite {
             case .invalidJournal: String(localized: "The pending rule-write journal does not match these rule stores.")
             case let .changedFile(role): String(localized: "The \(role) file changed outside this operation. Recovery was stopped to preserve it.")
             case let .changedPreference(key): String(localized: "The \(key) preference changed outside this operation. Recovery was stopped to preserve it.")
-            case let .systemCall(operation, code): String(localized: "Rule-write \(operation) failed (errno \(code)).")
+            case let .systemCall(operation, code): String(localized: "Rule-write \(operation) failed (errno \(String(code))).")
             }
         }
     }

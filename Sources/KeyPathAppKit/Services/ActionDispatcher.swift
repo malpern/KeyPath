@@ -896,7 +896,7 @@ public final class ActionDispatcher {
         let result = try await SubprocessRunner.shared.run(executable, args: args, timeout: 60)
         if result.exitCode != 0 {
             throw NSError(domain: "ShellScript", code: Int(result.exitCode), userInfo: [
-                NSLocalizedDescriptionKey: String(localized: "Script exited with code \(result.exitCode): \(result.stderr)")
+                NSLocalizedDescriptionKey: String(localized: "Script exited with code \(String(result.exitCode)): \(result.stderr)")
             ])
         }
     }
@@ -928,7 +928,7 @@ public final class ActionDispatcher {
         let result = try await SubprocessRunner.shared.run(interpreter, args: [path], timeout: 60)
         if result.exitCode != 0 {
             throw NSError(domain: "InterpretedScript", code: Int(result.exitCode), userInfo: [
-                NSLocalizedDescriptionKey: String(localized: "Script exited with code \(result.exitCode): \(result.stderr)")
+                NSLocalizedDescriptionKey: String(localized: "Script exited with code \(String(result.exitCode)): \(result.stderr)")
             ])
         }
     }

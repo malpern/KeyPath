@@ -300,9 +300,9 @@ public enum Issue: Equatable {
         case let .conflict(conflict):
             switch conflict {
             case let .kanataProcessRunning(pid, _):
-                String(localized: "Conflicting Kanata process (PID \(pid))")
+                String(localized: "Conflicting Kanata process (PID \(String(pid)))")
             case let .karabinerGrabberRunning(pid):
-                String(localized: "Karabiner Grabber running (PID \(pid))")
+                String(localized: "Karabiner Grabber running (PID \(String(pid)))")
             case let .exclusiveDeviceAccess(device):
                 String(localized: "Device \(device) in use")
             }

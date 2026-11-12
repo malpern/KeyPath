@@ -345,11 +345,11 @@ public enum KeyPathError: Error, LocalizedError {
         case .oracleInitializationFailed:
             String(localized: "Permission oracle initialization failed")
         case let .keychainSaveFailed(status):
-            String(localized: "Keychain save failed with status: \(status)")
+            String(localized: "Keychain save failed with status: \(String(status))")
         case let .keychainLoadFailed(status):
-            String(localized: "Keychain load failed with status: \(status)")
+            String(localized: "Keychain load failed with status: \(String(status))")
         case let .keychainDeleteFailed(status):
-            String(localized: "Keychain delete failed with status: \(status)")
+            String(localized: "Keychain delete failed with status: \(String(status))")
         case let .privilegedOperationFailed(operation, reason):
             String(localized: "Privileged operation '\(operation)' failed: \(reason)")
         }
@@ -366,7 +366,7 @@ public enum KeyPathError: Error, LocalizedError {
         case let .outputSynthesisFailed(reason):
             String(localized: "Output synthesis failed: \(reason)")
         case let .invalidKeyCode(code):
-            String(localized: "Invalid key code: \(code)")
+            String(localized: "Invalid key code: \(String(code))")
         case .deviceNotFound:
             String(localized: "Device not found")
         case let .driverNotLoaded(driver):
@@ -387,7 +387,7 @@ public enum KeyPathError: Error, LocalizedError {
         case .notAuthenticated:
             String(localized: "Not authenticated")
         case let .payloadTooLarge(size):
-            String(localized: "Payload too large: \(size) bytes")
+            String(localized: "Payload too large: \(String(size)) bytes")
         case let .connectionFailed(reason):
             String(localized: "Connection failed: \(reason)")
         case .serializationFailed:

@@ -33,7 +33,7 @@ actor ConfigurationOperationGate {
             case .invalidPermit:
                 String(localized: "The configuration operation permit is no longer active.")
             case let .fileLock(operation, code):
-                String(localized: "Configuration operation lock \(operation) failed (errno \(code)).")
+                String(localized: "Configuration operation lock \(operation) failed (errno \(String(code))).")
             case .invalidLockFile:
                 String(localized: "The configuration operation lock is not a regular file.")
             }

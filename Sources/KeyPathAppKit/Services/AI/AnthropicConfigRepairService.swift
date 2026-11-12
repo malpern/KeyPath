@@ -119,7 +119,7 @@ public actor AnthropicConfigRepairService: ConfigRepairService {
                 domain: "ClaudeAPI", code: httpResponse.statusCode,
                 userInfo: [
                     NSLocalizedDescriptionKey:
-                        String(localized: "API request failed (\(httpResponse.statusCode)): \(errorMessage)")
+                        String(localized: "API request failed (\(String(httpResponse.statusCode))): \(errorMessage)")
                 ]
             )
         }

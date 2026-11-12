@@ -190,7 +190,7 @@ extension OverlayKeycapView {
     }
 
     private var keyMenuName: String {
-        key.label.isEmpty ? String(localized: "Key \(key.keyCode)") : key.label.count == 1 ? key.label.uppercased() : key.label
+        key.label.isEmpty ? String(localized: "Key \(String(key.keyCode))") : key.label.count == 1 ? key.label.uppercased() : key.label
     }
 
     var keycapBody: some View {
@@ -249,7 +249,7 @@ extension OverlayKeycapView {
         if key.layoutRole == .touchId {
             return isInspectorVisible ? String(localized: "Close settings drawer") : String(localized: "Open settings drawer")
         }
-        let keyName = key.label.isEmpty ? String(localized: "Key \(key.keyCode)") : key.label
+        let keyName = key.label.isEmpty ? String(localized: "Key \(String(key.keyCode))") : key.label
 
         // Launcher mode: describe the app/URL this key launches
         if isLauncherMode, let mapping = launcherMapping {

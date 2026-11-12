@@ -40,7 +40,7 @@ public actor APIKeyValidator {
             case let .networkError(message):
                 String(localized: "Network error: \(message)")
             case let .apiError(statusCode, message):
-                String(localized: "API error (\(statusCode)): \(message)")
+                String(localized: "API error (\(String(statusCode))): \(message)")
             case .invalidResponse:
                 String(localized: "Invalid response from API")
             }

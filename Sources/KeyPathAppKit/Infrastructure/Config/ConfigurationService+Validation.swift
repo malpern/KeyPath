@@ -60,7 +60,7 @@ extension ConfigurationService {
                 }
 
                 if errors.isEmpty {
-                    errors.append(String(localized: "Configuration validation failed (exit code: \(result.exitCode))"))
+                    errors.append(String(localized: "Configuration validation failed (exit code: \(String(result.exitCode)))"))
                 }
 
                 AppLogger.shared.log("❌ [ConfigService] File validation failed: \(errors)")

@@ -224,7 +224,7 @@ enum SimulatorError: Error, LocalizedError {
         case let .configNotFound(path):
             String(localized: "Config not found: \(path)")
         case let .processFailedWithCode(code, msg):
-            String(localized: "Simulator failed (\(code)): \(msg)")
+            String(localized: "Simulator failed (\(String(code))): \(msg)")
         case let .invalidJSON(msg):
             String(localized: "Invalid JSON output: \(msg)")
         }
