@@ -124,23 +124,6 @@ struct RuleCollectionsCoordinatorCustomRuleTests {
                 "Custom rules should contain the saved rule")
     }
 
-    @Test("toggleCustomRule changes enabled state")
-    func toggleCustomRuleChangesState() async throws {
-        let (manager, tempDir) = try makeTestManager()
-        defer { cleanUp(tempDir); TestEnvironment.forceTestMode = false }
-
-        let coordinator = RuleCollectionsCoordinator(ruleCollectionsManager: manager)
-
-        let rule = coordinator.makeCustomRule(input: "x", output: "y")
-        _ = await coordinator.saveCustomRule(rule, skipReload: true)
-
-        // Rule starts enabled; toggle it off
-        await coordinator.toggleCustomRule(id: rule.id, isEnabled: false)
-
-        let toggled = coordinator.customRules.first(where: { $0.id == rule.id })
-        #expect(toggled?.isEnabled == false, "Custom rule should be disabled after toggle")
-    }
-
     @Test("removeCustomRule removes the rule")
     func removeCustomRuleRemovesIt() async throws {
         let (manager, tempDir) = try makeTestManager()

@@ -260,7 +260,7 @@ final class SharedConfigurationAdmissionTests: KeyPathTestCase {
         try await withFixture { _, manager, coordinator in
             let rule = manager.makeCustomRule(input: "a", output: "c")
             let result = await coordinator.saveGeneratedConfig(content: "(defcfg)\n(defsrc a)\n(deflayer base b)") {
-                let restored = await manager.rollbackToSnapshot((collections: [], customRules: [rule]), userMessage: "Restored")
+                let restored = await manager.rollbackToSnapshot(.init(collections: [], customRules: [rule]), userMessage: "Restored")
                 XCTAssertFalse(restored)
                 return ReloadResult(success: true, response: nil, errorMessage: nil, protocol: nil)
             }

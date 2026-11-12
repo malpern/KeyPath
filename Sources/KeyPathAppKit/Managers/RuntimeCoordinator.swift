@@ -948,7 +948,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Sync diagnostics from DiagnosticsManager
         diagnostics = diagnosticsManager.getDiagnostics()
 
-        AppLogger.shared.debug("📊 [RuntimeCoordinator] buildUIState: customRules.count = \(customRules.count)")
         if let error = lastError {
             AppLogger.shared.debug("🚨 [RuntimeCoordinator] buildUIState: lastError = \(error)")
         }
@@ -958,7 +957,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             lastError: lastError,
             lastWarning: lastWarning,
             keyMappings: keyMappings,
-            customRules: customRules,
             currentLayerName: currentLayerName,
             diagnostics: diagnostics,
             lastProcessExitCode: lastProcessExitCode,
