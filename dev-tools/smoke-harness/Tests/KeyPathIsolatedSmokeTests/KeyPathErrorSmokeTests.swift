@@ -18,7 +18,7 @@ struct KeyPathErrorSmokeTests {
     @Test("Permission errors stay user-facing and non-recoverable")
     func permissionErrorClassification() {
         let accessibility = KeyPathError.permission(.accessibilityNotGranted)
-        #expect(accessibility.errorDescription == "Accessibility permission not granted")
+        #expect(accessibility.errorDescription?.contains(AccessibilityPermissionPresentation.current.name) == true)
         #expect(accessibility.recoverySuggestion?.contains("System Settings") == true)
         #expect(accessibility.shouldDisplayToUser == true)
         #expect(accessibility.isRecoverable == false)
