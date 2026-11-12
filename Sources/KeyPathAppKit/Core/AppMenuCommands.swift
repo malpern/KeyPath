@@ -270,10 +270,10 @@ struct AppMenuCommands: Commands {
                 let success = NSAlert()
                 success.messageText = "Command Line Tool Installed"
                 success.informativeText = """
-                You can now run:
-                keypath-cli system inspect
+                Try it in Terminal:
+                ~/.local/bin/keypath-cli system inspect
 
-                If your terminal can't find keypath-cli, add this line to ~/.zshrc and open a new window:
+                To type just keypath-cli, add this line to ~/.zshrc (or ~/.bash_profile for bash), then open a new Terminal window:
                 \(CommandLineToolInstaller.pathExportLine)
                 """
                 success.alertStyle = .informational

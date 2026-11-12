@@ -1,4 +1,5 @@
 import AppKit
+import KeyPathCore
 import KeyPathWizardCore
 
 /// What a sweep of this user's KeyPath session workers proved.
@@ -137,8 +138,15 @@ final class SessionUninstallCoordinator: WizardUninstalling {
                 }
             }
             // The command-line link points into the app that is about to be
-            // trashed. Only KeyPath's own link is removed.
-            try CommandLineToolInstaller.uninstall(home: home)
+            // trashed. It is a convenience, so a failure is logged, not fatal.
+            do {
+                try CommandLineToolInstaller.uninstall(
+                    toolPath: app.appendingPathComponent("Contents/MacOS/keypath-cli").path,
+                    home: home
+                )
+            } catch {
+                AppLogger.shared.warn("[Uninstall] Could not remove the keypath-cli link: \(error.localizedDescription)")
+            }
             defaults.removePersistentDomain(forName: domain)
             guard defaults.synchronize() else {
                 throw NSError(domain: "KeyPathUninstall", code: 1, userInfo: [NSLocalizedDescriptionKey: "Preferences could not be saved."])

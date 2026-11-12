@@ -50,12 +50,36 @@ final class CommandLineToolInstallerTests: XCTestCase {
 
     func testUninstallRemovesOnlyKeyPathsLink() throws {
         try CommandLineToolInstaller.install(toolPath: tool.path, home: home)
-        XCTAssertTrue(try CommandLineToolInstaller.uninstall(home: home))
+        XCTAssertTrue(try CommandLineToolInstaller.uninstall(toolPath: tool.path, home: home))
         var info = stat()
         XCTAssertNotEqual(lstat(link, &info), 0)
 
         FileManager.default.createFile(atPath: link, contents: Data("mine".utf8))
-        XCTAssertFalse(try CommandLineToolInstaller.uninstall(home: home))
+        XCTAssertFalse(try CommandLineToolInstaller.uninstall(toolPath: tool.path, home: home))
         XCTAssertEqual(try String(contentsOfFile: link, encoding: .utf8), "mine")
+    }
+
+    /// Uninstalling a second copy must not break the link to the copy that stays.
+    func testUninstallKeepsALinkToAnotherInstalledCopy() throws {
+        try CommandLineToolInstaller.install(toolPath: tool.path, home: home)
+        let otherCopy = home.appendingPathComponent("Downloads/KeyPath.app/Contents/MacOS/keypath-cli").path
+
+        XCTAssertFalse(try CommandLineToolInstaller.uninstall(toolPath: otherCopy, home: home))
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link), tool.path)
+    }
+
+    func testUninstallRemovesALinkToAKeyPathThatIsGone() throws {
+        try FileManager.default.createDirectory(at: URL(fileURLWithPath: link).deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: "/Gone/KeyPath.app/Contents/MacOS/keypath-cli")
+
+        XCTAssertTrue(try CommandLineToolInstaller.uninstall(toolPath: tool.path, home: home))
+    }
+
+    func testInstallRefusesADanglingLinkThatIsNotKeyPaths() throws {
+        try FileManager.default.createDirectory(at: URL(fileURLWithPath: link).deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: "/somewhere/else")
+
+        XCTAssertThrowsError(try CommandLineToolInstaller.install(toolPath: tool.path, home: home))
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: link), "/somewhere/else")
     }
 }

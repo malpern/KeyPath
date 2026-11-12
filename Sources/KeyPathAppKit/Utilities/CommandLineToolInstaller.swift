@@ -34,10 +34,6 @@ enum CommandLineToolInstaller {
         "\(Bundle.main.bundlePath)/Contents/MacOS/keypath-cli"
     }
 
-    static var isInstalled: Bool {
-        destination(ofLinkAt: linkPath()) == bundledToolPath
-    }
-
     static func canReplaceExistingDestination(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
         let path = linkPath(home: home)
         var info = stat()
@@ -61,17 +57,28 @@ enum CommandLineToolInstaller {
             at: URL(fileURLWithPath: path).deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        if destination(ofLinkAt: path) != nil {
-            try files.removeItem(atPath: path)
+        // Make the new link beside the old one, then rename it into place, so a
+        // failure never leaves the user without a working link.
+        let staged = path + ".keypath-\(UUID().uuidString)"
+        try files.createSymbolicLink(atPath: staged, withDestinationPath: toolPath)
+        guard rename(staged, path) == 0 else {
+            let reason = String(cString: strerror(errno))
+            try? files.removeItem(atPath: staged)
+            throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: "Could not install \(path): \(reason)"])
         }
-        try files.createSymbolicLink(atPath: path, withDestinationPath: toolPath)
     }
 
-    /// Removes the link if it is KeyPath's. Anything else at that path is left alone.
+    /// Removes the link when it points at `toolPath` (the copy being uninstalled)
+    /// or at a KeyPath that no longer exists. A link to another installed copy,
+    /// and anything that is not KeyPath's link, is left alone.
     @discardableResult
-    static func uninstall(home: URL = FileManager.default.homeDirectoryForCurrentUser) throws -> Bool {
+    static func uninstall(
+        toolPath: String = bundledToolPath,
+        home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) throws -> Bool {
         let path = linkPath(home: home)
-        guard pointsIntoKeyPathApp(destination(ofLinkAt: path)) else { return false }
+        guard let target = destination(ofLinkAt: path), pointsIntoKeyPathApp(target) else { return false }
+        guard target == toolPath || !FileManager.default.fileExists(atPath: target) else { return false }
         try FileManager.default.removeItem(atPath: path)
         return true
     }

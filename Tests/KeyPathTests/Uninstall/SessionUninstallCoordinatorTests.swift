@@ -79,6 +79,19 @@ final class SessionUninstallCoordinatorTests: XCTestCase {
         XCTAssertNotEqual(lstat(link.path, &info), 0, "KeyPath's command-line link should be gone")
     }
 
+    func testUninstallLeavesSomeoneElsesCommandLineFile() async throws {
+        let link = URL(fileURLWithPath: CommandLineToolInstaller.linkPath(home: root))
+        try FileManager.default.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: link.path, contents: Data("mine".utf8))
+        let coordinator = SessionUninstallCoordinator(home: root, app: app, defaults: defaults, domain: domain,
+                                                      prepare: { true }, resume: {}, trash: { try FileManager.default.removeItem(at: $0) })
+
+        let result = await coordinator.performUninstall(deleteConfig: true)
+
+        XCTAssertTrue(result.success, result.failureReason ?? "")
+        XCTAssertEqual(try String(contentsOf: link, encoding: .utf8), "mine")
+    }
+
     /// Application Support holds sockets (the CLI's runtime.sock, a stale
     /// engine socket). They are not settings and cannot be copied; the backup
     /// must skip them rather than fail the uninstall.
