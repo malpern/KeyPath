@@ -93,22 +93,40 @@ struct CatalogUpdateApplicationResult {
 final class RuleCollectionsManager {
     // MARK: - State
 
-    /// The last settled collections. Views observe this value directly.
-    private(set) var committedRuleCollections: [RuleCollection] = []
-    @ObservationIgnored private var stagedRuleCollections: [RuleCollection]?
+    /// A single settled revision for views that read collections and custom rules together.
+    private var committedRuleState = RuleStateSnapshot(collections: [], customRules: [])
+    @ObservationIgnored private var stagedRuleState: RuleStateSnapshot?
+
+    var committedRuleCollections: [RuleCollection] {
+        committedRuleState.collections
+    }
+
+    var committedCustomRules: [CustomRule] {
+        committedRuleState.customRules
+    }
 
     var ruleCollections: [RuleCollection] {
-        get { stagedRuleCollections ?? committedRuleCollections }
+        get { stagedRuleState?.collections ?? committedRuleCollections }
         set {
-            if stagedRuleCollections != nil {
-                stagedRuleCollections = newValue
+            if stagedRuleState != nil {
+                stagedRuleState?.collections = newValue
             } else {
-                committedRuleCollections = newValue
+                committedRuleState.collections = newValue
             }
         }
     }
 
-    var customRules: [CustomRule] = []
+    var customRules: [CustomRule] {
+        get { stagedRuleState?.customRules ?? committedCustomRules }
+        set {
+            if stagedRuleState != nil {
+                stagedRuleState?.customRules = newValue
+            } else {
+                committedRuleState.customRules = newValue
+            }
+        }
+    }
+
     /// Remains set when recovered files cannot yet be read completely.
     var needsRecoveredRuleStateRefresh = false
     var observedRuleRecoveryRevision: UInt64 = 0
@@ -215,20 +233,20 @@ final class RuleCollectionsManager {
         self.preferencesService = preferencesService ?? PreferencesService.shared
     }
 
-    /// Hold collection changes for the duration of a write, including reload
+    /// Hold rule changes for the duration of a write, including reload
     /// and recovery. Nested operations using the same permit share the draft.
-    func withCollectionMutation<Result: Sendable>(
+    func withStagedRuleMutation<Result: Sendable>(
         using permit: ConfigurationOperationGate.Permit? = nil,
         _ operation: @escaping @MainActor @Sendable (ConfigurationOperationGate.Permit) async throws -> Result
     ) async throws -> Result {
         try await configurationService.operationGate.withOperation(using: permit) { @MainActor [self] admitted in
-            guard stagedRuleCollections == nil else { return try await operation(admitted) }
-            stagedRuleCollections = committedRuleCollections
+            guard stagedRuleState == nil else { return try await operation(admitted) }
+            stagedRuleState = committedRuleState
             defer {
-                if let stagedRuleCollections, committedRuleCollections != stagedRuleCollections {
-                    committedRuleCollections = stagedRuleCollections
+                if let stagedRuleState, committedRuleState != stagedRuleState {
+                    committedRuleState = stagedRuleState
                 }
-                stagedRuleCollections = nil
+                stagedRuleState = nil
             }
             return try await operation(admitted)
         }

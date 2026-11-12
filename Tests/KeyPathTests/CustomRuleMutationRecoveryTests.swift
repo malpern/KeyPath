@@ -1,6 +1,7 @@
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathRulesCore
+import Observation
 @preconcurrency import XCTest
 
 @MainActor
@@ -139,9 +140,72 @@ final class CustomRuleMutationRecoveryTests: KeyPathTestCase {
     }
 
     func testRejectedToggleRestoresEnabledState() async throws {
+        let runtime = RuntimeCoordinator(injectedConfigurationService: manager.configurationService,
+                                         injectedRuleCollectionsManager: manager)
+        let viewModel = KanataViewModel(manager: runtime)
+        let rule = try XCTUnwrap(viewModel.customRules.first)
         try await assertRejectedMutationRestores {
-            await self.manager.toggleCustomRule(id: self.manager.customRules[0].id, isEnabled: false)
+            await viewModel.toggleCustomRule(rule.id, enabled: false)
         }
+        XCTAssertEqual(viewModel.customRules, [rule])
+        XCTAssertEqual(viewModel.toastType, .error)
+        XCTAssertTrue(viewModel.toastMessage?.contains("injected rejected") == true)
+    }
+
+    func testCustomTogglePublishesOnlyAfterSavingAndReloading() async throws {
+        let runtime = RuntimeCoordinator(injectedConfigurationService: manager.configurationService,
+                                         injectedRuleCollectionsManager: manager)
+        let viewModel = KanataViewModel(manager: runtime)
+        let rule = try XCTUnwrap(viewModel.customRules.first)
+        let changed = expectation(description: "View observes the saved custom rule")
+        withObservationTracking {
+            XCTAssertTrue(viewModel.customRules.first?.isEnabled == true)
+        } onChange: {
+            changed.fulfill()
+        }
+
+        var reloads = 0
+        manager.onRulesChanged = {
+            reloads += 1
+            XCTAssertEqual(viewModel.customRules, [rule])
+            do {
+                let stored = try await self.manager.customRulesStore.loadForMutation()
+                XCTAssertEqual(stored.first { $0.id == rule.id }?.isEnabled, false)
+            } catch {
+                XCTFail("Could not read staged custom rules: \(error)")
+            }
+            return Self.reload(.applied)
+        }
+
+        await viewModel.toggleCustomRule(rule.id, enabled: false)
+
+        await fulfillment(of: [changed], timeout: 1)
+        XCTAssertEqual(reloads, 1)
+        XCTAssertEqual(viewModel.customRules.first?.isEnabled, false)
+        XCTAssertEqual(viewModel.toastType, .info)
+        XCTAssertNotNil(viewModel.toastMessage)
+    }
+
+    func testDeclinedCustomToggleKeepsRulesAndShowsNoToast() async throws {
+        let existing = try XCTUnwrap(manager.customRules.first)
+        var candidate = CustomRule(input: existing.input, action: .keystroke(key: "f18"))
+        candidate.isEnabled = false
+        let saved = await manager.saveCustomRule(candidate, skipReload: true)
+        XCTAssertTrue(saved)
+        let before = try files()
+        let runtime = RuntimeCoordinator(injectedConfigurationService: manager.configurationService,
+                                         injectedRuleCollectionsManager: manager)
+        let viewModel = KanataViewModel(manager: runtime)
+        var prompts = 0
+        manager.onConflictResolution = { _ in prompts += 1; return .keepExisting }
+        manager.onRulesChanged = { XCTFail("Declined toggle must not reload"); return Self.reload(.applied) }
+
+        await viewModel.toggleCustomRule(candidate.id, enabled: true)
+
+        XCTAssertEqual(prompts, 1)
+        XCTAssertEqual(try files(), before)
+        XCTAssertEqual(viewModel.customRules.first { $0.id == candidate.id }?.isEnabled, false)
+        XCTAssertNil(viewModel.toastMessage)
     }
 
     func testRejectedRemovalRestoresDeletedRule() async throws {

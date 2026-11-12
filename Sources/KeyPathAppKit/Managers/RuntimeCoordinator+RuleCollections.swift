@@ -28,7 +28,7 @@ extension RuntimeCoordinator {
     }
 
     func refreshRuleMappings() {
-        let mappings = ruleCollectionsManager.committedRuleCollections.enabledMappings() + customRules.enabledMappings()
+        let mappings = ruleCollectionsManager.committedRuleCollections.enabledMappings() + ruleCollectionsManager.committedCustomRules.enabledMappings()
         applyKeyMappings(mappings, persistCollections: false)
         notifyStateChanged()
     }
@@ -135,10 +135,6 @@ extension RuntimeCoordinator {
     @discardableResult
     func saveCustomRule(_ rule: CustomRule, skipReload: Bool = false, autoResolveConflicts: Bool = false) async -> Bool {
         await ruleCollectionsCoordinator.saveCustomRule(rule, skipReload: skipReload, autoResolveConflicts: autoResolveConflicts)
-    }
-
-    func toggleCustomRule(id: UUID, isEnabled: Bool) async {
-        await ruleCollectionsCoordinator.toggleCustomRule(id: id, isEnabled: isEnabled)
     }
 
     func removeCustomRule(withID id: UUID) async {

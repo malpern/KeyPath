@@ -190,7 +190,7 @@ final class SaveCoordinator {
         reloadHandler: @escaping () async -> ReloadResult
     ) async -> SaveResult {
         do {
-            return try await ruleCollectionsManager.withCollectionMutation { @MainActor [self] permit in
+            return try await ruleCollectionsManager.withStagedRuleMutation { @MainActor [self] permit in
                 // Suppress file watcher to prevent double reload
                 saveStatus = .saving
 

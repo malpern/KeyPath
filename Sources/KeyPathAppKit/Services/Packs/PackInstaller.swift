@@ -208,7 +208,7 @@ public final class PackInstaller {
             }
         }
         let autoResolveCollectionConflicts = autoResolveCollectionConflicts
-        return try await manager.withCollectionMutation(using: mutationPermit) { @MainActor [self] permit in
+        return try await manager.withStagedRuleMutation(using: mutationPermit) { @MainActor [self] permit in
             try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             AppLogger.shared.log(
                 "📦 [PackInstaller] Installing pack '\(pack.name)' (id=\(pack.id), v\(pack.version))"
@@ -324,7 +324,7 @@ public final class PackInstaller {
         installedPackTracker: InstalledPackTracker = .shared,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
-        try await manager.withCollectionMutation(using: mutationPermit) { @MainActor [self] permit in
+        try await manager.withStagedRuleMutation(using: mutationPermit) { @MainActor [self] permit in
             try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             AppLogger.shared.log("📦 [PackInstaller] Uninstalling pack '\(packID)'")
 
@@ -507,7 +507,7 @@ public final class PackInstaller {
         installedPackTracker: InstalledPackTracker = .shared,
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async throws {
-        try await manager.withCollectionMutation(using: mutationPermit) { @MainActor [self] permit in
+        try await manager.withStagedRuleMutation(using: mutationPermit) { @MainActor [self] permit in
             try await recoverAndValidateState(manager: manager, tracker: installedPackTracker, permit: permit)
             guard let pack = PackRegistry.pack(id: packID) else {
                 throw InstallError.saveFailed("pack not found in registry: \(packID)")

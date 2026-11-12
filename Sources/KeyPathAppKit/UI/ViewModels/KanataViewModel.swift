@@ -7,7 +7,7 @@ import Observation
 import SwiftUI
 
 /// Presents runtime status, dialogs, and toasts to SwiftUI.
-/// Collection views observe the settled state on RuleCollectionsManager directly.
+/// Rule views observe the settled state on RuleCollectionsManager directly.
 @MainActor
 @Observable
 class KanataViewModel {
@@ -21,7 +21,10 @@ class KanataViewModel {
         manager.ruleCollectionsManager.committedRuleCollections
     }
 
-    var customRules: [CustomRule] = []
+    var customRules: [CustomRule] {
+        manager.ruleCollectionsManager.committedCustomRules
+    }
+
     var currentLayerName: String = RuleCollectionLayer.base.displayName
     var diagnostics: [KanataDiagnostic] = []
     var lastProcessExitCode: Int32?
@@ -112,15 +115,11 @@ class KanataViewModel {
     /// Update UI properties from state snapshot
     /// Only called when state actually changes (not on a timer)
     private func updateUI(with state: KanataUIState) {
-        // Debug: Log custom rules count when updating UI with object identity
-        AppLogger.shared.log("📊 [KanataViewModel] updateUI: customRules.count = \(state.customRules.count), vmID=\(ObjectIdentifier(self))")
-
         if let error = state.lastError {
             AppLogger.shared.debug("🚨 [KanataViewModel] updateUI: receiving lastError = \(error)")
         }
         lastError = state.lastError
         keyMappings = state.keyMappings
-        customRules = state.customRules
         currentLayerName = state.currentLayerName
         diagnostics = state.diagnostics
         lastProcessExitCode = state.lastProcessExitCode
@@ -328,7 +327,17 @@ class KanataViewModel {
     }
 
     func toggleCustomRule(_ id: UUID, enabled: Bool) async {
-        await manager.toggleCustomRule(id: id, isEnabled: enabled)
+        let result = await manager.ruleCollectionsManager.toggleCustomRule(id: id, isEnabled: enabled)
+        manager.refreshRuleMappings()
+        guard let result else { return }
+        guard result.success else {
+            if let error = result.error, !(error is CancellationError) {
+                showToast(error.localizedDescription, type: .error)
+            }
+            return
+        }
+
+        SoundManager.shared.playTinkSound()
         let rule = customRules.first { $0.id == id }
         let ruleName = rule?.displayTitle ?? String(localized: "Rule", comment: "Fallback name in a toast")
         if enabled {

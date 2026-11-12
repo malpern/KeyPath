@@ -100,11 +100,14 @@ extension RuleCollectionsManager {
 
     // MARK: - Conflict Resolution
 
-    typealias RuleStateSnapshot = (collections: [RuleCollection], customRules: [CustomRule])
+    struct RuleStateSnapshot: Equatable, Sendable {
+        var collections: [RuleCollection]
+        var customRules: [CustomRule]
+    }
 
     /// Capture current collections/rules so an operation can be rolled back atomically.
     func snapshotRuleState() -> RuleStateSnapshot {
-        (collections: ruleCollections, customRules: customRules)
+        RuleStateSnapshot(collections: ruleCollections, customRules: customRules)
     }
 
     /// Restore state snapshot and attempt to re-apply previous config.

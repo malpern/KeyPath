@@ -212,14 +212,6 @@ final class RuleCollectionsCoordinator {
         return result
     }
 
-    /// Toggle a custom rule's enabled state
-    func toggleCustomRule(id: UUID, isEnabled: Bool) async {
-        await ruleCollectionsManager.toggleCustomRule(id: id, isEnabled: isEnabled)
-        applyMappings(ruleCollectionsManager.enabledMappings())
-        notifyStateChanged()
-        SoundManager.shared.playTinkSound()
-    }
-
     /// Remove a custom rule
     func removeCustomRule(withID id: UUID) async {
         await ruleCollectionsManager.removeCustomRule(id: id)

@@ -76,7 +76,7 @@ extension RuleCollectionsManager {
         }
 
         do {
-            return try await withCollectionMutation { @MainActor [self] permit in
+            return try await withStagedRuleMutation { @MainActor [self] permit in
                 try await recoverRuleState(mutationPermit: permit)
                 let previews = catalogUpdatePreviews().filter { ids.contains($0.id) }
                 guard previews.count == ids.count else {
@@ -199,7 +199,7 @@ extension RuleCollectionsManager {
         mutationPermit: ConfigurationOperationGate.Permit? = nil
     ) async -> SaveResult {
         do {
-            return try await withCollectionMutation(using: mutationPermit) { @MainActor [self] permit in
+            return try await withStagedRuleMutation(using: mutationPermit) { @MainActor [self] permit in
                 AppLogger.shared.log("🔀 [RuleCollections] toggleCollection called: id=\(id), isEnabled=\(isEnabled)")
 
                 try await recoverRuleState(mutationPermit: permit)
@@ -982,54 +982,41 @@ extension RuleCollectionsManager {
         }
     }
 
-    /// Toggle a custom rule on/off
-    func toggleCustomRule(id: UUID, isEnabled: Bool) async {
-        await withRuleMutation(failure: ()) { [self] permit in
-            guard let snapshot = await recoverAndSnapshotRuleState(mutationPermit: permit) else { return }
-            guard let existing = customRules.first(where: { $0.id == id }) else { return }
+    /// Toggle a custom rule. A missing rule or a declined dialog has no save result.
+    @discardableResult
+    func toggleCustomRule(id: UUID, isEnabled: Bool) async -> SaveResult? {
+        do {
+            return try await withStagedRuleMutation { @MainActor [self] permit in
+                try await recoverRuleState(mutationPermit: permit)
+                let snapshot = snapshotRuleState()
+                guard let existing = customRules.first(where: { $0.id == id }) else { return nil }
 
-            if !isEnabled {
-                guard await confirmedDisableOfProvider(
-                    id: existing.id,
-                    name: existing.displayTitle
-                ) else {
-                    return
-                }
-            }
-
-            if isEnabled,
-               let conflict = conflictInfo(for: existing)
-            {
-                // Show conflict resolution dialog
-                let context = RuleConflictContext(
-                    newRule: .customRule(existing),
-                    existingRule: conflict.source,
-                    conflictingKeys: conflict.keys
-                )
-
-                AppLogger.shared.log(
-                    "⚠️ [CustomRules] Conflict enabling \(existing.displayTitle) vs \(conflict.displayName) on \(conflict.keys)"
-                )
-
-                guard let choice = await onConflictResolution?(context) else {
-                    // User cancelled - don't enable
-                    return
+                if !isEnabled {
+                    guard await confirmedDisableOfProvider(id: existing.id, name: existing.displayTitle) else {
+                        return nil
+                    }
                 }
 
-                switch choice {
-                case .keepNew:
-                    // Disable the conflicting rule, then proceed with enabling this one
+                if isEnabled, let conflict = conflictInfo(for: existing) {
+                    let context = RuleConflictContext(
+                        newRule: .customRule(existing),
+                        existingRule: conflict.source,
+                        conflictingKeys: conflict.keys
+                    )
+                    guard await onConflictResolution?(context) == .keepNew else { return nil }
                     await disableConflicting(conflict.source, regenerate: false)
-                case .keepExisting:
-                    // User chose to keep the existing rule - don't enable the new one
-                    return
                 }
-            }
 
-            if let index = customRules.firstIndex(where: { $0.id == id }) {
-                customRules[index].isEnabled = isEnabled
+                if let index = customRules.firstIndex(where: { $0.id == id }) {
+                    customRules[index].isEnabled = isEnabled
+                }
+                return await commitRuleMutationResult(snapshot: snapshot, mutationPermit: permit)
             }
-            _ = await commitRuleMutation(snapshot: snapshot, mutationPermit: permit)
+        } catch is CancellationError {
+            return nil
+        } catch {
+            onError?(error.localizedDescription)
+            return .failure(error)
         }
     }
 
