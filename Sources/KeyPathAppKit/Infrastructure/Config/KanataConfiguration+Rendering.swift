@@ -467,7 +467,7 @@ extension KanataConfiguration {
         [
             "\(indent);; === Momentary Layer Switch ===",
             "\(indent);; Input: \(activator.input)",
-            "\(indent);; Activates: \(activator.targetLayer.displayName)"
+            "\(indent);; Activates: \(activator.targetLayer.configName)"
         ]
     }
 }

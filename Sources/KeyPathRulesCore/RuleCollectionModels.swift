@@ -426,6 +426,16 @@ public enum RuleCollectionLayer: Codable, Equatable, Sendable, Hashable {
         }
     }
 
+    /// Name written into generated config comments. Never localized: the same
+    /// rules must produce the same config bytes in every language.
+    public var configName: String {
+        switch self {
+        case .base: "Base"
+        case .navigation: "Navigation"
+        case let .custom(name): name.capitalized
+        }
+    }
+
     /// Initialize from Kanata layer name (reverse of kanataName)
     /// - Parameter kanataName: The Kanata layer name (e.g., "base", "nav", "window")
     /// - Returns: The corresponding RuleCollectionLayer (base, navigation, or custom)
