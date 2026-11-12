@@ -45,7 +45,7 @@ final class HelpWindowController: NSObject, NSWindowDelegate {
         let hostingController = NSHostingController(rootView: browserView)
 
         let newWindow = NSWindow(contentViewController: hostingController)
-        newWindow.title = "KeyPath Help"
+        newWindow.title = String(localized: "KeyPath Help")
         newWindow.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         newWindow.setContentSize(NSSize(width: 850, height: 650))
         newWindow.delegate = self

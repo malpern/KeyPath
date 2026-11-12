@@ -189,7 +189,7 @@ final class RecordingCoordinator {
             AppLogger.shared.log("❌ [Coordinator] Save requested without both sequences")
             await MainActor.run {
                 onError(
-                    KeyPathError.coordination(.recordingFailed(reason: "Missing input/output sequences"))
+                    KeyPathError.coordination(.recordingFailed(reason: String(localized: "Missing input/output sequences")))
                 )
             }
             return
@@ -216,7 +216,7 @@ final class RecordingCoordinator {
                 try await kanataManager.saveConfiguration(input: inKey, output: outKey)
                 await kanataManager.updateStatus()
                 await MainActor.run {
-                    onSuccess("Key mapping saved: \(inKey) → \(outKey)")
+                    onSuccess(String(localized: "Key mapping saved: \(inKey) → \(outKey)"))
                     clearCapturedSequences()
                 }
             } catch {
@@ -246,12 +246,12 @@ final class RecordingCoordinator {
         if saveResult {
             await MainActor.run {
                 onSuccess(
-                    "Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)"
+                    String(localized: "Key mapping saved: \(inputSequence.displayString) → \(outputSequence.displayString)")
                 )
                 clearCapturedSequences()
             }
         } else {
-            onError(KeyPathError.coordination(.recordingFailed(reason: "Failed to save mapping rule")))
+            onError(KeyPathError.coordination(.recordingFailed(reason: String(localized: "Failed to save mapping rule"))))
         }
     }
 
@@ -640,7 +640,7 @@ final class RecordingCoordinator {
     }
 
     private func idlePlaceholderText() -> String {
-        isSequenceMode ? "Press key sequence..." : "Press key combination..."
+        isSequenceMode ? String(localized: "Press key sequence...") : String(localized: "Press key combination...")
     }
 
     private func recordingPromptText() -> String {
@@ -708,27 +708,27 @@ extension RecordingCoordinator {
         switch reason {
         case "permissionFailure":
             RecordingFailureDisplayInfo(
-                displayMessage: "⚠️ \(AccessibilityPermissionPresentation.current.name) permission required for recording",
+                displayMessage: String(localized: "⚠️ \(AccessibilityPermissionPresentation.current.name) permission required for recording"),
                 bannerMessage:
-                "❌ Recording requires \(AccessibilityPermissionPresentation.current.name) permission. Open the Installation Wizard to grant access.",
+                String(localized: "❌ Recording requires \(AccessibilityPermissionPresentation.current.name) permission. Open the Installation Wizard to grant access."),
                 shouldShowBanner: true
             )
         case "captureInitializationFailure":
             RecordingFailureDisplayInfo(
-                displayMessage: "⚠️ Failed to initialize keyboard capture",
-                bannerMessage: "❌ Failed to start keyboard capture. Check KeyPath diagnostics.",
+                displayMessage: String(localized: "⚠️ Failed to initialize keyboard capture"),
+                bannerMessage: String(localized: "❌ Failed to start keyboard capture. Check KeyPath diagnostics."),
                 shouldShowBanner: true
             )
         case "timeout":
             RecordingFailureDisplayInfo(
-                displayMessage: "⚠️ Recording timed out - try again",
-                bannerMessage: "⚠️ Recording timed out — try again.",
+                displayMessage: String(localized: "⚠️ Recording timed out - try again"),
+                bannerMessage: String(localized: "⚠️ Recording timed out — try again."),
                 shouldShowBanner: true
             )
         default:
             RecordingFailureDisplayInfo(
-                displayMessage: "⚠️ Recording failed",
-                bannerMessage: "❌ Recording failed: \(reason)",
+                displayMessage: String(localized: "⚠️ Recording failed"),
+                bannerMessage: String(localized: "❌ Recording failed: \(reason)"),
                 shouldShowBanner: true
             )
         }

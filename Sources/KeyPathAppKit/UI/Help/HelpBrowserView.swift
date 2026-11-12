@@ -22,6 +22,17 @@ enum HelpTopicGroup: String, CaseIterable {
     case featureGuides = "Feature Guides"
     case reference = "Reference"
     case switchingTools = "Switching Tools"
+
+    /// Localized name shown in the sidebar. `rawValue` stays the stable English identifier.
+    var title: String {
+        switch self {
+        case .gettingStarted: String(localized: "Getting Started", comment: "Help sidebar group")
+        case .coreFeatures: String(localized: "Core Features", comment: "Help sidebar group")
+        case .featureGuides: String(localized: "Feature Guides", comment: "Help sidebar group")
+        case .reference: String(localized: "Reference", comment: "Help sidebar group")
+        case .switchingTools: String(localized: "Switching Tools", comment: "Help sidebar group")
+        }
+    }
 }
 
 // MARK: - Topic Data
@@ -29,35 +40,41 @@ enum HelpTopicGroup: String, CaseIterable {
 extension HelpTopic {
     static let allTopics: [HelpTopic] = [
         // Getting Started
-        HelpTopic(id: "installation", title: "Installation Guide", icon: "shippingbox", resource: "installation-wizard", group: .gettingStarted),
-        HelpTopic(id: "concepts", title: "Keyboard Concepts", icon: "keyboard", resource: "concepts", group: .gettingStarted),
-        HelpTopic(id: "use-cases", title: "What You Can Build", icon: "hammer", resource: "use-cases", group: .gettingStarted),
+        HelpTopic(id: "installation", title: String(localized: "Installation Guide"), icon: "shippingbox", resource: "installation-wizard", group: .gettingStarted),
+        HelpTopic(id: "concepts", title: String(localized: "Keyboard Concepts"), icon: "keyboard", resource: "concepts", group: .gettingStarted),
+        HelpTopic(id: "use-cases", title: String(localized: "What You Can Build"), icon: "hammer", resource: "use-cases", group: .gettingStarted),
         // Core Features
-        HelpTopic(id: "home-row-mods", title: "Shortcuts Without Reaching", icon: "hand.raised", resource: "home-row-mods", group: .coreFeatures),
-        HelpTopic(id: "vim-navigation", title: "Navigate Like a Keyboard Ninja", icon: "arrow.up.and.down.and.arrow.left.and.right", resource: "vim-navigation", group: .coreFeatures),
-        HelpTopic(id: "leader-key", title: "Choose Your Leader Key", icon: "hand.point.up.left", resource: "leader-key", group: .coreFeatures),
-        HelpTopic(id: "tap-hold", title: "One Key, Multiple Actions", icon: "hand.tap", resource: "tap-hold", group: .coreFeatures),
-        HelpTopic(id: "simple-packs", title: "Quick Tweaks", icon: "checkmark.circle", resource: "simple-packs", group: .coreFeatures),
-        HelpTopic(id: "key-repeat-control", title: "Arrow Keys at Full Speed", icon: "hare", resource: "key-repeat-control", group: .coreFeatures),
+        HelpTopic(id: "home-row-mods", title: String(localized: "Shortcuts Without Reaching"), icon: "hand.raised", resource: "home-row-mods", group: .coreFeatures),
+        HelpTopic(
+            id: "vim-navigation",
+            title: String(localized: "Navigate Like a Keyboard Ninja"),
+            icon: "arrow.up.and.down.and.arrow.left.and.right",
+            resource: "vim-navigation",
+            group: .coreFeatures
+        ),
+        HelpTopic(id: "leader-key", title: String(localized: "Choose Your Leader Key"), icon: "hand.point.up.left", resource: "leader-key", group: .coreFeatures),
+        HelpTopic(id: "tap-hold", title: String(localized: "One Key, Multiple Actions"), icon: "hand.tap", resource: "tap-hold", group: .coreFeatures),
+        HelpTopic(id: "simple-packs", title: String(localized: "Quick Tweaks"), icon: "checkmark.circle", resource: "simple-packs", group: .coreFeatures),
+        HelpTopic(id: "key-repeat-control", title: String(localized: "Arrow Keys at Full Speed"), icon: "hare", resource: "key-repeat-control", group: .coreFeatures),
         // Feature Guides
-        HelpTopic(id: "numpad-layer", title: "A Numpad Under Your Hand", icon: "number.square", resource: "numpad-layer", group: .featureGuides),
-        HelpTopic(id: "symbol-layer", title: "Programming Symbols Instantly", icon: "textformat.abc.dottedunderline", resource: "symbol-layer", group: .featureGuides),
-        HelpTopic(id: "fun-layer", title: "F-Keys and Media Controls", icon: "f.cursive", resource: "fun-layer", group: .featureGuides),
-        HelpTopic(id: "window-management", title: "Windows & App Shortcuts", icon: "macwindow.on.rectangle", resource: "window-management", group: .featureGuides),
-        HelpTopic(id: "quick-launcher", title: "Launch Anything Instantly", icon: "bolt", resource: "quick-launcher", group: .featureGuides),
-        HelpTopic(id: "action-uri", title: "Launching Apps", icon: "link", resource: "action-uri", group: .featureGuides),
-        HelpTopic(id: "chords", title: "Press Two Keys at Once", icon: "hand.point.up.braille", resource: "chords", group: .featureGuides),
-        HelpTopic(id: "auto-shift", title: "Symbols Without Shift", icon: "character.textbox", resource: "auto-shift", group: .featureGuides),
-        HelpTopic(id: "alternative-layouts", title: "Alternative Layouts", icon: "textformat", resource: "alternative-layouts", group: .featureGuides),
-        HelpTopic(id: "keyboard-layouts", title: "Your Keyboard", icon: "keyboard.badge.ellipsis", resource: "keyboard-layouts", group: .featureGuides),
-        HelpTopic(id: "kindavim", title: "Full Vim Modes", icon: "v.square", resource: "kindavim", group: .featureGuides),
-        HelpTopic(id: "neovim-terminal", title: "Neovim in the Terminal", icon: "terminal", resource: "neovim-terminal", group: .featureGuides),
+        HelpTopic(id: "numpad-layer", title: String(localized: "A Numpad Under Your Hand"), icon: "number.square", resource: "numpad-layer", group: .featureGuides),
+        HelpTopic(id: "symbol-layer", title: String(localized: "Programming Symbols Instantly"), icon: "textformat.abc.dottedunderline", resource: "symbol-layer", group: .featureGuides),
+        HelpTopic(id: "fun-layer", title: String(localized: "F-Keys and Media Controls"), icon: "f.cursive", resource: "fun-layer", group: .featureGuides),
+        HelpTopic(id: "window-management", title: String(localized: "Windows & App Shortcuts"), icon: "macwindow.on.rectangle", resource: "window-management", group: .featureGuides),
+        HelpTopic(id: "quick-launcher", title: String(localized: "Launch Anything Instantly"), icon: "bolt", resource: "quick-launcher", group: .featureGuides),
+        HelpTopic(id: "action-uri", title: String(localized: "Launching Apps"), icon: "link", resource: "action-uri", group: .featureGuides),
+        HelpTopic(id: "chords", title: String(localized: "Press Two Keys at Once"), icon: "hand.point.up.braille", resource: "chords", group: .featureGuides),
+        HelpTopic(id: "auto-shift", title: String(localized: "Symbols Without Shift"), icon: "character.textbox", resource: "auto-shift", group: .featureGuides),
+        HelpTopic(id: "alternative-layouts", title: String(localized: "Alternative Layouts"), icon: "textformat", resource: "alternative-layouts", group: .featureGuides),
+        HelpTopic(id: "keyboard-layouts", title: String(localized: "Your Keyboard"), icon: "keyboard.badge.ellipsis", resource: "keyboard-layouts", group: .featureGuides),
+        HelpTopic(id: "kindavim", title: String(localized: "Full Vim Modes"), icon: "v.square", resource: "kindavim", group: .featureGuides),
+        HelpTopic(id: "neovim-terminal", title: String(localized: "Neovim in the Terminal"), icon: "terminal", resource: "neovim-terminal", group: .featureGuides),
         // Reference
-        HelpTopic(id: "action-uri-reference", title: "Action URI Reference", icon: "curlybraces", resource: "action-uri-reference", group: .reference),
-        HelpTopic(id: "privacy", title: "Privacy & Permissions", icon: "lock.shield", resource: "privacy", group: .reference),
+        HelpTopic(id: "action-uri-reference", title: String(localized: "Action URI Reference"), icon: "curlybraces", resource: "action-uri-reference", group: .reference),
+        HelpTopic(id: "privacy", title: String(localized: "Privacy & Permissions"), icon: "lock.shield", resource: "privacy", group: .reference),
         // Switching Tools
-        HelpTopic(id: "karabiner-users", title: "From Karabiner-Elements", icon: "arrow.right.arrow.left", resource: "karabiner-users", group: .switchingTools),
-        HelpTopic(id: "kanata-users", title: "From Kanata", icon: "arrow.right.arrow.left", resource: "kanata-users", group: .switchingTools),
+        HelpTopic(id: "karabiner-users", title: String(localized: "From Karabiner-Elements"), icon: "arrow.right.arrow.left", resource: "karabiner-users", group: .switchingTools),
+        HelpTopic(id: "kanata-users", title: String(localized: "From Kanata"), icon: "arrow.right.arrow.left", resource: "kanata-users", group: .switchingTools),
     ]
 
     static func topic(forResource resource: String) -> HelpTopic? {
@@ -88,7 +105,7 @@ struct HelpBrowserView: View {
         guard !query.isEmpty else { return HelpTopic.allTopics }
         return HelpTopic.allTopics.filter { topic in
             topic.title.lowercased().contains(query)
-                || topic.group.rawValue.lowercased().contains(query)
+                || topic.group.title.lowercased().contains(query)
         }
     }
 
@@ -178,7 +195,7 @@ struct HelpBrowserView: View {
                 ForEach(HelpTopicGroup.allCases, id: \.self) { group in
                     let topics = HelpTopic.allTopics.filter { $0.group == group }
                     if !topics.isEmpty {
-                        Section(group.rawValue) {
+                        Section(group.title) {
                             ForEach(topics) { topic in
                                 Label(topic.title, systemImage: topic.icon)
                                     .tag(topic)
@@ -343,7 +360,7 @@ struct HelpBrowserView: View {
                         if !topics.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
                                 // Section header
-                                Text(group.rawValue)
+                                Text(group.title)
                                     .font(.system(.subheadline, design: .serif))
                                     .fontWeight(.medium)
                                     .foregroundColor(Color(nsColor: .init(red: 0.40, green: 0.32, blue: 0.24, alpha: 1.0)))

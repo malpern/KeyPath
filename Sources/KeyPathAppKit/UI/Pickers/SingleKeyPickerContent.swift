@@ -53,7 +53,7 @@ struct SingleKeyPickerContent: View {
 
                 // Custom segment with popover
                 PickerSegment(
-                    label: "Custom",
+                    label: String(localized: "Custom", comment: "Picker segment: choose a custom key"),
                     isSelected: isCustomSelection,
                     isFirst: false,
                     isLast: true

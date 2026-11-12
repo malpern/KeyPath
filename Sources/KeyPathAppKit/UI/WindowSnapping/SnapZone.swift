@@ -40,14 +40,14 @@ enum SnapZone: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .topLeft: "Top-Left"
-        case .topRight: "Top-Right"
-        case .bottomLeft: "Bottom-Left"
-        case .bottomRight: "Bottom-Right"
-        case .left: "Left"
-        case .right: "Right"
-        case .maximize: "Maximize"
-        case .center: "Center"
+        case .topLeft: String(localized: "Top-Left", comment: "Window snapping zone")
+        case .topRight: String(localized: "Top-Right", comment: "Window snapping zone")
+        case .bottomLeft: String(localized: "Bottom-Left", comment: "Window snapping zone")
+        case .bottomRight: String(localized: "Bottom-Right", comment: "Window snapping zone")
+        case .left: String(localized: "Left", comment: "Window snapping zone")
+        case .right: String(localized: "Right", comment: "Window snapping zone")
+        case .maximize: String(localized: "Maximize", comment: "Window snapping zone")
+        case .center: String(localized: "Center", comment: "Window snapping zone")
         }
     }
 

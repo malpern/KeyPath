@@ -232,8 +232,8 @@ struct SessionCapsSettingsSection: View {
     }
 
     private var reservedKeyTip: String {
-        "KeyPath uses \(reservedKey) behind the scenes, so avoid using \(reservedKey) for anything else. "
-            + "If one of your rules, another app, or a keyboard shortcut uses \(reservedKey), KeyPath switches to another key from F13 to F20."
+        String(localized: "KeyPath uses \(reservedKey) behind the scenes, so avoid using \(reservedKey) for anything else. ")
+            + String(localized: "If one of your rules, another app, or a keyboard shortcut uses \(reservedKey), KeyPath switches to another key from F13 to F20.")
     }
 
     private var rulesUseCaps: Bool {
@@ -242,32 +242,37 @@ struct SessionCapsSettingsSection: View {
 
     private var statusText: String {
         if automaticDisabled {
-            return rulesUseCaps ? "Off \u{00B7} Rules that use Caps Lock won\u{2019}t run" : "Off"
+            return rulesUseCaps ? String(localized: "Off \u{00B7} Rules that use Caps Lock won\u{2019}t run") : String(localized: "Off", comment: "Caps Lock rules status: turned off")
         }
-        if !rulesUseCaps { return "Applies automatically when you add a Caps Lock rule" }
+        if !rulesUseCaps { return String(localized: "Applies automatically when you add a Caps Lock rule") }
         if !selectedOnly {
             if keyboards.isEmpty {
-                return "Caps Lock rules will apply when a compatible keyboard connects"
+                return String(localized: "Caps Lock rules will apply when a compatible keyboard connects")
             }
             let participating = keyboards.count { !excludedIDs.contains(SessionCapsRuntimeSupport.preferenceID($0.device)) }
             let covered = max(0, participating - fleetUncovered.count)
             if participating == 0 {
-                return "Caps Lock rules are off on every connected keyboard"
+                return String(localized: "Caps Lock rules are off on every connected keyboard")
             }
-            return fleetUncovered.isEmpty
-                ? "On \u{00B7} \(participating == keyboards.count ? "all compatible keyboards" : "\(participating) selected keyboards") \u{00B7} Uses \(reservedKey) behind the scenes"
-                : "Caps Lock active on \(covered) of \(participating) selected keyboards"
+            if !fleetUncovered.isEmpty {
+                return String(localized: "Caps Lock active on \(covered) of \(participating) selected keyboards")
+            }
+            return participating == keyboards.count
+                ? String(localized: "On \u{00B7} all compatible keyboards \u{00B7} Uses \(reservedKey) behind the scenes")
+                : String(localized: "On \u{00B7} \(participating) selected keyboards \u{00B7} Uses \(reservedKey) behind the scenes")
         }
         guard let device else {
             if let disconnected {
                 return Self.disconnectedStatus(name: disconnected, listed: keyboards.map(\.name), showsPicker: showsPicker)
             }
-            if showsPicker { return "Choose which keyboard Caps Lock rules apply to" }
-            return withheld > 0 ? "No connected keyboard can be used" : "Connect a compatible keyboard"
+            if showsPicker { return String(localized: "Choose which keyboard Caps Lock rules apply to") }
+            return withheld > 0 ? String(localized: "No connected keyboard can be used") : String(localized: "Connect a compatible keyboard")
         }
         let name = keyboards.first(where: { $0.device == device })?.name
-            ?? (device.appleBuiltIn == true ? "Built-in keyboard" : "Your keyboard")
-        return "On \u{00B7} " + name + (saved == nil ? "" : " \u{00B7} Uses \(reservedKey) behind the scenes")
+            ?? (device.appleBuiltIn == true ? String(localized: "Built-in keyboard") : String(localized: "Your keyboard"))
+        return saved == nil
+            ? String(localized: "On \u{00B7} \(name)")
+            : String(localized: "On \u{00B7} \(name) \u{00B7} Uses \(reservedKey) behind the scenes")
     }
 
     private var statusIsWarning: Bool {
@@ -283,10 +288,11 @@ struct SessionCapsSettingsSection: View {
     /// name means another port (or a twin), which needs choosing again.
     static func disconnectedStatus(name: String, listed: [String], showsPicker: Bool) -> String {
         if listed.contains(name) {
-            return "\(name) is connected to a different port \u{00B7} Choose it again to turn Caps Lock rules back on"
+            return String(localized: "\(name) is connected to a different port \u{00B7} Choose it again to turn Caps Lock rules back on")
         }
-        return "\(name) is disconnected \u{00B7} Caps Lock rules are paused"
-            + (showsPicker ? "; choose a keyboard" : "")
+        return showsPicker
+            ? String(localized: "\(name) is disconnected \u{00B7} Caps Lock rules are paused; choose a keyboard")
+            : String(localized: "\(name) is disconnected \u{00B7} Caps Lock rules are paused")
     }
 
     static func rulesUseCapsLock(collections: [RuleCollection], customRules: [CustomRule]) -> Bool {
@@ -314,7 +320,7 @@ struct SessionCapsSettingsSection: View {
             if changed {
                 automaticDisabled = !enabled
             } else {
-                message = "Caps Lock setup could not be changed safely. Existing settings were kept."
+                message = String(localized: "Caps Lock setup could not be changed safely. Existing settings were kept.")
             }
             await applyDeferredWork()
             return
@@ -334,7 +340,7 @@ struct SessionCapsSettingsSection: View {
         guard !busy, only != selectedOnly || choosingOneKeyboard else { return }
         if only {
             choosingOneKeyboard = true
-            message = "Choose the keyboard whose Caps Lock key should use these rules."
+            message = String(localized: "Choose the keyboard whose Caps Lock key should use these rules.")
             return
         }
         busy = true
@@ -347,7 +353,7 @@ struct SessionCapsSettingsSection: View {
             saved = nil
             message = nil
         } else {
-            message = "Caps Lock setup could not be changed safely. Existing settings were kept."
+            message = String(localized: "Caps Lock setup could not be changed safely. Existing settings were kept.")
         }
         await applyDeferredWork()
     }
@@ -365,7 +371,7 @@ struct SessionCapsSettingsSection: View {
             message = nil
             await refreshKeyboards(keepMessage: false)
         } else {
-            message = "This keyboard preference could not be changed safely. Existing settings were kept."
+            message = String(localized: "This keyboard preference could not be changed safely. Existing settings were kept.")
         }
         await applyDeferredWork()
     }
@@ -421,7 +427,7 @@ struct SessionCapsSettingsSection: View {
                         && !active.contains(keyboard.id)
                     {
                         let conflict = try? SessionCapsRuntimeSupport.capsConflict(on: keyboard.device)
-                        let explanation = conflict?.message ?? "Caps Lock setup is not active on this keyboard yet."
+                        let explanation = conflict?.message ?? String(localized: "Caps Lock setup is not active on this keyboard yet.")
                         uncovered.append("\(keyboard.name): \(explanation)")
                     }
                 }
@@ -435,7 +441,7 @@ struct SessionCapsSettingsSection: View {
             let stored = found.2
             device = Self.effectiveDevice(saved: stored?.device, connected: keyboards.map(\.device), withheld: withheld)
             saved = stored?.device == device ? stored : nil
-            disconnected = found.3 && saved == nil ? SessionCapsSelectionStore.savedName ?? "Your keyboard" : nil
+            disconnected = found.3 && saved == nil ? SessionCapsSelectionStore.savedName ?? String(localized: "Your keyboard") : nil
             if saved != nil { SessionCapsSelectionStore.saveName(keyboards.first { $0.device == device }?.name) }
             conflict = await Self.conflict(on: device, intermediate: saved?.intermediateUsage)
             if !keepMessage { message = nil }
@@ -446,7 +452,7 @@ struct SessionCapsSettingsSection: View {
             disconnected = nil
             conflict = nil
             fleetUncovered = []
-            message = "This keyboard could not be verified for Caps Lock setup. Profiles without Caps Lock rules can still run."
+            message = String(localized: "This keyboard could not be verified for Caps Lock setup. Profiles without Caps Lock rules can still run.")
         }
     }
 
@@ -484,7 +490,7 @@ struct SessionCapsSettingsSection: View {
         await applySelection(enabled: true)
         if message != nil {
             (device, saved) = previous
-            message = "That keyboard could not be set up for Caps Lock. It may have been unplugged; check the list and try again. Existing settings were kept."
+            message = String(localized: "That keyboard could not be set up for Caps Lock. It may have been unplugged; check the list and try again. Existing settings were kept.")
             await refreshKeyboards(keepMessage: true)
         }
         if message == nil {
@@ -513,7 +519,7 @@ struct SessionCapsSettingsSection: View {
         guard await runtime.setCapsSelection(selection, automaticSetupDisabled: !enabled,
                                              selectedKeyboardOnly: enabled ? true : selectedOnly)
         else {
-            message = "Caps Lock setup could not be changed safely. Existing settings were kept. If the keyboard was disconnected, restart your Mac and try again."
+            message = String(localized: "Caps Lock setup could not be changed safely. Existing settings were kept. If the keyboard was disconnected, restart your Mac and try again.")
             return
         }
         message = nil

@@ -112,11 +112,11 @@ struct ContextHUDView: View {
 
     private func kindaVimCoachTip(for mode: KindaVimStateAdapter.Mode) -> String {
         switch mode {
-        case .insert: "Press Esc to enter Normal mode"
-        case .normal: "Navigate with motions, operators, and text objects"
-        case .visual: "Extend selection with motion keys"
-        case .operatorPending: "Pick a motion or text object"
-        case .unknown: "Waiting for mode signal…"
+        case .insert: String(localized: "Press Esc to enter Normal mode")
+        case .normal: String(localized: "Navigate with motions, operators, and text objects")
+        case .visual: String(localized: "Extend selection with motion keys")
+        case .operatorPending: String(localized: "Pick a motion or text object")
+        case .unknown: String(localized: "Waiting for mode signal…")
         }
     }
 

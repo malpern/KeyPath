@@ -227,14 +227,14 @@ struct SystemStatusIndicator: View {
     }
 
     private var accessibilityLabel: String {
-        guard let state = validator.validationState else { return "System status unknown" }
+        guard let state = validator.validationState else { return String(localized: "System status unknown") }
         switch state {
         case .checking:
-            return "System status checking"
+            return String(localized: "System status checking")
         case .success:
-            return "System status good"
+            return String(localized: "System status good")
         case let .failed(blockingCount, _):
-            return blockingCount > 0 ? "System has critical issues" : "System has warnings"
+            return blockingCount > 0 ? String(localized: "System has critical issues") : String(localized: "System has warnings")
         }
     }
 

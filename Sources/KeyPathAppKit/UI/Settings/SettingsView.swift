@@ -268,7 +268,7 @@ struct StatusSettingsTabView: View {
 
     private var keyboardDetailsSection: some View {
         VStack(alignment: .leading, spacing: SettingsDesign.sectionContentGap) {
-            SettingsSectionHeader(title: "Connected Keyboard")
+            SettingsSectionHeader(title: String(localized: "Connected Keyboard"))
 
             if let activeKeyboard = autoDetectController.activeKeyboard {
                 VStack(alignment: .leading, spacing: 10) {
@@ -281,8 +281,11 @@ struct StatusSettingsTabView: View {
                                 .font(.body.weight(.medium))
                                 .fixedSize(horizontal: false, vertical: true)
                             Text([activeKeyboard.manufacturer,
-                                  activeKeyboard.status == .remembered ? "Remembered" : "Connected"]
-                                    .compactMap(\.self).joined(separator: " · "))
+                                  activeKeyboard.status == .remembered ? String(localized: "Remembered", comment: "Keyboard status: seen before but not plugged in now") : String(
+                                      localized: "Connected",
+                                      comment: "Keyboard status: plugged in now"
+                                  )]
+                                  .compactMap(\.self).joined(separator: " · "))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -332,7 +335,7 @@ struct StatusSettingsTabView: View {
                         } label: {
                             // One Text keeps the chevron trailing; a menu label lays out
                             // an HStack's image before its text.
-                            let layoutName = activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? "Choose layout"
+                            let layoutName = activeKeyboard.layoutId.flatMap { PhysicalLayout.find(id: $0)?.name } ?? String(localized: "Choose layout")
                             let chevron = Text(Image(systemName: "chevron.up.chevron.down"))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundColor(.secondary)
@@ -419,7 +422,7 @@ struct StatusSettingsTabView: View {
 
     private func startViaInstallerEngine() async {
         await MainActor.run {
-            settingsToastManager.showInfo("Starting…")
+            settingsToastManager.showInfo(String(localized: "Starting…"))
         }
 
         let started = await kanataManager.startKanata(reason: "Status tab start button")
@@ -427,10 +430,10 @@ struct StatusSettingsTabView: View {
 
         await MainActor.run {
             if started {
-                settingsToastManager.showSuccess("KeyPath activated")
+                settingsToastManager.showSuccess(String(localized: "KeyPath activated"))
             } else {
-                let reason = kanataManager.lastError ?? "Service did not start"
-                settingsToastManager.showError("Start failed: \(reason)")
+                let reason = kanataManager.lastError ?? String(localized: "Service did not start")
+                settingsToastManager.showError(String(localized: "Start failed: \(reason)"))
             }
         }
     }
@@ -440,10 +443,10 @@ struct StatusSettingsTabView: View {
         await refreshStatus()
         await MainActor.run {
             if stopped {
-                settingsToastManager.showInfo("KeyPath deactivated")
+                settingsToastManager.showInfo(String(localized: "KeyPath deactivated"))
             } else {
-                let reason = kanataManager.lastError ?? "Service did not stop"
-                settingsToastManager.showError("Stop failed: \(reason)")
+                let reason = kanataManager.lastError ?? String(localized: "Service did not stop")
+                settingsToastManager.showError(String(localized: "Stop failed: \(reason)"))
             }
         }
     }

@@ -132,7 +132,7 @@ extension KeyboardVisualizationViewModel {
             result["w"] = LauncherMapping(
                 key: "w",
                 action: .systemAction(id: "window-snapping"),
-                userDescription: "Window Snapping"
+                userDescription: String(localized: "Window Snapping")
             )
         }
 
@@ -406,10 +406,12 @@ extension KeyboardVisualizationViewModel {
 
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Simulator failed for '\(layer)' layer"
-        alert.informativeText = "\(report.failureCount)/\(report.totalKeys) keys could not be resolved. Overlay icons may be missing.\n\nClick \"Copy Error\" and paste into Claude Code to debug."
-        alert.addButton(withTitle: "Copy Error")
-        alert.addButton(withTitle: "Dismiss")
+        alert.messageText = String(localized: "Simulator failed for '\(layer)' layer")
+        alert
+            .informativeText =
+            String(localized: "\(report.failureCount)/\(report.totalKeys) keys could not be resolved. Overlay icons may be missing.\n\nClick \"Copy Error\" and paste into Claude Code to debug.")
+        alert.addButton(withTitle: String(localized: "Copy Error"))
+        alert.addButton(withTitle: String(localized: "Dismiss"))
         NonModalAlertPresenter.present(alert, onFirstButton: { [copyableText = report.copyableText()] in
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(copyableText, forType: .string)

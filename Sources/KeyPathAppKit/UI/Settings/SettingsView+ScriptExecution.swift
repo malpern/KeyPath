@@ -12,10 +12,10 @@ struct ScriptExecutionSettingsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SettingsSectionHeader(title: "Script Execution", icon: "terminal", color: .green)
+            SettingsSectionHeader(title: String(localized: "Script Execution"), icon: "terminal", color: .green)
             SettingsToggleRow(
-                title: "Allow script execution in Quick Launcher",
-                subtitle: "Scripts can run commands on your system. Only enable for trusted scripts.",
+                title: String(localized: "Allow script execution in Quick Launcher"),
+                subtitle: String(localized: "Scripts can run commands on your system. Only enable for trusted scripts."),
                 isOn: Binding(get: { securityService.isScriptExecutionEnabled }, set: { newValue in
                     if newValue { showingEnableConfirmation = true }
                     else { securityService.isScriptExecutionEnabled = false }
@@ -34,8 +34,8 @@ struct ScriptExecutionSettingsSection: View {
 
             if securityService.isScriptExecutionEnabled {
                 SettingsToggleRow(
-                    title: "Skip confirmation dialog",
-                    subtitle: "⚠️ Scripts will run immediately without warning", subtitleColor: .orange,
+                    title: String(localized: "Skip confirmation dialog"),
+                    subtitle: String(localized: "⚠️ Scripts will run immediately without warning"), subtitleColor: .orange,
                     isOn: Binding(get: { securityService.bypassFirstRunDialog }, set: { newValue in
                         if newValue { showingBypassConfirmation = true }
                         else { securityService.bypassFirstRunDialog = false }
@@ -83,8 +83,8 @@ private struct ScriptExecutionLogView: View {
         securityService.executionLog.enumerated().reversed().map { index, entry in
             (
                 id: index,
-                path: entry["path"] as? String ?? "Unknown",
-                timestamp: entry["timestamp"] as? String ?? "Unknown",
+                path: entry["path"] as? String ?? String(localized: "Unknown", comment: "Placeholder when a script path is missing"),
+                timestamp: entry["timestamp"] as? String ?? String(localized: "Unknown", comment: "Placeholder when a timestamp is missing"),
                 success: entry["success"] as? Bool ?? false,
                 error: entry["error"] as? String ?? ""
             )

@@ -37,7 +37,7 @@ final class CommandPaletteWindowController {
         }.map { item in
             CommandPaletteItem(
                 id: item.id, title: item.title, subtitle: item.subtitle,
-                icon: item.icon, shortcut: item.shortcut, group: "Recent",
+                icon: item.icon, shortcut: item.shortcut, group: String(localized: "Recent"),
                 action: item.action
             )
         }
@@ -169,11 +169,11 @@ final class CommandPaletteWindowController {
         [
             CommandPaletteItem(
                 id: "toggle-app",
-                title: "Hide / Show KeyPath",
-                subtitle: "Toggle the main KeyPath window",
+                title: String(localized: "Hide / Show KeyPath"),
+                subtitle: String(localized: "Toggle the main KeyPath window"),
                 icon: "eye",
                 shortcut: nil,
-                group: "Navigation"
+                group: String(localized: "Navigation")
             ) {
                 DispatchQueue.main.async {
                     if NSApp.isHidden {
@@ -186,11 +186,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "overlay",
-                title: "Live Keyboard Overlay",
-                subtitle: "Show the floating keyboard visualization",
+                title: String(localized: "Live Keyboard Overlay"),
+                subtitle: String(localized: "Show the floating keyboard visualization"),
                 icon: "keyboard.badge.eye",
                 shortcut: "\u{2325}\u{2318}K",
-                group: "Navigation"
+                group: String(localized: "Navigation")
             ) {
                 DispatchQueue.main.async {
                     LiveKeyboardOverlayController.shared.toggle()
@@ -198,11 +198,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "mappings",
-                title: "Mappings",
-                subtitle: "Open the key mapper overlay",
+                title: String(localized: "Mappings"),
+                subtitle: String(localized: "Open the key mapper overlay"),
                 icon: "keyboard",
                 shortcut: "\u{21e7}\u{2318}M",
-                group: "Navigation"
+                group: String(localized: "Navigation")
             ) {
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: .openOverlayWithMapper, object: nil)
@@ -210,11 +210,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "edit-config",
-                title: "Edit Config",
-                subtitle: "Open keypath.kbd in your editor",
+                title: String(localized: "Edit Config"),
+                subtitle: String(localized: "Open keypath.kbd in your editor"),
                 icon: "chevron.left.forwardslash.chevron.right",
                 shortcut: "\u{2318}O",
-                group: "Navigation"
+                group: String(localized: "Navigation")
             ) {
                 DispatchQueue.main.async {
                     if let vm = (NSApp.delegate as? AppDelegate)?.viewModel {
@@ -224,11 +224,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "help",
-                title: "Help",
-                subtitle: "Open the KeyPath help browser",
+                title: String(localized: "Help"),
+                subtitle: String(localized: "Open the KeyPath help browser"),
                 icon: "questionmark.circle",
                 shortcut: "\u{2318}?",
-                group: "Navigation"
+                group: String(localized: "Navigation")
             ) {
                 DispatchQueue.main.async {
                     HelpWindowController.shared.showBrowser()
@@ -248,7 +248,7 @@ final class CommandPaletteWindowController {
                 subtitle: collection.summary,
                 icon: collection.icon ?? "list.bullet",
                 shortcut: nil,
-                group: "Collections"
+                group: String(localized: "Collections")
             ) {
                 DispatchQueue.main.async {
                     openPreferencesTab(.openSettingsRules)
@@ -267,7 +267,7 @@ final class CommandPaletteWindowController {
                 subtitle: pack.tagline,
                 icon: pack.iconSymbol,
                 shortcut: nil,
-                group: "Packs"
+                group: String(localized: "Packs")
             ) {
                 DispatchQueue.main.async {
                     if let vm = (NSApp.delegate as? AppDelegate)?.viewModel {
@@ -282,15 +282,15 @@ final class CommandPaletteWindowController {
 
     private func overlayTabItems() -> [CommandPaletteItem] {
         let tabs: [(section: InspectorSection, title: String, subtitle: String, icon: String)] = [
-            (.mapper, "Mapper", "Key mapper and conflict detection", "arrow.left.arrow.right"),
-            (.customRules, "Custom Rules", "Global and app-specific rules", "text.badge.star"),
-            (.keyboard, "Keymap", "Logical key labels", "character.textbox"),
-            (.layout, "Layout", "Physical keyboard layout", "rectangle.split.3x3"),
-            (.keycaps, "Keycaps", "Keycap appearance and colors", "paintpalette"),
-            (.sounds, "Sounds", "Typing sounds", "speaker.wave.2"),
-            (.launchers, "Launchers", "App and website launchers", "arrow.up.forward.app"),
-            (.devices, "Devices", "Keyboard device selection", "desktopcomputer"),
-            (.history, "Keystroke History", "Timeline of key events and tap-hold decisions", "clock.arrow.trianglehead.counterclockwise.rotate.90"),
+            (.mapper, String(localized: "Mapper"), String(localized: "Key mapper and conflict detection"), "arrow.left.arrow.right"),
+            (.customRules, String(localized: "Custom Rules"), String(localized: "Global and app-specific rules"), "text.badge.star"),
+            (.keyboard, String(localized: "Keymap"), String(localized: "Logical key labels"), "character.textbox"),
+            (.layout, String(localized: "Layout"), String(localized: "Physical keyboard layout"), "rectangle.split.3x3"),
+            (.keycaps, String(localized: "Keycaps"), String(localized: "Keycap appearance and colors"), "paintpalette"),
+            (.sounds, String(localized: "Sounds"), String(localized: "Typing sounds"), "speaker.wave.2"),
+            (.launchers, String(localized: "Launchers"), String(localized: "App and website launchers"), "arrow.up.forward.app"),
+            (.devices, String(localized: "Devices"), String(localized: "Keyboard device selection"), "desktopcomputer"),
+            (.history, String(localized: "Keystroke History"), String(localized: "Timeline of key events and tap-hold decisions"), "clock.arrow.trianglehead.counterclockwise.rotate.90"),
         ]
 
         return tabs.map { tab in
@@ -300,7 +300,7 @@ final class CommandPaletteWindowController {
                 subtitle: tab.subtitle,
                 icon: tab.icon,
                 shortcut: nil,
-                group: "Overlay"
+                group: String(localized: "Overlay")
             ) {
                 DispatchQueue.main.async {
                     let controller = LiveKeyboardOverlayController.shared
@@ -326,11 +326,11 @@ final class CommandPaletteWindowController {
         [
             CommandPaletteItem(
                 id: "settings-status",
-                title: "System Status",
-                subtitle: "Check service health and permissions",
+                title: String(localized: "System Status"),
+                subtitle: String(localized: "Check service health and permissions"),
                 icon: "gauge.with.dots.needle.67percent",
                 shortcut: "\u{2318}S",
-                group: "Settings"
+                group: String(localized: "Settings")
             ) {
                 DispatchQueue.main.async {
                     openPreferencesTab(.openSettingsSystemStatus)
@@ -338,11 +338,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "settings-rules",
-                title: "Rules Tab",
-                subtitle: "Manage rule collections",
+                title: String(localized: "Rules Tab"),
+                subtitle: String(localized: "Manage rule collections"),
                 icon: "list.bullet",
                 shortcut: "\u{2318}R",
-                group: "Settings"
+                group: String(localized: "Settings")
             ) {
                 DispatchQueue.main.async {
                     openPreferencesTab(.openSettingsRules)
@@ -350,11 +350,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "settings-general",
-                title: "General",
-                subtitle: "App preferences and startup options",
+                title: String(localized: "General"),
+                subtitle: String(localized: "App preferences and startup options"),
                 icon: "gearshape",
                 shortcut: nil,
-                group: "Settings"
+                group: String(localized: "Settings")
             ) {
                 DispatchQueue.main.async {
                     openPreferencesTab(.openSettingsGeneral)
@@ -362,11 +362,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "settings-advanced",
-                title: "Repair / Remove",
-                subtitle: "Reinstall components or uninstall",
+                title: String(localized: "Repair / Remove"),
+                subtitle: String(localized: "Reinstall components or uninstall"),
                 icon: "wrench.and.screwdriver",
                 shortcut: nil,
-                group: "Settings"
+                group: String(localized: "Settings")
             ) {
                 DispatchQueue.main.async {
                     openPreferencesTab(.openSettingsAdvanced)
@@ -374,11 +374,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "settings-logs",
-                title: "Logs",
-                subtitle: "View debug and runtime logs",
+                title: String(localized: "Logs"),
+                subtitle: String(localized: "View debug and runtime logs"),
                 icon: "doc.text.magnifyingglass",
                 shortcut: "\u{2318}L",
-                group: "Settings"
+                group: String(localized: "Settings")
             ) {
                 DispatchQueue.main.async {
                     openPreferencesTab(.openSettingsLogs)
@@ -386,11 +386,11 @@ final class CommandPaletteWindowController {
             },
             CommandPaletteItem(
                 id: "settings-wizard",
-                title: "Installation Wizard",
-                subtitle: "Run the setup wizard",
+                title: String(localized: "Installation Wizard"),
+                subtitle: String(localized: "Run the setup wizard"),
                 icon: "wand.and.stars",
                 shortcut: "\u{21e7}\u{2318}N",
-                group: "Settings"
+                group: String(localized: "Settings")
             ) {
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: .showWizard, object: nil)

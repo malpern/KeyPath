@@ -19,15 +19,15 @@ enum NeovimTerminalCategory: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .basicMotions: "Basic Motions"
-        case .operators: "Operators"
-        case .textObjects: "Text Objects"
-        case .windowNavigation: "Window Navigation"
-        case .buffersTabs: "Buffers & Tabs"
+        case .basicMotions: String(localized: "Basic Motions")
+        case .operators: String(localized: "Operators")
+        case .textObjects: String(localized: "Text Objects")
+        case .windowNavigation: String(localized: "Window Navigation")
+        case .buffersTabs: String(localized: "Buffers & Tabs")
         case .lsp: "LSP"
         case .telescope: "Telescope"
-        case .terminalMode: "Terminal Mode"
-        case .search: "Search"
+        case .terminalMode: String(localized: "Terminal Mode")
+        case .search: String(localized: "Search", comment: "Neovim reference category")
         }
     }
 
@@ -36,7 +36,7 @@ enum NeovimTerminalCategory: String, CaseIterable, Identifiable {
         case .basicMotions: "h/j/k/l, w/b/e, 0/$, gg/G, f/t"
         case .operators: "d, c, y, >, <, ="
         case .textObjects: "iw/aw, ip/ap, i\"/a\""
-        case .windowNavigation: "Ctrl-w split + focus commands"
+        case .windowNavigation: String(localized: "Ctrl-w split + focus commands")
         case .buffersTabs: ":bn/:bp/:bd, gt/gT, Ctrl-^"
         case .lsp: "gd, gr, K, <leader>rn, <leader>ca"
         case .telescope: "<leader>ff, fg, fb, fh"
@@ -88,61 +88,61 @@ enum NeovimTerminalCategory: String, CaseIterable, Identifiable {
         switch self {
         case .basicMotions:
             [
-                .init(keys: "h j k l", meaning: "left/down/up/right"),
-                .init(keys: "w b e", meaning: "word motions"),
-                .init(keys: "0  $", meaning: "line start/end"),
-                .init(keys: "gg  G", meaning: "file start/end"),
-                .init(keys: "f  t", meaning: "find/till char"),
+                .init(keys: "h j k l", meaning: String(localized: "left/down/up/right", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "w b e", meaning: String(localized: "word motions", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "0  $", meaning: String(localized: "line start/end", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "gg  G", meaning: String(localized: "file start/end", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "f  t", meaning: String(localized: "find/till char", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .operators:
             [
-                .init(keys: "d  c  y", meaning: "delete/change/yank"),
-                .init(keys: ">  <  =", meaning: "indent/outdent/reindent"),
+                .init(keys: "d  c  y", meaning: String(localized: "delete/change/yank", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: ">  <  =", meaning: String(localized: "indent/outdent/reindent", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .textObjects:
             [
-                .init(keys: "iw  aw", meaning: "inner/a word"),
-                .init(keys: "ip  ap", meaning: "inner/a paragraph"),
-                .init(keys: "i\"  a\"", meaning: "inner/a quoted string"),
+                .init(keys: "iw  aw", meaning: String(localized: "inner/a word", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "ip  ap", meaning: String(localized: "inner/a paragraph", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "i\"  a\"", meaning: String(localized: "inner/a quoted string", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .windowNavigation:
             [
-                .init(keys: "⌃ w h/j/k/l", meaning: "focus split left/down/up/right"),
-                .init(keys: "⌃ w v  /  s", meaning: "split vertical / horizontal"),
-                .init(keys: "⌃ w =", meaning: "equalize split sizes"),
-                .init(keys: "⌃ w q", meaning: "close current split"),
+                .init(keys: "⌃ w h/j/k/l", meaning: String(localized: "focus split left/down/up/right", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "⌃ w v  /  s", meaning: String(localized: "split vertical / horizontal", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "⌃ w =", meaning: String(localized: "equalize split sizes", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "⌃ w q", meaning: String(localized: "close current split", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .buffersTabs:
             [
-                .init(keys: ":bn  :bp  :bd", meaning: "next/prev/delete buffer"),
-                .init(keys: "gt  gT", meaning: "next/prev tab"),
-                .init(keys: "Ctrl-^", meaning: "alternate buffer"),
+                .init(keys: ":bn  :bp  :bd", meaning: String(localized: "next/prev/delete buffer", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "gt  gT", meaning: String(localized: "next/prev tab", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "Ctrl-^", meaning: String(localized: "alternate buffer", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .lsp:
             [
-                .init(keys: "gd  gr", meaning: "go to def / references"),
-                .init(keys: "K", meaning: "hover docs"),
-                .init(keys: "<leader>rn", meaning: "rename symbol"),
-                .init(keys: "<leader>ca", meaning: "code actions"),
+                .init(keys: "gd  gr", meaning: String(localized: "go to def / references", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "K", meaning: String(localized: "hover docs", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "<leader>rn", meaning: String(localized: "rename symbol", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "<leader>ca", meaning: String(localized: "code actions", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .telescope:
             [
-                .init(keys: "<leader>ff", meaning: "find files"),
-                .init(keys: "<leader>fg", meaning: "live grep"),
-                .init(keys: "<leader>fb", meaning: "buffers"),
-                .init(keys: "<leader>fh", meaning: "help tags"),
+                .init(keys: "<leader>ff", meaning: String(localized: "find files", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "<leader>fg", meaning: String(localized: "live grep", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "<leader>fb", meaning: String(localized: "buffers", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "<leader>fh", meaning: String(localized: "help tags", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .terminalMode:
             [
-                .init(keys: ":terminal", meaning: "open terminal buffer"),
-                .init(keys: "Ctrl-\\ Ctrl-n", meaning: "terminal → normal mode"),
-                .init(keys: "i", meaning: "normal → terminal insert"),
+                .init(keys: ":terminal", meaning: String(localized: "open terminal buffer", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "Ctrl-\\ Ctrl-n", meaning: String(localized: "terminal → normal mode", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "i", meaning: String(localized: "normal → terminal insert", comment: "Vim command meaning, shown next to its keys")),
             ]
         case .search:
             [
-                .init(keys: "/  ?", meaning: "search fwd/back"),
-                .init(keys: "n  N", meaning: "next/prev match"),
-                .init(keys: "*  #", meaning: "word under cursor"),
+                .init(keys: "/  ?", meaning: String(localized: "search fwd/back", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "n  N", meaning: String(localized: "next/prev match", comment: "Vim command meaning, shown next to its keys")),
+                .init(keys: "*  #", meaning: String(localized: "word under cursor", comment: "Vim command meaning, shown next to its keys")),
             ]
         }
     }

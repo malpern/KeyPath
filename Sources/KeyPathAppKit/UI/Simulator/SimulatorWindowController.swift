@@ -22,7 +22,7 @@ final class SimulatorWindowController {
         let hostingController = NSHostingController(rootView: contentView)
 
         let newWindow = NSWindow(contentViewController: hostingController)
-        newWindow.title = "Simulator"
+        newWindow.title = String(localized: "Simulator", comment: "Window title")
         newWindow.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         newWindow.setContentSize(NSSize(width: 1000, height: 680))
         newWindow.minSize = NSSize(width: 760, height: 560)

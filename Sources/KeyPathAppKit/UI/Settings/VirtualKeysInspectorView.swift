@@ -282,7 +282,7 @@ struct VirtualKeysInspectorView: View {
             virtualKeys = VirtualKeyParser.parse(config: content)
             loadSource = .configFile
         } catch {
-            errorMessage = "Could not read config: \(error.localizedDescription)"
+            errorMessage = String(localized: "Could not read config: \(error.localizedDescription)")
             virtualKeys = []
             loadSource = nil
         }
@@ -310,7 +310,7 @@ struct VirtualKeysInspectorView: View {
 
         // Show brief feedback
         withAnimation {
-            testResult = .success("Copied: \(url)")
+            testResult = .success(String(localized: "Copied: \(url)"))
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation {
@@ -333,7 +333,7 @@ struct VirtualKeysInspectorView: View {
             await MainActor.run {
                 testingKey = nil
                 withAnimation {
-                    testResult = .failure("Kanata not running. Start the service first.")
+                    testResult = .failure(String(localized: "Kanata not running. Start the service first."))
                 }
             }
             await client.cancelInflightAndCloseConnection()
@@ -348,16 +348,16 @@ struct VirtualKeysInspectorView: View {
             withAnimation {
                 switch result {
                 case .success:
-                    testResult = .success("Triggered '\(key.name)' successfully")
+                    testResult = .success(String(localized: "Triggered '\(key.name)' successfully"))
                 case let .error(message):
                     // Improve error messages for common cases
                     if message.lowercased().contains("not found") || message.lowercased().contains("unknown") {
-                        testResult = .failure("Key '\(key.name)' not recognized by Kanata. Try reloading config.")
+                        testResult = .failure(String(localized: "Key '\(key.name)' not recognized by Kanata. Try reloading config."))
                     } else {
                         testResult = .failure(message)
                     }
                 case let .networkError(message):
-                    testResult = .failure("Connection lost: \(message)")
+                    testResult = .failure(String(localized: "Connection lost: \(message)"))
                 }
             }
 

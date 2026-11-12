@@ -12,10 +12,10 @@ enum SettingsTab: Hashable, CaseIterable {
 
     var title: String {
         switch self {
-        case .general: "General"
-        case .status: "Status"
-        case .rules: "Rules"
-        case .advanced: "Repair/Remove"
+        case .general: String(localized: "General", comment: "Settings tab")
+        case .status: String(localized: "Status", comment: "Settings tab")
+        case .rules: String(localized: "Rules", comment: "Settings tab")
+        case .advanced: String(localized: "Repair/Remove", comment: "Settings tab")
         }
     }
 

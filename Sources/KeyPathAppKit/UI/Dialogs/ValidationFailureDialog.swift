@@ -16,7 +16,7 @@ struct ValidationFailureDialog: View {
 
     private var normalizedErrors: [String] {
         errors.isEmpty
-            ? ["Kanata returned an unknown validation error."]
+            ? [String(localized: "Kanata returned an unknown validation error.")]
             : errors
     }
 

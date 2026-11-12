@@ -10,7 +10,7 @@ struct DisplaysCard: View {
     var body: some View {
         ActionCard(
             icon: "display.2",
-            title: "Displays",
+            title: String(localized: "Displays", comment: "Window snapping card: move windows between displays"),
             isHovered: isHovered,
             accentColor: .orange
         ) {

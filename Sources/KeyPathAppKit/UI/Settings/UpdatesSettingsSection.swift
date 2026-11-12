@@ -6,7 +6,7 @@ struct UpdatesSettingsSection: View {
     @State private var updateService = UpdateService.shared
 
     var body: some View {
-        SettingsSection(title: "Updates") {
+        SettingsSection(title: String(localized: "Updates")) {
             SettingsCard {
                 VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                     if updateService.usesManualDownloads {
@@ -14,15 +14,15 @@ struct UpdatesSettingsSection: View {
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
                         SettingsToggleRow(
-                            title: "Check for updates automatically",
-                            subtitle: "Once a day.",
+                            title: String(localized: "Check for updates automatically"),
+                            subtitle: String(localized: "Once a day."),
                             isOn: Binding(get: { updateService.automaticallyChecksForUpdates },
                                           set: { updateService.setAutomaticChecks(enabled: $0) }),
                             identifier: "settings-updates-auto-check-toggle"
                         )
                         SettingsToggleRow(
-                            title: "Download and install updates automatically",
-                            subtitle: "Installs when you quit KeyPath. Your rules are kept.",
+                            title: String(localized: "Download and install updates automatically"),
+                            subtitle: String(localized: "Installs when you quit KeyPath. Your rules are kept."),
                             isOn: Binding(get: { updateService.automaticallyDownloadsUpdates },
                                           set: { updateService.setAutomaticDownloads(enabled: $0) }),
                             identifier: "settings-updates-auto-install-toggle"

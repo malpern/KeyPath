@@ -32,7 +32,7 @@ struct FunctionKeysView: View {
             // Toggle control
             DisplayModeToggle(showMediaKeys: $preferMediaKeys)
 
-            Text(SystemActionInfo.driverlessMediaUnavailableReason + " Your keyboard’s normal media controls remain managed by macOS.")
+            Text(SystemActionInfo.driverlessMediaUnavailableReason + " " + String(localized: "Your keyboard’s normal media controls remain managed by macOS."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -167,8 +167,8 @@ private struct DisplayModeToggle: View {
             HStack(spacing: 8) {
                 SettingsOptionCard(
                     icon: "sun.max",
-                    title: "Media Keys",
-                    subtitle: "Unsupported in driverless mode",
+                    title: String(localized: "Media Keys"),
+                    subtitle: String(localized: "Unsupported in driverless mode"),
                     isSelected: showMediaKeys
                 ) {
                     guard FunctionKeyMode.media.isSupportedInDriverlessSession else { return }
@@ -179,8 +179,8 @@ private struct DisplayModeToggle: View {
 
                 SettingsOptionCard(
                     icon: "function",
-                    title: "Function Keys",
-                    subtitle: "F1–F12 for apps",
+                    title: String(localized: "Function Keys"),
+                    subtitle: String(localized: "F1–F12 for apps"),
                     isSelected: !showMediaKeys
                 ) {
                     showMediaKeys = false
@@ -265,18 +265,36 @@ private struct FunctionKeyInfo {
     let iconColor: Color
 
     static let allKeys: [FunctionKeyInfo] = [
-        FunctionKeyInfo(keyCode: "f1", fKeyLabel: "F1", mediaIcon: "sun.min", shortLabel: "Dim", iconColor: .yellow),
-        FunctionKeyInfo(keyCode: "f2", fKeyLabel: "F2", mediaIcon: "sun.max", shortLabel: "Bright", iconColor: .yellow),
-        FunctionKeyInfo(keyCode: "f3", fKeyLabel: "F3", mediaIcon: "rectangle.3.group", shortLabel: "Mission", iconColor: .blue),
-        FunctionKeyInfo(keyCode: "f4", fKeyLabel: "F4", mediaIcon: "magnifyingglass", shortLabel: "Search", iconColor: .blue),
-        FunctionKeyInfo(keyCode: "f5", fKeyLabel: "F5", mediaIcon: "mic", shortLabel: "Dictate", iconColor: .green),
-        FunctionKeyInfo(keyCode: "f6", fKeyLabel: "F6", mediaIcon: "moon", shortLabel: "DND", iconColor: .purple),
-        FunctionKeyInfo(keyCode: "f7", fKeyLabel: "F7", mediaIcon: "backward.fill", shortLabel: "Prev", iconColor: .pink),
-        FunctionKeyInfo(keyCode: "f8", fKeyLabel: "F8", mediaIcon: "playpause.fill", shortLabel: "Play", iconColor: .pink),
-        FunctionKeyInfo(keyCode: "f9", fKeyLabel: "F9", mediaIcon: "forward.fill", shortLabel: "Next", iconColor: .pink),
-        FunctionKeyInfo(keyCode: "f10", fKeyLabel: "F10", mediaIcon: "speaker.slash", shortLabel: "Mute", iconColor: .gray),
-        FunctionKeyInfo(keyCode: "f11", fKeyLabel: "F11", mediaIcon: "speaker.wave.1", shortLabel: "Vol-", iconColor: .gray),
-        FunctionKeyInfo(keyCode: "f12", fKeyLabel: "F12", mediaIcon: "speaker.wave.3", shortLabel: "Vol+", iconColor: .gray)
+        FunctionKeyInfo(keyCode: "f1", fKeyLabel: "F1", mediaIcon: "sun.min", shortLabel: String(localized: "Dim", comment: "Short media key label: F1 lowers screen brightness"), iconColor: .yellow),
+        FunctionKeyInfo(
+            keyCode: "f2",
+            fKeyLabel: "F2",
+            mediaIcon: "sun.max",
+            shortLabel: String(localized: "Bright", comment: "Short media key label: F2 raises screen brightness"),
+            iconColor: .yellow
+        ),
+        FunctionKeyInfo(
+            keyCode: "f3",
+            fKeyLabel: "F3",
+            mediaIcon: "rectangle.3.group",
+            shortLabel: String(localized: "Mission", comment: "Short media key label: F3 opens Mission Control"),
+            iconColor: .blue
+        ),
+        FunctionKeyInfo(
+            keyCode: "f4",
+            fKeyLabel: "F4",
+            mediaIcon: "magnifyingglass",
+            shortLabel: String(localized: "Search", comment: "Short media key label: F4 opens Spotlight search"),
+            iconColor: .blue
+        ),
+        FunctionKeyInfo(keyCode: "f5", fKeyLabel: "F5", mediaIcon: "mic", shortLabel: String(localized: "Dictate", comment: "Short media key label: F5 starts dictation"), iconColor: .green),
+        FunctionKeyInfo(keyCode: "f6", fKeyLabel: "F6", mediaIcon: "moon", shortLabel: String(localized: "DND", comment: "Short media key label: F6 toggles Do Not Disturb"), iconColor: .purple),
+        FunctionKeyInfo(keyCode: "f7", fKeyLabel: "F7", mediaIcon: "backward.fill", shortLabel: String(localized: "Prev", comment: "Short media key label: F7 previous track"), iconColor: .pink),
+        FunctionKeyInfo(keyCode: "f8", fKeyLabel: "F8", mediaIcon: "playpause.fill", shortLabel: String(localized: "Play", comment: "Short media key label: F8 play or pause"), iconColor: .pink),
+        FunctionKeyInfo(keyCode: "f9", fKeyLabel: "F9", mediaIcon: "forward.fill", shortLabel: String(localized: "Next", comment: "Short media key label: F9 next track"), iconColor: .pink),
+        FunctionKeyInfo(keyCode: "f10", fKeyLabel: "F10", mediaIcon: "speaker.slash", shortLabel: String(localized: "Mute", comment: "Short media key label: F10 mutes sound"), iconColor: .gray),
+        FunctionKeyInfo(keyCode: "f11", fKeyLabel: "F11", mediaIcon: "speaker.wave.1", shortLabel: String(localized: "Vol-", comment: "Short media key label: F11 volume down"), iconColor: .gray),
+        FunctionKeyInfo(keyCode: "f12", fKeyLabel: "F12", mediaIcon: "speaker.wave.3", shortLabel: String(localized: "Vol+", comment: "Short media key label: F12 volume up"), iconColor: .gray)
     ]
 }
 

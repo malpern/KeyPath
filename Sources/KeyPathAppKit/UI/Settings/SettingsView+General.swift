@@ -26,18 +26,18 @@ struct GeneralSettingsTabView: View {
                 UpdatesSettingsSection()
                 // What appears while a layer is active (overlay, list, banner)
                 ContextHUDSettingsSection()
-                SettingsSection(title: "Keyboard Appearance") {
+                SettingsSection(title: String(localized: "Keyboard Appearance")) {
                     SettingsCard {
                         VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                             Text("Key labels").font(.body.weight(.medium))
                             HStack(spacing: SettingsDesign.optionGap) {
-                                SettingsKeyPreviewChoice(title: "Symbols", keys: ["⌫", "⇥", "⇧"],
+                                SettingsKeyPreviewChoice(title: String(localized: "Symbols", comment: "Key label style: show symbols such as ⌫"), keys: ["⌫", "⇥", "⇧"],
                                                          isSelected: services.preferences.keyLabelStyle == .symbols,
                                                          identifier: "settings-key-label-symbols")
                                 {
                                     services.preferences.keyLabelStyle = .symbols
                                 }
-                                SettingsKeyPreviewChoice(title: "Text", keys: ["delete", "tab", "shift"],
+                                SettingsKeyPreviewChoice(title: String(localized: "Text", comment: "Key label style: show words such as delete"), keys: ["delete", "tab", "shift"],
                                                          isSelected: services.preferences.keyLabelStyle == .text,
                                                          identifier: "settings-key-label-text")
                                 {
@@ -47,13 +47,13 @@ struct GeneralSettingsTabView: View {
                             Divider()
                             Text("Unmapped keys on layers").font(.body.weight(.medium))
                             HStack(spacing: SettingsDesign.optionGap) {
-                                SettingsKeyPreviewChoice(title: "Normal", keys: ["A", "S", "D"],
+                                SettingsKeyPreviewChoice(title: String(localized: "Normal", comment: "Overlay idle appearance: full opacity"), keys: ["A", "S", "D"],
                                                          isSelected: services.preferences.unmappedLayerKeyStyle == .baseLayer,
                                                          identifier: "settings-unmapped-layer-keys-base")
                                 {
                                     services.preferences.unmappedLayerKeyStyle = .baseLayer
                                 }
-                                SettingsKeyPreviewChoice(title: "Dimmed", keys: ["A", "S", "D"], dimmed: true,
+                                SettingsKeyPreviewChoice(title: String(localized: "Dimmed", comment: "Overlay idle appearance: dimmed"), keys: ["A", "S", "D"], dimmed: true,
                                                          isSelected: services.preferences.unmappedLayerKeyStyle == .dimmed,
                                                          identifier: "settings-unmapped-layer-keys-dimmed")
                                 {
@@ -63,8 +63,8 @@ struct GeneralSettingsTabView: View {
                             Divider()
                             OverlayOpacityRow()
                             SettingsToggleRow(
-                                title: "Fade when idle",
-                                subtitle: "The overlay fades after a while without typing.",
+                                title: String(localized: "Fade when idle"),
+                                subtitle: String(localized: "The overlay fades after a while without typing."),
                                 isOn: Binding(
                                     get: { services.preferences.overlayFadesWhenIdle },
                                     set: { services.preferences.overlayFadesWhenIdle = $0 }
@@ -72,8 +72,8 @@ struct GeneralSettingsTabView: View {
                                 identifier: "settings-overlay-fade-when-idle"
                             )
                             SettingsToggleRow(
-                                title: "Show when a layer is active",
-                                subtitle: "Keep the overlay hidden on the base layer. Hold or toggle a layer to reveal it.",
+                                title: String(localized: "Show when a layer is active"),
+                                subtitle: String(localized: "Keep the overlay hidden on the base layer. Hold or toggle a layer to reveal it."),
                                 isOn: Binding(
                                     get: { services.preferences.overlayShowsOnlyWhileLayerHeld },
                                     set: {
@@ -87,10 +87,14 @@ struct GeneralSettingsTabView: View {
                     }
                 }
 
-                SettingsSection(title: "Recording") {
+                SettingsSection(title: String(localized: "Recording")) {
                     SettingsCard {
                         VStack(spacing: SettingsDesign.rowGap) {
-                            SettingsControlRow(title: "Capture", icon: "record.circle", help: "Record keys one after another, or a combination pressed together.") {
+                            SettingsControlRow(
+                                title: String(localized: "Capture", comment: "Recording setting: how keys are captured"),
+                                icon: "record.circle",
+                                help: String(localized: "Record keys one after another, or a combination pressed together.")
+                            ) {
                                 Picker("Capture", selection: Binding(get: { services.preferences.isSequenceMode }, set: { services.preferences.isSequenceMode = $0 })) {
                                     Text("Sequences").tag(true)
                                     Text("Combos").tag(false)
@@ -99,7 +103,11 @@ struct GeneralSettingsTabView: View {
                                 .accessibilityIdentifier("settings-capture-mode-picker")
                             }
                             Divider()
-                            SettingsControlRow(title: "Record", icon: "keyboard", help: "Physical keys pauses your mappings while recording. With mappings includes KeyPath’s remapped output.") {
+                            SettingsControlRow(
+                                title: String(localized: "Record", comment: "Recording setting: which keys are recorded"),
+                                icon: "keyboard",
+                                help: String(localized: "Physical keys pauses your mappings while recording. With mappings includes KeyPath’s remapped output.")
+                            ) {
                                 Picker(
                                     "Recording behavior",
                                     selection: Binding(get: { services.preferences.applyMappingsDuringRecording }, set: { services.preferences.applyMappingsDuringRecording = $0 })
@@ -114,11 +122,11 @@ struct GeneralSettingsTabView: View {
                     }
                 }
 
-                SettingsSection(title: "Caps Lock") {
+                SettingsSection(title: String(localized: "Caps Lock")) {
                     SettingsCard { SessionCapsSettingsSection() }
                 }
 
-                SettingsSection(title: "Advanced") {
+                SettingsSection(title: String(localized: "Advanced")) {
                     SettingsCard {
                         VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                             DisclosureGroup {
@@ -204,8 +212,8 @@ struct LayerIndicatorToggle: View {
 
     var body: some View {
         SettingsToggleRow(
-            title: "Layer change notification",
-            subtitle: "Banner and sound when switching layers.",
+            title: String(localized: "Layer change notification"),
+            subtitle: String(localized: "Banner and sound when switching layers."),
             isOn: Binding(get: { !disabled }, set: { disabled = !$0 }),
             identifier: "settings-layer-indicator-toggle"
         )
@@ -223,8 +231,8 @@ struct VerboseLoggingToggle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SettingsToggleRow(
-                title: "Verbose Logging", subtitle: "May impact performance",
-                help: "Detailed Kanata trace logs for debugging",
+                title: String(localized: "Verbose Logging"), subtitle: String(localized: "May impact performance"),
+                help: String(localized: "Detailed Kanata trace logs for debugging"),
                 isOn: $verboseLogging, identifier: "settings-verbose-logging-toggle"
             )
             .onChange(of: verboseLogging) { _, newValue in

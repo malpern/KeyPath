@@ -80,23 +80,23 @@ struct WhatsNewView: View {
             return [
                 Feature(
                     icon: "arrow.triangle.2.circlepath",
-                    title: "Automatic Updates",
-                    description: "KeyPath now updates itself. You'll be notified when new versions are available."
+                    title: String(localized: "Automatic Updates"),
+                    description: String(localized: "KeyPath now updates itself. You'll be notified when new versions are available.")
                 ),
                 Feature(
                     icon: "wand.and.stars",
-                    title: "Installation Wizard",
-                    description: "Step-by-step setup guides you through permissions and driver installation."
+                    title: String(localized: "Installation Wizard"),
+                    description: String(localized: "Step-by-step setup guides you through permissions and driver installation.")
                 ),
                 Feature(
                     icon: "keyboard",
-                    title: "Custom Rules Editor",
-                    description: "Create your own keyboard remappings with the built-in config editor."
+                    title: String(localized: "Custom Rules Editor"),
+                    description: String(localized: "Create your own keyboard remappings with the built-in config editor.")
                 ),
                 Feature(
                     icon: "antenna.radiowaves.left.and.right",
-                    title: "Real-time Feedback",
-                    description: "TCP integration with Kanata for instant layer status updates."
+                    title: String(localized: "Real-time Feedback"),
+                    description: String(localized: "TCP integration with Kanata for instant layer status updates.")
                 )
             ]
         }
@@ -105,8 +105,8 @@ struct WhatsNewView: View {
         return [
             Feature(
                 icon: "star.fill",
-                title: "Bug Fixes & Improvements",
-                description: "This update includes various bug fixes and performance improvements."
+                title: String(localized: "Bug Fixes & Improvements"),
+                description: String(localized: "This update includes various bug fixes and performance improvements.")
             )
         ]
     }

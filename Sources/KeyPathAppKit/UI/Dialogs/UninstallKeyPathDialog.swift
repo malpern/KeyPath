@@ -17,7 +17,7 @@ struct UninstallKeyPathDialog: View {
             Text(didSucceed ? "Uninstall Complete" : "Uninstall KeyPath?")
                 .font(.title2.bold())
             if didSucceed {
-                Text(backupMessage ?? "Your backup is in Downloads. KeyPath will now quit.")
+                Text(backupMessage ?? String(localized: "Your backup is in Downloads. KeyPath will now quit."))
                     .font(.callout)
                     .textSelection(.enabled)
             } else {

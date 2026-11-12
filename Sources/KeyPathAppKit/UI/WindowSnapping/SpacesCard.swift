@@ -18,7 +18,7 @@ struct SpacesCard: View {
     var body: some View {
         ActionCard(
             icon: "square.stack.3d.up",
-            title: "Spaces",
+            title: String(localized: "Spaces", comment: "Window snapping card: move windows between macOS Spaces"),
             isHovered: isHovered,
             accentColor: .cyan
         ) {

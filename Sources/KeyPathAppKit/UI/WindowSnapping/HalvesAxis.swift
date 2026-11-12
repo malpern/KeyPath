@@ -47,7 +47,7 @@ struct HalvesAxis: View {
                     key: SnapZone.center.key(for: convention),
                     color: SnapZone.center.color,
                     isHighlighted: hoveredZone == .center,
-                    label: "Center"
+                    label: String(localized: "Center", comment: "Window snapping zone")
                 )
                 .onHover { hovering in
                     withAnimation(.easeOut(duration: 0.15)) {

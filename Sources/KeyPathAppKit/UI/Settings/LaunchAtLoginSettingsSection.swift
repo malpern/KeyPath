@@ -7,12 +7,12 @@ struct LaunchAtLoginSettingsSection: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        SettingsSection(title: "Startup") {
+        SettingsSection(title: String(localized: "Startup")) {
             SettingsCard {
                 VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                     SettingsToggleRow(
-                        title: "Launch at login",
-                        subtitle: "Keep your mappings available when you log in to your Mac.",
+                        title: String(localized: "Launch at login"),
+                        subtitle: String(localized: "Keep your mappings available when you log in to your Mac."),
                         isOn: Binding(get: { controller.isEnabled }, set: { enabled in
                             Task {
                                 errorMessage = nil

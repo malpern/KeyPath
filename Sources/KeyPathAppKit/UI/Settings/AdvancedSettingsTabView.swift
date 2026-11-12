@@ -60,7 +60,7 @@ struct AdvancedSettingsTabView: View {
                     // Right: Repair tools in priority order
                     VStack(alignment: .leading, spacing: 20) {
                         // Simulator
-                        SettingsSection(title: "Simulator") {
+                        SettingsSection(title: String(localized: "Simulator", comment: "Settings section for the key simulator")) {
                             SettingsCard {
                                 VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                                     Text("Advanced virtual keyboard testing for key behaviors, app context, and timing.")
@@ -87,7 +87,7 @@ struct AdvancedSettingsTabView: View {
 
                 // Duplicate apps warning
                 if duplicateAppCopies.count > 1 {
-                    SettingsSection(title: "Other Copies of KeyPath") {
+                    SettingsSection(title: String(localized: "Other Copies of KeyPath")) {
                         SettingsCard { duplicateAppsSection }
                     }
                     .padding(.horizontal, SettingsDesign.pageInset)
@@ -175,7 +175,7 @@ struct AdvancedSettingsTabView: View {
     // MARK: - Configuration Backups
 
     private var configBackupsSection: some View {
-        SettingsSection(title: "Configuration Backups") {
+        SettingsSection(title: String(localized: "Configuration Backups")) {
             SettingsCard {
                 VStack(alignment: .leading, spacing: SettingsDesign.rowGap) {
                     Text("KeyPath keeps up to 5 recent rule and configuration backups. Older config-only backups can be opened for manual recovery.")
@@ -237,12 +237,13 @@ struct AdvancedSettingsTabView: View {
         backups = kanataManager.underlyingManager.configBackupManager.getAvailableBackups()
         if result.success {
             if result.reloadResult?.disposition == .pending {
-                settingsToastManager.showInfo("Rules restored. Start KeyPath to apply them.")
+                settingsToastManager.showInfo(String(localized: "Rules restored. Start KeyPath to apply them."))
             } else {
-                settingsToastManager.showSuccess("Restored rules from \(backup.createdAt.relativeDescription)")
+                settingsToastManager.showSuccess(String(localized: "Restored rules from \(backup.createdAt.relativeDescription)"))
             }
         } else {
-            settingsToastManager.showError("Restore failed: \(result.error?.localizedDescription ?? "Your current setup was kept.")")
+            let reason = result.error?.localizedDescription ?? String(localized: "Your current setup was kept.")
+            settingsToastManager.showError(String(localized: "Restore failed: \(reason)"))
         }
     }
 
@@ -278,10 +279,12 @@ struct AdvancedSettingsTabView: View {
             duplicateAppCopies = refreshed
             if removed > 0 {
                 settingsToastManager.showSuccess(
-                    "Removed \(removed) extra copy\(removed == 1 ? "" : "ies")"
+                    removed == 1
+                        ? String(localized: "Removed 1 extra copy")
+                        : String(localized: "Removed \(removed) extra copies")
                 )
             } else {
-                settingsToastManager.showInfo("No extra copies removed")
+                settingsToastManager.showInfo(String(localized: "No extra copies removed"))
             }
         }
     }

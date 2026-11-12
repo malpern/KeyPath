@@ -287,16 +287,16 @@ final class SimulatorViewModel {
     /// Get a display label for a Kanata key name
     nonisolated static func displayLabelForKanataKey(_ key: String) -> String {
         switch key {
-        case "spc": "Space"
-        case "ret": "Return"
-        case "tab": "Tab"
-        case "bspc": "Delete"
-        case "esc": "Esc"
-        case "caps": "Caps"
-        case "lsft", "rsft": "Shift"
-        case "lctl", "rctl": "Ctrl"
-        case "lalt", "ralt": "Opt"
-        case "lmet", "rmet": "Cmd"
+        case "spc": String(localized: "Space", comment: "Key name")
+        case "ret": String(localized: "Return", comment: "Key name")
+        case "tab": String(localized: "Tab", comment: "Key name")
+        case "bspc": String(localized: "Delete", comment: "Key name")
+        case "esc": String(localized: "Esc", comment: "Key name: Escape, abbreviated")
+        case "caps": String(localized: "Caps", comment: "Key name: Caps Lock, abbreviated")
+        case "lsft", "rsft": String(localized: "Shift", comment: "Key name")
+        case "lctl", "rctl": String(localized: "Ctrl", comment: "Key name: Control, abbreviated")
+        case "lalt", "ralt": String(localized: "Opt", comment: "Key name: Option, abbreviated")
+        case "lmet", "rmet": String(localized: "Cmd", comment: "Key name: Command, abbreviated")
         case "grv": "`"
         case "left": "←"
         case "rght": "→"
