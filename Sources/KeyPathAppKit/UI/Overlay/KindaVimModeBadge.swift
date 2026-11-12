@@ -46,11 +46,10 @@ struct KindaVimModeBadge: View {
     }
 
     private func accessibilityDescription(for mode: KindaVimStateAdapter.Mode) -> String {
-        var desc = "KindaVim mode: \(modeLabel(for: mode))"
         if !sequenceObserver.countBuffer.isEmpty {
-            desc += ", count \(sequenceObserver.countBuffer)"
+            return String(localized: "KindaVim mode: \(modeLabel(for: mode)), count \(sequenceObserver.countBuffer)")
         }
-        return desc
+        return String(localized: "KindaVim mode: \(modeLabel(for: mode))")
     }
 
     /// Don't surface a badge for `.unknown` — kindaVim hasn't published a

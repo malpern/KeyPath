@@ -3,7 +3,7 @@ import CoreGraphics
 
 enum OverlayWindowFactory {
     static let overlayWindowTitle = "Keypath"
-    static let overlayAccessibilityLabel = "KeyPath Keyboard Overlay"
+    static let overlayAccessibilityLabel = String(localized: "KeyPath Keyboard Overlay")
 
     static func windowStyle(useAccessibilityTestMode: Bool) -> NSWindow.StyleMask {
         useAccessibilityTestMode ? [.titled, .resizable, .closable] : [.borderless, .resizable]

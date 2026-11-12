@@ -28,7 +28,7 @@ extension PackDetailView {
                 icon: "checkmark.circle.fill",
                 iconColor: .green,
                 message: installedToastMessage,
-                action: ("Undo", { Task { await undoInstall() } })
+                action: (String(localized: "Undo"), { Task { await undoInstall() } })
             )
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .padding(.bottom, 72)
@@ -36,8 +36,8 @@ extension PackDetailView {
             toastView(
                 icon: "checkmark.circle.fill",
                 iconColor: .green,
-                message: "\(pack.name) turned off.",
-                action: ("Undo", { Task { await undoUninstall() } })
+                message: String(localized: "\(pack.name) turned off."),
+                action: (String(localized: "Undo"), { Task { await undoUninstall() } })
             )
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .padding(.bottom, 72)
@@ -46,11 +46,11 @@ extension PackDetailView {
 
     var installedToastMessage: String {
         if pack.associatedCollectionID != nil, pack.bindings.isEmpty {
-            return "\(pack.name) turned on."
+            return String(localized: "\(pack.name) turned on.")
         }
         return pack.bindings.count == 1
-            ? "\(pack.name) turned on."
-            : "\(pack.name) turned on · \(pack.bindings.count) bindings added."
+            ? String(localized: "\(pack.name) turned on.")
+            : String(localized: "\(pack.name) turned on · \(pack.bindings.count) bindings added.")
     }
 
     func toastView(

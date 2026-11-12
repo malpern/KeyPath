@@ -12,14 +12,14 @@ struct KeystrokeCharacterPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            row(label: "Key", value: char.rawKey)
+            row(label: String(localized: "Key"), value: char.rawKey)
             if let layer = char.layer {
-                row(label: "Layer", value: layer)
+                row(label: String(localized: "Layer"), value: layer)
             }
-            row(label: "Time", value: Self.timeFormatter.string(from: char.timestamp))
+            row(label: String(localized: "Time"), value: Self.timeFormatter.string(from: char.timestamp))
             if let prev = previousChar {
                 let intervalMs = Int(char.timestamp.timeIntervalSince(prev.timestamp) * 1000)
-                row(label: "Since prev", value: "\(intervalMs)ms")
+                row(label: String(localized: "Since prev"), value: "\(intervalMs)ms")
             }
         }
         .padding(8)

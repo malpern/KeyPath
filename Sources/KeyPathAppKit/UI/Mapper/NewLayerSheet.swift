@@ -29,11 +29,11 @@ struct NewLayerSheet: View {
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
 
         if sanitized.isEmpty {
-            return "Name must contain letters or numbers"
+            return String(localized: "Name must contain letters or numbers")
         }
 
         if existingLayers.contains(where: { $0.lowercased() == sanitized }) {
-            return "A layer with this name already exists"
+            return String(localized: "A layer with this name already exists")
         }
 
         return nil

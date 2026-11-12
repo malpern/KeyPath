@@ -15,19 +15,19 @@ enum BehaviorSlot: String, Identifiable, CaseIterable {
 
     var label: String {
         switch self {
-        case .tap: "Tap"
-        case .hold: "Hold"
-        case .shift: "Shift"
-        case .combo: "Combo"
+        case .tap: String(localized: "Tap", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
+        case .hold: String(localized: "Hold", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
+        case .shift: String(localized: "Shift", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
+        case .combo: String(localized: "Combo", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
         }
     }
 
     var shortLabel: String {
         switch self {
-        case .tap: "Tap"
-        case .hold: "Hold"
-        case .shift: "Shift"
-        case .combo: "Combo"
+        case .tap: String(localized: "Tap", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
+        case .hold: String(localized: "Hold", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
+        case .shift: String(localized: "Shift", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
+        case .combo: String(localized: "Combo", comment: "Key behavior slot: what the key does when tapped, held, shifted, or pressed with another key")
         }
     }
 

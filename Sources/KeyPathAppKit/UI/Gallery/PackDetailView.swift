@@ -124,7 +124,7 @@ struct PackDetailView: View {
         }
         .overlay(toastOverlay, alignment: .bottom)
         .sheet(isPresented: $showingHomeRowModsHelp) {
-            MarkdownHelpSheet(resource: "home-row-mods", title: "Home Row Mods")
+            MarkdownHelpSheet(resource: "home-row-mods", title: String(localized: "Home Row Mods"))
         }
         .sheet(isPresented: $showKeystrokeHistoryConsent) {
             KeystrokeHistoryConsentDialog(
@@ -280,7 +280,7 @@ struct PackDetailView: View {
                         }
                     }
                     Text(pack.associatedCollectionID
-                        .flatMap { RuleCollectionCatalog.driverlessUnavailableReason(for: $0) } ?? (isWindowSnappingPack ? "Arrange windows from your keyboard." : displayTagline))
+                        .flatMap { RuleCollectionCatalog.driverlessUnavailableReason(for: $0) } ?? (isWindowSnappingPack ? String(localized: "Arrange windows from your keyboard.") : displayTagline))
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -399,7 +399,7 @@ struct PackDetailView: View {
            pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods,
            TypingFeelMapping.usesTopRow(homeRowModsConfig.enabledKeys)
         {
-            return "Top Row Mods"
+            return String(localized: "Top Row Mods")
         }
         return pack.name
     }
@@ -543,14 +543,16 @@ struct PackDetailView: View {
         guard pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods, holdMode == .layers else {
             return pack.tagline
         }
-        return "Every layer under your fingers — no reaching for the keys that trigger them"
+        return String(localized: "Every layer under your fingers — no reaching for the keys that trigger them")
     }
 
     nonisolated static func displayShortDescription(for pack: Pack, holdMode: HomeRowHoldMode) -> String {
         guard pack.associatedCollectionID == RuleCollectionIdentifier.homeRowMods, holdMode == .layers else {
             return pack.shortDescription
         }
-        return "Tap home row keys normally. Hold them to activate a layer — numbers, symbols, navigation, or whatever you've assigned. Adjust the hold timing to match your typing speed."
+        return String(
+            localized: "Tap home row keys normally. Hold them to activate a layer — numbers, symbols, navigation, or whatever you've assigned. Adjust the hold timing to match your typing speed."
+        )
     }
 
     var displayTagline: String {
@@ -586,7 +588,7 @@ struct PackDetailView: View {
                 // Requires
                 if !requires.isEmpty {
                     dependencyGroup(
-                        label: "Requires",
+                        label: String(localized: "Requires"),
                         icon: "exclamationmark.circle",
                         tint: .orange,
                         items: requires.compactMap { dep in
@@ -598,7 +600,7 @@ struct PackDetailView: View {
                 // Enhanced by (this pack gains features from these)
                 if !enhancedBy.isEmpty {
                     dependencyGroup(
-                        label: "Enhanced by",
+                        label: String(localized: "Enhanced by"),
                         icon: "sparkles",
                         tint: .blue,
                         items: enhancedBy.compactMap { dep in
@@ -610,7 +612,7 @@ struct PackDetailView: View {
                 // Enhances (other packs that benefit from this one)
                 if !enhances.isEmpty {
                     dependencyGroup(
-                        label: "Enhances",
+                        label: String(localized: "Enhances"),
                         icon: "arrow.up.right",
                         tint: .green,
                         items: enhances.map { other in
@@ -651,7 +653,7 @@ struct PackDetailView: View {
         else {
             return base
         }
-        return "Both use F as a hold key — Home Row Mods assigns F to a layer, Home Row Arrows assigns F to a navigation layer"
+        return String(localized: "Both use F as a hold key — Home Row Mods assigns F to a layer, Home Row Arrows assigns F to a navigation layer")
     }
 
     func displayDependencyDescription(_ dep: PackDependency?) -> String {

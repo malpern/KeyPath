@@ -418,7 +418,7 @@ struct MapperKeycapView: View {
             onTap()
         }
         .accessibilityIdentifier("mapper-output-keycap")
-        .accessibilityLabel(isRecording ? "Recording \(label)" : label)
+        .accessibilityLabel(isRecording ? String(localized: "Recording \(label)") : label)
         .accessibilityHint(isRecording ? Text("Click to stop recording") : Text("Click to start recording"))
     }
 

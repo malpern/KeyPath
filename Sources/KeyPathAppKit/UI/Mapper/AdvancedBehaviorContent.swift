@@ -63,7 +63,7 @@ struct MiniActionKeycap: View {
             }
             onTap()
         }
-        .accessibilityLabel(isRecording ? "Recording" : (label.isEmpty ? "Add action" : label))
+        .accessibilityLabel(isRecording ? String(localized: "Recording") : (label.isEmpty ? String(localized: "Add action") : label))
     }
 
     private var foregroundColor: Color {
@@ -444,7 +444,7 @@ struct AdvancedBehaviorContent: View {
 
     private var nextTapDanceLabel: String {
         let index = viewModel.tapDanceSteps.count
-        guard index < MapperViewModel.tapDanceLabels.count else { return "More Taps" }
+        guard index < MapperViewModel.tapDanceLabels.count else { return String(localized: "More Taps") }
         return MapperViewModel.tapDanceLabels[index]
     }
 

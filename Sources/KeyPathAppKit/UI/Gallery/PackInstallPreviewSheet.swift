@@ -46,8 +46,8 @@ struct PackInstallPreviewSheet: View {
                 Text(state.preview.isBlocked ? "\(state.pack.name) can't be installed yet" : "Install \(state.pack.name)?")
                     .font(.title2.weight(.semibold))
                 Text(state.preview.isBlocked
-                    ? "Something it needs isn't available."
-                    : "Installing it changes what you already have. Choose what to turn off.")
+                    ? String(localized: "Something it needs isn't available.")
+                    : String(localized: "Installing it changes what you already have. Choose what to turn off."))
                     .font(.body)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

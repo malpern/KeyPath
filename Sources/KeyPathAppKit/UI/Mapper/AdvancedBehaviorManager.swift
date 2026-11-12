@@ -27,26 +27,26 @@ public final class AdvancedBehaviorManager {
         public var description: String {
             switch self {
             case .basic:
-                "Hold activates after timeout"
+                String(localized: "Hold activates after timeout")
             case .triggerEarly:
-                "The hold action activates when another key is pressed."
+                String(localized: "The hold action activates when another key is pressed.")
             case .quickTap:
-                "The hold action activates after another key is released."
+                String(localized: "The hold action activates after another key is released.")
             case .customKeys:
-                "Only specific keys trigger early tap"
+                String(localized: "Only specific keys trigger early tap")
             }
         }
 
         public var displayName: String {
             switch self {
             case .basic:
-                "Basic"
+                String(localized: "Basic")
             case .triggerEarly:
                 TimingCopy.activateHoldOnOtherKeyPress
             case .quickTap:
                 TimingCopy.activateHoldOnOtherKeyRelease
             case .customKeys:
-                "Custom keys"
+                String(localized: "Custom keys")
             }
         }
     }
@@ -73,7 +73,7 @@ public final class AdvancedBehaviorManager {
     public var tapDanceSteps: [(label: String, action: String, isRecording: Bool)] = []
 
     /// Labels for tap-dance steps
-    public static let tapDanceLabels = ["Triple Tap", "Quad Tap", "Quint Tap", "Sext Tap", "Sept Tap"]
+    public static let tapDanceLabels = [String(localized: "Triple Tap"), String(localized: "Quad Tap"), String(localized: "Quint Tap"), String(localized: "Sext Tap"), String(localized: "Sept Tap")]
 
     // MARK: - Macro
 

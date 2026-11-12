@@ -137,23 +137,23 @@ extension OverlayMapperSection {
 
         var label: String {
             switch self {
-            case .basic: "Basic"
-            case .press: "Eager"
-            case .release: "Permissive"
-            case .custom: "Custom Keys"
+            case .basic: String(localized: "Basic")
+            case .press: String(localized: "Eager")
+            case .release: String(localized: "Permissive")
+            case .custom: String(localized: "Custom Keys")
             }
         }
 
         var explanation: String {
             switch self {
             case .basic:
-                "Hold activates after timeout"
+                String(localized: "Hold activates after timeout")
             case .press:
-                "Hold activates when another key is pressed (best for home-row mods)"
+                String(localized: "Hold activates when another key is pressed (best for home-row mods)")
             case .release:
-                "Tap registers even if another key was pressed during timeout"
+                String(localized: "Tap registers even if another key was pressed during timeout")
             case .custom:
-                "Only specific keys trigger early tap"
+                String(localized: "Only specific keys trigger early tap")
             }
         }
 

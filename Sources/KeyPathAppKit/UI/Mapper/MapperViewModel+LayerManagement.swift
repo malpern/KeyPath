@@ -142,7 +142,7 @@ extension MapperViewModel {
 
         guard let inputSeq = inputSequence, let app = selectedApp else {
             AppLogger.shared.log("⚠️ [MapperViewModel] saveAppLaunchMapping: missing input or app")
-            statusMessage = "Set input key first"
+            statusMessage = String(localized: "Set input key first")
             statusIsError = true
             return
         }
@@ -176,11 +176,11 @@ extension MapperViewModel {
         if success {
             lastSavedRuleID = customRule.id
             // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
-            statusMessage = "✓ Saved"
+            statusMessage = String(localized: "✓ Saved")
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved app launch: \(inputSeq.displayString) → launch:\(app.name) [layer: \(currentLayer)]")
         } else {
-            statusMessage = "Failed to save"
+            statusMessage = String(localized: "Failed to save")
             statusIsError = true
             AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false")
         }
@@ -220,7 +220,7 @@ extension MapperViewModel {
         AppLogger.shared.log("⚙️ [MapperViewModel] saveSystemActionMapping called")
 
         guard let inputSeq = inputSequence, let action = selectedSystemAction else {
-            statusMessage = "Set input key first"
+            statusMessage = String(localized: "Set input key first")
             statusIsError = true
             return
         }
@@ -257,11 +257,11 @@ extension MapperViewModel {
         if success {
             lastSavedRuleID = customRule.id
             // Note: .kanataConfigChanged notification is posted by onRulesChanged callback
-            statusMessage = "✓ Saved"
+            statusMessage = String(localized: "✓ Saved")
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved system action: \(inputSeq.displayString) → \(action.name) [layer: \(currentLayer)]")
         } else {
-            statusMessage = "Failed to save"
+            statusMessage = String(localized: "Failed to save")
             statusIsError = true
             AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false")
         }
@@ -281,7 +281,7 @@ extension MapperViewModel {
 
         // Validate URL (no spaces, not empty, not just "https://")
         guard !trimmed.isEmpty, !trimmed.contains(" "), trimmed != "https://", trimmed != "http://" else {
-            statusMessage = "Invalid URL"
+            statusMessage = String(localized: "Invalid URL")
             statusIsError = true
             return
         }
@@ -325,7 +325,7 @@ extension MapperViewModel {
 
         guard let inputSeq = inputSequence, let url = selectedURL else {
             AppLogger.shared.log("⚠️ [MapperViewModel] saveURLMapping: missing input or URL")
-            statusMessage = "Set input key first"
+            statusMessage = String(localized: "Set input key first")
             statusIsError = true
             return
         }
@@ -358,14 +358,14 @@ extension MapperViewModel {
 
         if success {
             lastSavedRuleID = customRule.id
-            statusMessage = "✓ Saved"
+            statusMessage = String(localized: "✓ Saved")
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved URL mapping: \(inputSeq.displayString) → open:\(url) [layer: \(currentLayer)]")
 
             // Trigger favicon fetch (fire-and-forget)
             Task { _ = await FaviconFetcher.shared.fetchFavicon(for: url) }
         } else {
-            statusMessage = "Failed to save"
+            statusMessage = String(localized: "Failed to save")
             statusIsError = true
             AppLogger.shared.error("❌ [MapperViewModel] saveCustomRule returned false")
         }
@@ -401,7 +401,7 @@ extension MapperViewModel {
     /// Save a mapping that opens a folder
     func saveFolderMapping(kanataManager: RuntimeCoordinator) async {
         guard let inputSeq = inputSequence, let folder = selectedFolder else {
-            statusMessage = "Set input key first"
+            statusMessage = String(localized: "Set input key first")
             statusIsError = true
             return
         }
@@ -431,11 +431,11 @@ extension MapperViewModel {
 
         if success {
             lastSavedRuleID = customRule.id
-            statusMessage = "✓ Saved"
+            statusMessage = String(localized: "✓ Saved")
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved folder mapping: \(inputSeq.displayString) → open:\(folder.path)")
         } else {
-            statusMessage = "Failed to save"
+            statusMessage = String(localized: "Failed to save")
             statusIsError = true
         }
 
@@ -465,7 +465,7 @@ extension MapperViewModel {
     /// Save a mapping that runs a script
     func saveScriptMapping(kanataManager: RuntimeCoordinator) async {
         guard let inputSeq = inputSequence, let script = selectedScript else {
-            statusMessage = "Set input key first"
+            statusMessage = String(localized: "Set input key first")
             statusIsError = true
             return
         }
@@ -495,11 +495,11 @@ extension MapperViewModel {
 
         if success {
             lastSavedRuleID = customRule.id
-            statusMessage = "✓ Saved"
+            statusMessage = String(localized: "✓ Saved")
             statusIsError = false
             AppLogger.shared.log("✅ [MapperViewModel] Saved script mapping: \(inputSeq.displayString) → run:\(script.path)")
         } else {
-            statusMessage = "Failed to save"
+            statusMessage = String(localized: "Failed to save")
             statusIsError = true
         }
 

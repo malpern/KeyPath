@@ -14,7 +14,7 @@ extension PackDetailView {
             return
         } catch {
             guard !Task.isCancelled else { return }
-            errorMessage = "Could not refresh pack state: \(error.localizedDescription)"
+            errorMessage = String(localized: "Could not refresh pack state: \(error.localizedDescription)")
             return
         }
         var installed = record != nil

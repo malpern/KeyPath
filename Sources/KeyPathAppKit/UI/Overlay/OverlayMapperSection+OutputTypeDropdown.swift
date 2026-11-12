@@ -21,21 +21,21 @@ extension OverlayMapperSection {
     /// Info about current output type for display
     private var outputTypeDisplayInfo: (label: String, icon: String, isDefault: Bool) {
         if viewModel.selectedApp != nil {
-            ("Launch App", "app.fill", false)
+            (String(localized: "Launch App"), "app.fill", false)
         } else if viewModel.selectedSystemAction != nil {
-            (viewModel.selectedSystemAction?.name ?? "System", "gearshape", false)
+            (viewModel.selectedSystemAction?.name ?? String(localized: "System"), "gearshape", false)
         } else if viewModel.selectedURL != nil {
-            ("Open URL", "link", false)
+            (String(localized: "Open URL"), "link", false)
         } else if viewModel.selectedFolder != nil {
-            ("Open Folder", "folder.fill", false)
+            (String(localized: "Open Folder"), "folder.fill", false)
         } else if viewModel.selectedScript != nil {
-            ("Run Script", "terminal.fill", false)
+            (String(localized: "Run Script"), "terminal.fill", false)
         } else if viewModel.selectedLayerOutput != nil {
-            ("Go to Layer", "square.stack.3d.up", false)
+            (String(localized: "Go to Layer"), "square.stack.3d.up", false)
         } else if viewModel.hasShiftedOutputConfigured {
-            ("Keystroke + ⇧", "keyboard", false)
+            (String(localized: "Keystroke + ⇧"), "keyboard", false)
         } else {
-            ("Keystroke", "keyboard", true)
+            (String(localized: "Keystroke"), "keyboard", true)
         }
     }
 }

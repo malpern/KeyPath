@@ -42,12 +42,12 @@ struct MapperKeycapPair: View {
 
     /// Label for the output keycap
     private var outputTypeLabel: String {
-        if outputAppInfo != nil { return "Launch" }
-        if outputSystemActionInfo != nil { return "Action" }
-        if outputURLFavicon != nil { return "URL" }
-        if outputFolderInfo != nil { return "Folder" }
-        if outputScriptInfo != nil { return "Script" }
-        return "Out"
+        if outputAppInfo != nil { return String(localized: "Launch") }
+        if outputSystemActionInfo != nil { return String(localized: "Action") }
+        if outputURLFavicon != nil { return String(localized: "URL") }
+        if outputFolderInfo != nil { return String(localized: "Folder") }
+        if outputScriptInfo != nil { return String(localized: "Script") }
+        return String(localized: "Out")
     }
 
     var body: some View {

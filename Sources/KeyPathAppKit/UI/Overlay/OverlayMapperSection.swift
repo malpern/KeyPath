@@ -97,20 +97,20 @@ struct OverlayMapperSection: View {
     /// Label shown above the input keycap for non-default triggers
     private var inputModifierLabel: String? {
         if selectedTapCount > 1 {
-            return "\(selectedTapCount)× Tap"
+            return String(localized: "\(selectedTapCount)× Tap")
         }
         switch selectedBehaviorSlot {
         case .tap: return nil
-        case .hold: return "Hold"
-        case .shift: return "⇧ Shift"
-        case .combo: return "Combo"
+        case .hold: return String(localized: "Hold")
+        case .shift: return String(localized: "⇧ Shift")
+        case .combo: return String(localized: "Combo")
         }
     }
 
     var mapperContent: some View {
         SlideOverContainer(
             isPresented: $showMultiTapSlideOver,
-            panelTitle: "Multi-tap Actions",
+            panelTitle: String(localized: "Multi-tap Actions"),
             mainContent: { mapperMainContent },
             panelContent: { multiTapPanelContent }
         )
@@ -182,7 +182,7 @@ struct OverlayMapperSection: View {
                                         )
                                     } else {
                                         let slotName = selectedTapCount > 1
-                                            ? "\(selectedTapCount)× Tap"
+                                            ? String(localized: "\(selectedTapCount)× Tap")
                                             : selectedBehaviorSlot.label
                                         BehaviorSlotKeycap(
                                             label: currentSlotOutputLabel,
@@ -308,10 +308,10 @@ struct OverlayMapperSection: View {
     /// Display text for the input condition dropdown
     private var inputConditionDisplayText: String {
         let behaviorLabel: String = switch selectedBehaviorSlot {
-        case .tap: selectedTapCount > 1 ? "\(selectedTapCount)× Tap" : "Tap"
-        case .hold: "Hold"
-        case .shift: "Shift"
-        case .combo: "Combo"
+        case .tap: selectedTapCount > 1 ? String(localized: "\(selectedTapCount)× Tap") : String(localized: "Tap")
+        case .hold: String(localized: "Hold")
+        case .shift: String(localized: "Shift")
+        case .combo: String(localized: "Combo")
         }
         let tapLabel: String? = nil as String?
         let appLabel = viewModel.selectedAppCondition?.displayName
@@ -426,7 +426,7 @@ struct OverlayMapperSection: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(enabled ? "\(pack.name) is active — \(pack.tagline)" : pack.tagline)
+                    .help(enabled ? String(localized: "\(pack.name) is active — \(pack.tagline)") : pack.tagline)
                     .accessibilityIdentifier("overlay-pack-suggestion-\(pack.id)")
                 }
             }

@@ -66,15 +66,15 @@ struct QMKImportSheet: View {
                                     if !newValue.isEmpty, let url = URL(string: newValue) {
                                         if url.scheme == "https" || url.scheme == "http" {
                                             if !url.absoluteString.contains("raw.githubusercontent.com") {
-                                                warningMessage = "Warning: URL doesn't appear to be a GitHub raw URL. Import may fail if the URL doesn't point to valid QMK JSON."
+                                                warningMessage = String(localized: "Warning: URL doesn't appear to be a GitHub raw URL. Import may fail if the URL doesn't point to valid QMK JSON.")
                                             } else {
                                                 warningMessage = nil
                                             }
                                         } else {
-                                            warningMessage = "URL must use http or https protocol"
+                                            warningMessage = String(localized: "URL must use http or https protocol")
                                         }
                                     } else if !newValue.isEmpty {
-                                        warningMessage = "Invalid URL format"
+                                        warningMessage = String(localized: "Invalid URL format")
                                     } else {
                                         warningMessage = nil
                                     }
@@ -236,7 +236,7 @@ struct QMKImportSheet: View {
                     }
                 }
             case let .failure(error):
-                errorMessage = "Failed to select file: \(error.localizedDescription)"
+                errorMessage = String(localized: "Failed to select file: \(error.localizedDescription)")
             }
         }
     }
@@ -258,7 +258,7 @@ struct QMKImportSheet: View {
                 selectedVariant = availableVariants.first
             }
         } catch {
-            errorMessage = "Failed to load layout variants: \(error.localizedDescription)"
+            errorMessage = String(localized: "Failed to load layout variants: \(error.localizedDescription)")
         }
     }
 
@@ -273,7 +273,7 @@ struct QMKImportSheet: View {
 
             if importMethod == .url {
                 guard let url = URL(string: urlString) else {
-                    throw QMKImportError.invalidURL("Invalid URL format")
+                    throw QMKImportError.invalidURL(String(localized: "Invalid URL format"))
                 }
 
                 // Fetch JSON if not already cached
@@ -285,7 +285,7 @@ struct QMKImportSheet: View {
                     guard let httpResponse = response as? HTTPURLResponse,
                           (200 ... 299).contains(httpResponse.statusCode)
                     else {
-                        throw QMKImportError.networkError("Failed to fetch JSON")
+                        throw QMKImportError.networkError(String(localized: "Failed to fetch JSON"))
                     }
 
                     jsonData = data
@@ -310,7 +310,7 @@ struct QMKImportSheet: View {
                 )
             } else {
                 guard let fileURL = selectedFileURL else {
-                    throw QMKImportError.invalidURL("No file selected")
+                    throw QMKImportError.invalidURL(String(localized: "No file selected"))
                 }
 
                 // Load file if not already cached
@@ -369,15 +369,15 @@ struct QMKImportSheet: View {
 
             // Show quality feedback and dismiss based on quality
             if keymapTokens == nil, keyboardPath != nil {
-                warningMessage = "Imported with limited key labels — keymap not available for this keyboard."
+                warningMessage = String(localized: "Imported with limited key labels — keymap not available for this keyboard.")
                 isLoading = false
             } else if matchRatio < 0.5 {
                 let pct = Int(matchRatio * 100)
-                warningMessage = "Poor import quality: only \(pct)% of keys matched. The layout may not be usable. Try a different keyboard type or layout variant."
+                warningMessage = String(localized: "Poor import quality: only \(pct)% of keys matched. The layout may not be usable. Try a different keyboard type or layout variant.")
                 isLoading = false
             } else if matchRatio < 0.9 {
                 let pct = Int(matchRatio * 100)
-                warningMessage = "Imported with \(pct)% key match. Some keys may not highlight correctly."
+                warningMessage = String(localized: "Imported with \(pct)% key match. Some keys may not highlight correctly.")
                 isLoading = false
             } else {
                 isLoading = false

@@ -6,7 +6,7 @@ enum DrawerPanel {
 
     var title: String {
         switch self {
-        case .launcherSettings: "Launcher Settings"
+        case .launcherSettings: String(localized: "Launcher Settings")
         }
     }
 }

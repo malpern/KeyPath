@@ -182,43 +182,43 @@ private func groupColor(for group: VimHint.Group) -> Color {
 
 private func shortActionLabel(for hint: VimHint) -> String {
     switch hint.actionLabel {
-    case "left": "left"
-    case "down": "down"
-    case "up": "up"
-    case "right": "right"
-    case "word forward": "word →"
-    case "word back": "← word"
-    case "end of word": "end"
-    case "line start": "start"
-    case "line end": "end"
-    case "insert before cursor": "insert"
-    case "append after cursor": "append"
-    case "open line below": "open ↓"
-    case "insert at line start": "Insert"
-    case "append at line end": "Append"
-    case "open line above": "open ↑"
-    case "delete char": "del chr"
-    case "replace char": "replace"
-    case "undo": "undo"
-    case "redo": "redo"
-    case "delete (motion / dd line)": "delete"
-    case "change (motion / cc line)": "change"
-    case "yank (motion / yy line)": "yank"
-    case "find char forward": "find →"
-    case "find char backward": "← find"
-    case "to char forward": "to →"
-    case "to char backward": "← to"
-    case "doc top": "top"
-    case "doc bottom": "bottom"
-    case "half page down": "½ pg ↓"
-    case "half page up": "½ pg ↑"
-    case "page down": "pg ↓"
-    case "page up": "pg ↑"
-    case "match bracket": "match"
-    case "search forward": "search"
-    case "search backward": "search"
-    case "next match": "next"
-    case "previous match": "prev"
+    case "left": String(localized: "left", comment: "Very short Vim command hint shown on a keycap")
+    case "down": String(localized: "down", comment: "Very short Vim command hint shown on a keycap")
+    case "up": String(localized: "up", comment: "Very short Vim command hint shown on a keycap")
+    case "right": String(localized: "right", comment: "Very short Vim command hint shown on a keycap")
+    case "word forward": String(localized: "word →", comment: "Very short Vim command hint shown on a keycap")
+    case "word back": String(localized: "← word", comment: "Very short Vim command hint shown on a keycap")
+    case "end of word": String(localized: "end", comment: "Very short Vim command hint shown on a keycap")
+    case "line start": String(localized: "start", comment: "Very short Vim command hint shown on a keycap")
+    case "line end": String(localized: "end", comment: "Very short Vim command hint shown on a keycap")
+    case "insert before cursor": String(localized: "insert", comment: "Very short Vim command hint shown on a keycap")
+    case "append after cursor": String(localized: "append", comment: "Very short Vim command hint shown on a keycap")
+    case "open line below": String(localized: "open ↓", comment: "Very short Vim command hint shown on a keycap")
+    case "insert at line start": String(localized: "Insert", comment: "Very short Vim command hint shown on a keycap")
+    case "append at line end": String(localized: "Append", comment: "Very short Vim command hint shown on a keycap")
+    case "open line above": String(localized: "open ↑", comment: "Very short Vim command hint shown on a keycap")
+    case "delete char": String(localized: "del chr", comment: "Very short Vim command hint shown on a keycap")
+    case "replace char": String(localized: "replace", comment: "Very short Vim command hint shown on a keycap")
+    case "undo": String(localized: "undo", comment: "Very short Vim command hint shown on a keycap")
+    case "redo": String(localized: "redo", comment: "Very short Vim command hint shown on a keycap")
+    case "delete (motion / dd line)": String(localized: "delete", comment: "Very short Vim command hint shown on a keycap")
+    case "change (motion / cc line)": String(localized: "change", comment: "Very short Vim command hint shown on a keycap")
+    case "yank (motion / yy line)": String(localized: "yank", comment: "Very short Vim command hint shown on a keycap")
+    case "find char forward": String(localized: "find →", comment: "Very short Vim command hint shown on a keycap")
+    case "find char backward": String(localized: "← find", comment: "Very short Vim command hint shown on a keycap")
+    case "to char forward": String(localized: "to →", comment: "Very short Vim command hint shown on a keycap")
+    case "to char backward": String(localized: "← to", comment: "Very short Vim command hint shown on a keycap")
+    case "doc top": String(localized: "top", comment: "Very short Vim command hint shown on a keycap")
+    case "doc bottom": String(localized: "bottom", comment: "Very short Vim command hint shown on a keycap")
+    case "half page down": String(localized: "½ pg ↓", comment: "Very short Vim command hint shown on a keycap")
+    case "half page up": String(localized: "½ pg ↑", comment: "Very short Vim command hint shown on a keycap")
+    case "page down": String(localized: "pg ↓", comment: "Very short Vim command hint shown on a keycap")
+    case "page up": String(localized: "pg ↑", comment: "Very short Vim command hint shown on a keycap")
+    case "match bracket": String(localized: "match", comment: "Very short Vim command hint shown on a keycap")
+    case "search forward": String(localized: "search", comment: "Very short Vim command hint shown on a keycap")
+    case "search backward": String(localized: "search", comment: "Very short Vim command hint shown on a keycap")
+    case "next match": String(localized: "next", comment: "Very short Vim command hint shown on a keycap")
+    case "previous match": String(localized: "prev", comment: "Very short Vim command hint shown on a keycap")
     default: String(hint.actionLabel.prefix(6))
     }
 }

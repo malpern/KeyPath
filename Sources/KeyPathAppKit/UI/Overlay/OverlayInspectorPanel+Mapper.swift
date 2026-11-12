@@ -27,8 +27,8 @@ extension OverlayInspectorPanel {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
             unavailableSection(
-                title: "Mapper Unavailable",
-                message: "Finish setup to enable quick remapping in the overlay."
+                title: String(localized: "Mapper Unavailable"),
+                message: String(localized: "Finish setup to enable quick remapping in the overlay.")
             )
         }
     }

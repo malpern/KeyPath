@@ -11,7 +11,7 @@ extension OverlayMapperSection {
         case .default:
             viewModel.outputLabel
         case .shifted:
-            viewModel.shiftedOutputLabel ?? "Set ⇧ output"
+            viewModel.shiftedOutputLabel ?? String(localized: "Set ⇧ output")
         }
     }
 
@@ -26,19 +26,19 @@ extension OverlayMapperSection {
 
     var shiftOutputEditor: some View {
         VStack(alignment: .leading, spacing: 12) {
-            detailSectionHeader("Action")
+            detailSectionHeader(String(localized: "Action"))
             tapOutputModeRow(
-                title: "Default",
+                title: String(localized: "Default"),
                 subtitle: defaultActionSummary,
                 mode: .default,
                 accessibilityIdentifier: "overlay-mapper-shift-mode-default"
             )
 
-            detailSectionHeader("Variants")
+            detailSectionHeader(String(localized: "Variants"))
 
             if viewModel.hasShiftedOutputConfigured || viewModel.canUseShiftedOutput {
                 tapOutputModeRow(
-                    title: "Shift Variant",
+                    title: String(localized: "Shift Variant"),
                     subtitle: shiftVariantSummary,
                     mode: .shifted,
                     accessibilityIdentifier: "overlay-mapper-shift-mode-shifted",
@@ -64,12 +64,12 @@ extension OverlayMapperSection {
                 }
             } else {
                 unavailableDetailRow(
-                    title: "Shift Variant",
+                    title: String(localized: "Shift Variant"),
                     message: shiftOutputHelperText
                 )
             }
 
-            detailSectionHeader("Additional Actions")
+            detailSectionHeader(String(localized: "Additional Actions"))
             multiTapActionRow
         }
         .padding(.top, 6)
@@ -80,41 +80,41 @@ extension OverlayMapperSection {
             return reason
         }
         if let shifted = viewModel.shiftedOutputLabel, !shifted.isEmpty {
-            return "Shift + \(viewModel.inputLabel) sends \(shifted). Tap the output keycap to change it."
+            return String(localized: "Shift + \(viewModel.inputLabel) sends \(shifted). Tap the output keycap to change it.")
         }
-        return "Tap the output keycap to capture the output when Shift is held."
+        return String(localized: "Tap the output keycap to capture the output when Shift is held.")
     }
 
     private var defaultActionSummary: String {
         if let selectedApp = viewModel.selectedApp {
-            return "Launches \(selectedApp.name)"
+            return String(localized: "Launches \(selectedApp.name)")
         }
         if let selectedSystemAction = viewModel.selectedSystemAction {
             return selectedSystemAction.name
         }
         if viewModel.selectedURL != nil {
-            return "Opens URL"
+            return String(localized: "Opens URL")
         }
         if viewModel.selectedLayerOutput != nil {
-            return "Goes to a layer"
+            return String(localized: "Goes to a layer")
         }
-        return "Types \(viewModel.outputLabel)"
+        return String(localized: "Types \(viewModel.outputLabel)")
     }
 
     private var shiftVariantSummary: String {
         if let shifted = viewModel.shiftedOutputLabel, !shifted.isEmpty {
-            return "Shift-\(viewModel.inputLabel.uppercased()) types \(shifted)"
+            return String(localized: "Shift-\(viewModel.inputLabel.uppercased()) types \(shifted)")
         }
-        return "Add a separate action when Shift is held."
+        return String(localized: "Add a separate action when Shift is held.")
     }
 
     private var multiTapSummary: String {
         let configuredCounts = [2, 3, 4].filter { viewModel.multiTapAction(for: $0) != nil }
         if configuredCounts.isEmpty {
-            return "Add actions for double- or triple-tap."
+            return String(localized: "Add actions for double- or triple-tap.")
         }
         let summary = configuredCounts.map { "\($0)x" }.joined(separator: ", ")
-        return "Configured for \(summary) taps."
+        return String(localized: "Configured for \(summary) taps.")
     }
 
     private func removeShiftVariant() {
