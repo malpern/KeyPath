@@ -107,19 +107,21 @@ public enum SessionCapsConflict: Equatable, Sendable {
     public var ownerName: String {
         switch self {
         case .raycastHyperKey: "Raycast"
-        case .unknown: "Another app"
+        case .unknown: String(localized: "Another app")
         }
     }
 
     public var message: String {
         switch self {
         case .raycastHyperKey:
-            "Raycast\u{2019}s Hyper Key is using Caps Lock. Turn it off in Raycast, or use another trigger for Hyper Key."
+            String(localized: "Raycast\u{2019}s Hyper Key is using Caps Lock. Turn it off in Raycast, or use another trigger for Hyper Key.")
         case let .unknown(destination):
             if destination >> 32 == 7, SessionCapsIntermediate.isCandidate(UInt32(destination & 0xFFFF_FFFF)) {
-                "Another app is already remapping Caps Lock on this keyboard (to \(SessionCapsIntermediate.label(UInt32(destination & 0xFFFF_FFFF)))). Turn that off to use Caps Lock rules in KeyPath."
+                String(
+                    localized: "Another app is already remapping Caps Lock on this keyboard (to \(SessionCapsIntermediate.label(UInt32(destination & 0xFFFF_FFFF)))). Turn that off to use Caps Lock rules in KeyPath."
+                )
             } else {
-                "Another app or the Modifier Keys setting in System Settings is already remapping Caps Lock on this keyboard. Turn that off to use Caps Lock rules in KeyPath."
+                String(localized: "Another app or the Modifier Keys setting in System Settings is already remapping Caps Lock on this keyboard. Turn that off to use Caps Lock rules in KeyPath.")
             }
         }
     }

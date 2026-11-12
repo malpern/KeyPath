@@ -183,17 +183,17 @@ public enum CustomRuleValidator {
         public var errorDescription: String? {
             switch self {
             case .emptyInput:
-                "Input key cannot be empty"
+                String(localized: "Input key cannot be empty")
             case .emptyOutput:
-                "Output key cannot be empty"
+                String(localized: "Output key cannot be empty")
             case let .invalidInputKey(key):
-                "Invalid input key: '\(key)'"
+                String(localized: "Invalid input key: '\(key)'")
             case let .invalidOutputKey(key):
-                "Invalid output key: '\(key)'"
+                String(localized: "Invalid output key: '\(key)'")
             case .selfMapping:
-                "Input and output are the same (rule has no effect)"
+                String(localized: "Input and output are the same (rule has no effect)")
             case let .conflict(name, key):
-                "Conflicts with '\(name)' on key '\(key)'"
+                String(localized: "Conflicts with '\(name)' on key '\(key)'")
             }
         }
     }

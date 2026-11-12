@@ -6,6 +6,15 @@ public enum ReportPeriod: String, CaseIterable, Sendable {
     case weekly = "This Week"
     case monthly = "This Month"
 
+    /// Localized name for the period picker.
+    public var displayName: String {
+        switch self {
+        case .daily: String(localized: "Today")
+        case .weekly: String(localized: "This Week")
+        case .monthly: String(localized: "This Month")
+        }
+    }
+
     /// Get the date interval for this period
     public var dateInterval: DateInterval {
         let calendar = Calendar.current

@@ -31,8 +31,8 @@ public struct WizardStopKanataPage: View {
             WizardHeroSection(
                 icon: "stop.circle",
                 iconColor: .orange,
-                title: "Stop Existing Kanata Engine",
-                subtitle: "KeyPath needs to take over keyboard control"
+                title: String(localized: "Stop Existing Kanata Engine"),
+                subtitle: String(localized: "KeyPath needs to take over keyboard control")
             )
             .scaleEffect(heroScale)
             .opacity(heroOpacity)
@@ -183,11 +183,11 @@ public struct WizardStopKanataPage: View {
                         // Process is gone even if there was a warning
                         onComplete()
                     } else {
-                        stopError = "Failed to stop Kanata Engine: \(message)"
+                        stopError = String(localized: "Failed to stop Kanata Engine: \(message)")
                     }
 
                 case .none:
-                    stopError = "External Kanata service not configured"
+                    stopError = String(localized: "External Kanata service not configured")
                 }
             }
         }

@@ -14,7 +14,7 @@ public extension InstallationWizardView {
             // Guard against double-execution
             guard !fixInFlight else {
                 await MainActor.run {
-                    toastManager.showInfo("Another fix is already running…", duration: 3.0)
+                    toastManager.showInfo(String(localized: "Another fix is already running…"), duration: 3.0)
                 }
                 return
             }
@@ -28,12 +28,12 @@ public extension InstallationWizardView {
             await MainActor.run {
                 if report.success, !evidenceApplied {
                     toastManager.showError(
-                        "Repair finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying.",
+                        String(localized: "Repair finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying."),
                         duration: 8.0
                     )
                 } else if report.completionState == .awaitingApproval {
                     toastManager.showInfo(
-                        "Repair completed. Approve KeyPath in System Settings → Login Items to continue.",
+                        String(localized: "Repair completed. Approve KeyPath in System Settings → Login Items to continue."),
                         duration: 7.0
                     )
                 } else if report.success {
@@ -41,15 +41,15 @@ public extension InstallationWizardView {
                     let totalCount = report.executedRecipes.count
                     if totalCount > 0 {
                         toastManager.showSuccess(
-                            "Repaired \(successCount) of \(totalCount) issue(s)",
+                            String(localized: "Repaired \(successCount) of \(totalCount) issue(s)"),
                             duration: 5.0
                         )
                     } else {
-                        toastManager.showInfo("No issues found to repair", duration: 3.0)
+                        toastManager.showInfo(String(localized: "No issues found to repair"), duration: 3.0)
                     }
                 } else {
-                    let failureReason = report.failureReason ?? "Unknown error"
-                    toastManager.showError("Repair failed: \(failureReason)", duration: 7.0)
+                    let failureReason = report.failureReason ?? String(localized: "Unknown error")
+                    toastManager.showError(String(localized: "Repair failed: \(failureReason)"), duration: 7.0)
                 }
             }
 
@@ -69,7 +69,7 @@ public extension InstallationWizardView {
         if inFlightFixActions.contains(action) {
             if !suppressToast {
                 await MainActor.run {
-                    toastManager.showInfo("Fix already running…", duration: 3.0)
+                    toastManager.showInfo(String(localized: "Fix already running…"), duration: 3.0)
                 }
             }
             return false
@@ -77,7 +77,7 @@ public extension InstallationWizardView {
         if fixInFlight {
             if !suppressToast {
                 await MainActor.run {
-                    toastManager.showInfo("Another fix is already running…", duration: 3.0)
+                    toastManager.showInfo(String(localized: "Another fix is already running…"), duration: 3.0)
                 }
             }
             return false
@@ -105,7 +105,7 @@ public extension InstallationWizardView {
             if !suppressToast {
                 await MainActor.run {
                     toastManager.showError(
-                        "Fix timed out after \(Int(timeoutSeconds))s.", duration: 7.0
+                        String(localized: "Fix timed out after \(Int(timeoutSeconds))s."), duration: 7.0
                     )
                 }
             }
@@ -119,18 +119,18 @@ public extension InstallationWizardView {
             await MainActor.run {
                 if report.success, !evidenceApplied {
                     toastManager.showError(
-                        "\(actionDescription) finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying.",
+                        String(localized: "\(actionDescription) finished, but KeyPath could not verify the final system state. Close and reopen the wizard before retrying."),
                         duration: 8.0
                     )
                 } else if report.completionState == .awaitingApproval {
                     toastManager.showInfo(
-                        "\(actionDescription) completed. Approve KeyPath in System Settings → Login Items to continue.",
+                        String(localized: "\(actionDescription) completed. Approve KeyPath in System Settings → Login Items to continue."),
                         duration: 7.0
                     )
                 } else if report.success {
-                    toastManager.showSuccess("\(actionDescription) completed successfully", duration: 5.0)
+                    toastManager.showSuccess(String(localized: "\(actionDescription) completed successfully"), duration: 5.0)
                 } else {
-                    let message = report.failureReason ?? "\(actionDescription) failed"
+                    let message = report.failureReason ?? String(localized: "\(actionDescription) failed")
                     toastManager.showError(message, duration: 7.0)
                 }
             }

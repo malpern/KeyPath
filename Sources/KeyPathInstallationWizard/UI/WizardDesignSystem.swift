@@ -914,8 +914,8 @@ public struct WizardButton: View {
             }
             .buttonStyle(WizardDesign.Component.PrimaryButton(isLoading: isLoading))
             .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-            .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
-            .accessibilityHint(isLoading ? "Operation in progress" : "Tap to \(title.lowercased())")
+            .accessibilityLabel(isLoading ? String(localized: "Loading, \(title)") : title)
+            .accessibilityHint(isLoading ? String(localized: "Operation in progress") : String(localized: "Tap to \(title.lowercased())"))
             .if(isDefaultAction) { $0.keyboardShortcut(.defaultAction) }
         case .secondary:
             Button(title) {
@@ -925,8 +925,8 @@ public struct WizardButton: View {
             }
             .buttonStyle(WizardDesign.Component.SecondaryButton(isLoading: isLoading))
             .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-            .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
-            .accessibilityHint(isLoading ? "Operation in progress" : "Tap to \(title.lowercased())")
+            .accessibilityLabel(isLoading ? String(localized: "Loading, \(title)") : title)
+            .accessibilityHint(isLoading ? String(localized: "Operation in progress") : String(localized: "Tap to \(title.lowercased())"))
         case .destructive:
             Button(title) {
                 Task {
@@ -935,11 +935,11 @@ public struct WizardButton: View {
             }
             .buttonStyle(WizardDesign.Component.DestructiveButton(isLoading: isLoading))
             .accessibilityIdentifier("wizard-button-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
-            .accessibilityLabel(isLoading ? "Loading, \(title)" : title)
+            .accessibilityLabel(isLoading ? String(localized: "Loading, \(title)") : title)
             .accessibilityHint(
                 isLoading
-                    ? "Operation in progress"
-                    : "Tap to \(title.lowercased()). This action may cause data loss."
+                    ? String(localized: "Operation in progress")
+                    : String(localized: "Tap to \(title.lowercased()). This action may cause data loss.")
             )
         }
     }
@@ -1013,17 +1013,17 @@ public struct WizardStatusItem: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("wizard-status-\(title.lowercased().replacingOccurrences(of: " ", with: "-"))")
         .accessibilityLabel("\(title): \(statusText)")
-        .accessibilityHint(isNavigable ? "Tap to navigate to \(title) page" : "")
+        .accessibilityHint(isNavigable ? String(localized: "Tap to navigate to \(title) page") : "")
     }
 
     private var statusText: String {
         switch status {
-        case .notStarted: "Not Started"
-        case .inProgress: "In Progress"
-        case .warning: "Warning"
-        case .completed: "Completed"
-        case .failed: "Failed"
-        case .unverified: "Unable to verify"
+        case .notStarted: String(localized: "Not Started")
+        case .inProgress: String(localized: "In Progress")
+        case .warning: String(localized: "Warning")
+        case .completed: String(localized: "Completed")
+        case .failed: String(localized: "Failed")
+        case .unverified: String(localized: "Unable to verify")
         }
     }
 }

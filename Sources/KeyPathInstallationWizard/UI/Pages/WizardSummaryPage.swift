@@ -315,19 +315,20 @@ public struct WizardSummaryPage: View {
     private var headerTitle: String {
         switch headerMode {
         case .validating:
-            return "Setting up KeyPath"
+            return String(localized: "Setting up KeyPath")
         case .issues:
             let n = WizardSummaryPage.computeIssueCount(
                 visibleCount: visibleIssueCount,
                 failedCount: failedIssueCount
             )
             if n == 0 {
-                return "Finish setup to start KeyPath"
+                return String(localized: "Finish setup to start KeyPath")
             }
-            let suffix = n == 1 ? "issue" : "issues"
-            return "\(n) setup \(suffix) to resolve"
+            return n == 1
+                ? String(localized: "1 setup issue to resolve")
+                : String(localized: "\(n) setup issues to resolve")
         case .success:
-            return "KeyPath Ready"
+            return String(localized: "KeyPath Ready")
         }
     }
 

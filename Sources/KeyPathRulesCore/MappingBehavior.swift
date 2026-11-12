@@ -281,10 +281,10 @@ public struct MacroBehavior: Codable, Equatable, Sendable {
             if let text, !text.isEmpty {
                 return "\"\(text)\""
             }
-            return "Not configured"
+            return String(localized: "Not configured")
         case .keys:
             let keys = outputs.prefix(3).joined(separator: " ")
-            return outputs.count > 3 ? "\(keys)..." : (keys.isEmpty ? "Not configured" : keys)
+            return outputs.count > 3 ? "\(keys)..." : (keys.isEmpty ? String(localized: "Not configured") : keys)
         }
     }
 
@@ -293,12 +293,12 @@ public struct MacroBehavior: Codable, Equatable, Sendable {
 
         let outputs = effectiveOutputs
         if outputs.isEmpty {
-            errors.append("Macro must include at least one output")
+            errors.append(String(localized: "Macro must include at least one output"))
         }
 
         if source == .text, let text, !text.isEmpty {
             if let unsupported = TextToKanataKeyMapper.firstUnsupportedCharacter(in: text) {
-                errors.append("Unsupported character: \(unsupported)")
+                errors.append(String(localized: "Unsupported character: \(unsupported)"))
             }
         }
 

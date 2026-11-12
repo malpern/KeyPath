@@ -230,9 +230,9 @@ public enum LearningTipsMode: String, CaseIterable {
 
     public var displayName: String {
         switch self {
-        case .untilLearned: "Until Learned"
-        case .alwaysOn: "Always On"
-        case .off: "Off"
+        case .untilLearned: String(localized: "Until Learned")
+        case .alwaysOn: String(localized: "Always On")
+        case .off: String(localized: "Off")
         }
     }
 }

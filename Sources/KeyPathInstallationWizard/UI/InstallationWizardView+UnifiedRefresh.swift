@@ -153,20 +153,20 @@ public extension InstallationWizardView {
                 asyncOperationManager.execute(operation: operation) { (success: Bool) in
                     if success {
                         AppLogger.shared.log("✅ [Wizard] KeyPath Runtime started successfully")
-                        toastManager.showSuccess("KeyPath Runtime started")
+                        toastManager.showSuccess(String(localized: "KeyPath Runtime started"))
                         verifyPostStartStateAndDismiss()
                     } else {
                         AppLogger.shared.log("❌ [Wizard] Failed to start KeyPath Runtime")
                         let failureMessage =
                             kanataManager.lastError
-                                ?? "KeyPath Runtime failed to stay running. See the KeyPath log in Settings > Advanced."
+                                ?? String(localized: "KeyPath Runtime failed to stay running. See the KeyPath log in Settings > Advanced.")
                         toastManager.showError(failureMessage)
                     }
                 } onFailure: { error in
                     AppLogger.shared.log(
                         "❌ [Wizard] Error starting KeyPath Runtime: \(error.localizedDescription)"
                     )
-                    toastManager.showError("Start failed: \(error.localizedDescription)")
+                    toastManager.showError(String(localized: "Start failed: \(error.localizedDescription)"))
                 }
             } else {
                 // Service already running, dismiss wizard

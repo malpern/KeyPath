@@ -218,9 +218,9 @@ public actor PermissionOracle {
             accessibilityBlocking: Bool, presentation: AccessibilityPermissionPresentation
         ) -> String {
             if accessibilityBlocking {
-                return "Enable KeyPath in \(presentation.name) in System Settings, then quit and reopen KeyPath."
+                return String(localized: "Enable KeyPath in \(presentation.name) in System Settings, then quit and reopen KeyPath.")
             }
-            return "Quit and reopen KeyPath so it can use \(presentation.name)."
+            return String(localized: "Quit and reopen KeyPath so it can use \(presentation.name).")
         }
 
         /// Diagnostic information for troubleshooting

@@ -183,7 +183,7 @@ public class PermissionGrantCoordinator {
 
                 // Show success feedback
                 showUserFeedback(
-                    "Keyboard service restarted - \(permissionType.displayName) permissions active!"
+                    String(localized: "Keyboard service restarted - \(permissionType.displayName) permissions active!")
                 )
 
                 // Clear the pending flag on successful restart
@@ -201,7 +201,7 @@ public class PermissionGrantCoordinator {
                 logger.log("  • Duration: \(String(format: "%.2f", duration))s")
 
                 // Show failure feedback
-                showUserFeedback("⚠️ Service restart in progress - check wizard for status")
+                showUserFeedback(String(localized: "⚠️ Service restart in progress - check wizard for status"))
 
                 await MainActor.run {
                     completion(false)

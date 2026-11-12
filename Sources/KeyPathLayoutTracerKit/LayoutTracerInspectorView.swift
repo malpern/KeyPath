@@ -280,21 +280,21 @@ struct LayoutTracerInspectorView: View {
                         .font(.headline)
 
                     LabelComboBoxField(
-                        title: "Label",
+                        title: String(localized: "Label"),
                         text: binding(for: \.label),
                         suggestions: KeySuggestionCatalog.commonLabelSuggestions,
                         accessibilityID: "layoutTracer.selected.label"
                     )
                     KeyCodeComboBoxField(
-                        title: "Key Code",
+                        title: String(localized: "Key Code"),
                         value: bindingUInt16(for: \.keyCode),
                         suggestions: KeySuggestionCatalog.keyCodeSuggestions,
                         accessibilityID: "layoutTracer.selected.keyCode"
                     )
                     LabeledDoubleField(title: "X", value: bindingDouble(for: \.x), accessibilityID: "layoutTracer.selected.x")
                     LabeledDoubleField(title: "Y", value: bindingDouble(for: \.y), accessibilityID: "layoutTracer.selected.y")
-                    LabeledDoubleField(title: "Width", value: bindingDouble(for: \.width), accessibilityID: "layoutTracer.selected.width")
-                    LabeledDoubleField(title: "Height", value: bindingDouble(for: \.height), accessibilityID: "layoutTracer.selected.height")
+                    LabeledDoubleField(title: String(localized: "Width"), value: bindingDouble(for: \.width), accessibilityID: "layoutTracer.selected.width")
+                    LabeledDoubleField(title: String(localized: "Height"), value: bindingDouble(for: \.height), accessibilityID: "layoutTracer.selected.height")
 
                     HStack(spacing: 8) {
                         Text("Rotation")

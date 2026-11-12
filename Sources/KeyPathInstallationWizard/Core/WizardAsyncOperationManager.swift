@@ -316,11 +316,11 @@ public struct WizardError: LocalizedError {
         }
 
         if recoveryActions.count == 1 {
-            return "Try this: \(recoveryActions[0])"
+            return String(localized: "Try this: \(recoveryActions[0])")
         }
 
         let numberedActions = recoveryActions.enumerated().map { "\($0.offset + 1). \($0.element)" }
-        return "Try these steps:\n\n" + numberedActions.joined(separator: "\n")
+        return String(localized: "Try these steps:") + "\n\n" + numberedActions.joined(separator: "\n")
     }
 
     public static func fromError(_ error: Error, operation: String) -> WizardError {
@@ -349,10 +349,10 @@ public struct WizardError: LocalizedError {
         WizardError(
             operation: operation,
             underlying: nil,
-            userMessage: "Setup was cancelled by the user.",
+            userMessage: String(localized: "Setup was cancelled by the user."),
             recoveryActions: [
-                "Click the 'Retry' button to try again",
-                "Use manual setup if automatic setup continues to fail"
+                String(localized: "Click the 'Retry' button to try again"),
+                String(localized: "Use manual setup if automatic setup continues to fail")
             ]
         )
     }
@@ -365,41 +365,41 @@ public struct WizardError: LocalizedError {
         switch operation {
         case let op where op.contains("Auto Fix: Terminate Conflicting Processes"):
             return (
-                "Unable to stop conflicting keyboard apps",
+                String(localized: "Unable to stop conflicting keyboard apps"),
                 [
-                    "Manually quit Karabiner-Elements from the menu bar",
-                    "Check Activity Monitor for any remaining Karabiner processes",
-                    "Restart your Mac if processes won't stop"
+                    String(localized: "Manually quit Karabiner-Elements from the menu bar"),
+                    String(localized: "Check Activity Monitor for any remaining Karabiner processes"),
+                    String(localized: "Restart your Mac if processes won't stop")
                 ]
             )
 
         case let op where op.contains("Auto Fix: Start KeyPath Runtime"):
             return (
-                "The keyboard remapping service won't start",
+                String(localized: "The keyboard remapping service won't start"),
                 [
-                    "Grant necessary permissions in System Settings",
-                    "Check that no conflicting keyboard apps are running",
-                    "Try restarting your Mac"
+                    String(localized: "Grant necessary permissions in System Settings"),
+                    String(localized: "Check that no conflicting keyboard apps are running"),
+                    String(localized: "Try restarting your Mac")
                 ]
             )
 
         case let op where op.contains("System State Detection"):
             return (
-                "Unable to check your system's current setup",
+                String(localized: "Unable to check your system's current setup"),
                 [
-                    "Check that KeyPath has the necessary permissions",
-                    "Try closing and reopening KeyPath",
-                    "Make sure no other setup processes are running"
+                    String(localized: "Check that KeyPath has the necessary permissions"),
+                    String(localized: "Try closing and reopening KeyPath"),
+                    String(localized: "Make sure no other setup processes are running")
                 ]
             )
 
         case let op where op.contains("Grant Permission"):
             return (
-                "KeyPath needs additional system permissions to work properly",
+                String(localized: "KeyPath needs additional system permissions to work properly"),
                 [
-                    "Open System Settings → Privacy & Security",
-                    "Find the '\(AccessibilityPermissionPresentation.current.name)' section",
-                    "Make sure KeyPath is enabled, then quit and reopen KeyPath"
+                    String(localized: "Open System Settings → Privacy & Security"),
+                    String(localized: "Find the '\(AccessibilityPermissionPresentation.current.name)' section"),
+                    String(localized: "Make sure KeyPath is enabled, then quit and reopen KeyPath")
                 ]
             )
 
@@ -408,13 +408,15 @@ public struct WizardError: LocalizedError {
             let actionName = operation
                 .replacingOccurrences(of: "Auto Fix: ", with: "")
                 .replacingOccurrences(of: "auto_fix_", with: "")
-            let displayAction = actionName.isEmpty ? "setup step" : actionName.lowercased()
+            let message = actionName.isEmpty
+                ? String(localized: "Couldn't complete setup step")
+                : String(localized: "Couldn't complete \(actionName.lowercased())")
             return (
-                "Couldn't complete \(displayAction)",
+                message,
                 [
-                    "Try the operation again",
-                    "Check that you have administrator privileges",
-                    "Restart KeyPath if the problem persists"
+                    String(localized: "Try the operation again"),
+                    String(localized: "Check that you have administrator privileges"),
+                    String(localized: "Restart KeyPath if the problem persists")
                 ]
             )
         }
@@ -424,41 +426,41 @@ public struct WizardError: LocalizedError {
         switch operation {
         case let op where op.contains("Permission"):
             return (
-                "Waiting for permission grant timed out",
+                String(localized: "Waiting for permission grant timed out"),
                 [
-                    "Open System Settings manually and grant the required permissions",
-                    "Make sure to enable permissions for both KeyPath and Kanata",
-                    "Close and reopen KeyPath after granting permissions"
+                    String(localized: "Open System Settings manually and grant the required permissions"),
+                    String(localized: "Make sure to enable permissions for both KeyPath and Kanata"),
+                    String(localized: "Close and reopen KeyPath after granting permissions")
                 ]
             )
 
         case let op where op.contains("Start KeyPath Runtime"):
             return (
-                "Couldn't start the keyboard service",
+                String(localized: "Couldn't start the keyboard service"),
                 [
-                    "Check that all required permissions are granted",
-                    "Look for error messages in the wizard",
-                    "Try restarting your Mac if the problem persists"
+                    String(localized: "Check that all required permissions are granted"),
+                    String(localized: "Look for error messages in the wizard"),
+                    String(localized: "Try restarting your Mac if the problem persists")
                 ]
             )
 
         case let op where op.contains("Install"):
             return (
-                "Installation is taking longer than expected",
+                String(localized: "Installation is taking longer than expected"),
                 [
-                    "Check your internet connection",
-                    "Try the operation again",
-                    "Restart KeyPath if the problem persists"
+                    String(localized: "Check your internet connection"),
+                    String(localized: "Try the operation again"),
+                    String(localized: "Restart KeyPath if the problem persists")
                 ]
             )
 
         case let op where op.contains("Terminate"):
             return (
-                "Couldn't stop conflicting apps",
+                String(localized: "Couldn't stop conflicting apps"),
                 [
-                    "Manually quit Karabiner-Elements from the menu bar",
-                    "Check Activity Monitor for remaining processes",
-                    "Try again after quitting the apps manually"
+                    String(localized: "Manually quit Karabiner-Elements from the menu bar"),
+                    String(localized: "Check Activity Monitor for remaining processes"),
+                    String(localized: "Try again after quitting the apps manually")
                 ]
             )
 
@@ -467,13 +469,15 @@ public struct WizardError: LocalizedError {
             let actionName = operation
                 .replacingOccurrences(of: "Auto Fix: ", with: "")
                 .replacingOccurrences(of: "auto_fix_", with: "")
-            let displayAction = actionName.isEmpty ? "operation" : actionName.lowercased()
+            let message = actionName.isEmpty
+                ? String(localized: "The operation timed out")
+                : String(localized: "The \(actionName.lowercased()) timed out")
             return (
-                "The \(displayAction) timed out",
+                message,
                 [
-                    "Try the operation again",
-                    "Check that your system isn't overloaded",
-                    "Restart KeyPath if the problem persists"
+                    String(localized: "Try the operation again"),
+                    String(localized: "Check that your system isn't overloaded"),
+                    String(localized: "Restart KeyPath if the problem persists")
                 ]
             )
         }
@@ -486,7 +490,7 @@ public extension AutoFixAction {
     var displayName: String {
         switch self {
         case .startSessionRuntime:
-            "Start Remapping Engine"
+            String(localized: "Start Remapping Engine")
         }
     }
 }

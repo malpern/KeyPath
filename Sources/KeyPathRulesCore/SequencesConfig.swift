@@ -181,7 +181,7 @@ public enum SequenceAction: Codable, Equatable, Sendable {
     public var displayName: String {
         switch self {
         case let .activateLayer(layer):
-            "Activate \(layer.displayName)"
+            String(localized: "Activate \(layer.displayName)")
         }
     }
 }
@@ -204,9 +204,9 @@ public struct SequenceConflict: Identifiable {
     public var description: String {
         switch type {
         case .sameKeys:
-            "'\(sequence1.name)' and '\(sequence2.name)' use the same keys: \(sequence1.prettyKeys)"
+            String(localized: "'\(sequence1.name)' and '\(sequence2.name)' use the same keys: \(sequence1.prettyKeys)")
         case .prefixOverlap:
-            "'\(sequence1.name)' overlaps with '\(sequence2.name)' - may cause timing issues"
+            String(localized: "'\(sequence1.name)' overlaps with '\(sequence2.name)' - may cause timing issues")
         }
     }
 }

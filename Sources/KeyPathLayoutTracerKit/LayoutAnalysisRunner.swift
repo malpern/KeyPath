@@ -32,7 +32,7 @@ enum LayoutAnalysisRunner {
             throw NSError(
                 domain: "KeyPathLayoutTracer.Analysis",
                 code: Int(process.terminationStatus),
-                userInfo: [NSLocalizedDescriptionKey: (errorText?.isEmpty == false) ? (errorText ?? "Keyboard analysis failed.") : "Keyboard analysis failed."]
+                userInfo: [NSLocalizedDescriptionKey: (errorText?.isEmpty == false) ? (errorText ?? String(localized: "Keyboard analysis failed.")) : String(localized: "Keyboard analysis failed.")]
             )
         }
 
@@ -51,7 +51,7 @@ enum LayoutAnalysisRunner {
             throw NSError(
                 domain: "KeyPathLayoutTracer.Analysis",
                 code: 404,
-                userInfo: [NSLocalizedDescriptionKey: "Analyzer script not found at \(scriptURL.path)"]
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "Analyzer script not found at \(scriptURL.path)")]
             )
         }
         return scriptURL

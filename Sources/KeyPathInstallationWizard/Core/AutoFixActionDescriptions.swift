@@ -9,15 +9,16 @@ public enum AutoFixActionDescriptions {
     public static func describe(_ action: AutoFixAction) -> String {
         switch action {
         case .startSessionRuntime:
-            "Start KeyPath's remapping engine"
+            String(localized: "Start KeyPath's remapping engine")
         }
     }
 
     /// Get detailed error message for specific auto-fix failures
     public static func errorMessage(for action: AutoFixAction) -> String {
-        let description = describe(action)
-        // Lowercase only the first letter, so names like KeyPath keep their case.
-        let phrase = description.prefix(1).lowercased() + description.dropFirst()
-        return "Failed to \(phrase). Check logs for details and try again."
+        // One whole sentence per action, so it can be translated.
+        switch action {
+        case .startSessionRuntime:
+            String(localized: "Failed to start KeyPath's remapping engine. Check logs for details and try again.")
+        }
     }
 }

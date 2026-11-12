@@ -7,40 +7,40 @@ import Foundation
 public struct AccessibilityPermissionPresentation: Sendable {
     public static let current = Self()
 
-    public let name = "Device Control and Data Access"
-    public let openButtonTitle = "Open Settings"
+    public let name = String(localized: "Device Control and Data Access", comment: "macOS System Settings privacy pane name (Accessibility); use Apple's localized pane name")
+    public let openButtonTitle = String(localized: "Open Settings")
 
     public init() {}
 
     public func displayName(for canonicalPermission: String) -> String {
         switch canonicalPermission {
         case "Accessibility": name
-        case "Accessibility / effective input access": "\(name) / effective input access"
+        case "Accessibility / effective input access": String(localized: "\(name) / effective input access")
         default: canonicalPermission
         }
     }
 
     public var settingsPath: String {
-        "System Settings > Privacy & Security > \(name)"
+        String(localized: "System Settings > Privacy & Security > \(name)")
     }
 
     public var enableTitle: String {
-        "Enable \(name)"
+        String(localized: "Enable \(name)")
     }
 
     public var enabledTitle: String {
-        "\(name) enabled"
+        String(localized: "\(name) enabled")
     }
 
     public var openTitle: String {
-        "Open \(name)"
+        String(localized: "Open \(name)")
     }
 
     public var turnOnInstruction: String {
-        "Turn on KeyPath under \(name)."
+        String(localized: "Turn on KeyPath under \(name).")
     }
 
     public var grantInstruction: String {
-        "Open KeyPath.app and grant \(name) in \(settingsPath)"
+        String(localized: "Open KeyPath.app and grant \(name) in \(settingsPath)")
     }
 }

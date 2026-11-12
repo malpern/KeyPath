@@ -76,14 +76,14 @@ public enum KeyPathError: Error, LocalizedError {
         /// User-friendly explanation of the conflict and resolution options
         public var userExplanation: String {
             let collections = conflictingCollections.joined(separator: " and ")
-            var explanation = "\(collections) both configure the \"\(inputKey)\" key with different behaviors."
+            var explanation = String(localized: "\(collections) both configure the \"\(inputKey)\" key with different behaviors.")
 
             if !holdDescriptions.isEmpty {
                 explanation += " " + holdDescriptions.joined(separator: "; ") + "."
             }
 
-            explanation += " A key can only have one action assigned."
-            explanation += " Either change the key assignments so they don't overlap, or disable one."
+            explanation += " " + String(localized: "A key can only have one action assigned.")
+            explanation += " " + String(localized: "Either change the key assignments so they don't overlap, or disable one.")
 
             return explanation
         }
@@ -196,40 +196,40 @@ public enum KeyPathError: Error, LocalizedError {
     public var failureReason: String? {
         switch self {
         case .configuration:
-            "Configuration operation failed"
+            String(localized: "Configuration operation failed")
         case .process:
-            "Process lifecycle operation failed"
+            String(localized: "Process lifecycle operation failed")
         case .permission:
-            "Permission or security check failed"
+            String(localized: "Permission or security check failed")
         case .system:
-            "System-level operation failed"
+            String(localized: "System-level operation failed")
         case .communication:
-            "Communication with service failed"
+            String(localized: "Communication with service failed")
         case .coordination:
-            "Coordination or state management failed"
+            String(localized: "Coordination or state management failed")
         case .logging:
-            "Logging operation failed"
+            String(localized: "Logging operation failed")
         }
     }
 
     public var recoverySuggestion: String? {
         switch self {
         case .configuration(.fileNotFound):
-            "Check that the configuration file exists and the path is correct"
+            String(localized: "Check that the configuration file exists and the path is correct")
         case .configuration(.validationFailed):
-            "Review the configuration syntax and fix any validation errors"
+            String(localized: "Review the configuration syntax and fix any validation errors")
         case .permission(.accessibilityNotGranted):
-            "Grant \(AccessibilityPermissionPresentation.current.name) permission in System Settings > Privacy & Security"
+            String(localized: "Grant \(AccessibilityPermissionPresentation.current.name) permission in System Settings > Privacy & Security")
         case .process(.notRunning):
-            "Start the Kanata service before performing this operation"
+            String(localized: "Start the Kanata service before performing this operation")
         case .process(.launchAgentNotFound):
-            "Run the installation wizard to install required components"
+            String(localized: "Run the installation wizard to install required components")
         case .communication(.timeout):
-            "Check that the Kanata service is running and restart if necessary"
+            String(localized: "Check that the Kanata service is running and restart if necessary")
         case .communication(.notAuthenticated):
-            "Restart the service to refresh authentication"
+            String(localized: "Restart the service to refresh authentication")
         case .system(.driverNotLoaded):
-            "Run the installation wizard to install the Karabiner driver"
+            String(localized: "Run the installation wizard to install the Karabiner driver")
         default:
             nil
         }
@@ -277,35 +277,35 @@ public enum KeyPathError: Error, LocalizedError {
     private func configurationErrorDescription(_ error: ConfigurationError) -> String {
         switch error {
         case let .fileNotFound(path):
-            "Configuration file not found: \(path)"
+            String(localized: "Configuration file not found: \(path)")
         case let .loadFailed(reason):
-            "Failed to load configuration: \(reason)"
+            String(localized: "Failed to load configuration: \(reason)")
         case let .saveFailed(reason):
-            "Failed to save configuration: \(reason)"
+            String(localized: "Failed to save configuration: \(reason)")
         case let .validationFailed(errors):
-            "Configuration validation failed: \(errors.joined(separator: ", "))"
+            String(localized: "Configuration validation failed: \(errors.joined(separator: ", "))")
         case let .invalidFormat(reason):
-            "Invalid configuration format: \(reason)"
+            String(localized: "Invalid configuration format: \(reason)")
         case let .watchingFailed(reason):
-            "Failed to watch configuration file: \(reason)"
+            String(localized: "Failed to watch configuration file: \(reason)")
         case let .backupFailed(reason):
-            "Failed to create backup: \(reason)"
+            String(localized: "Failed to create backup: \(reason)")
         case let .backupRestoreFailed(reason):
-            "Failed to restore from backup: \(reason)"
+            String(localized: "Failed to restore from backup: \(reason)")
         case let .backupListFailed(reason):
-            "Failed to list backups: \(reason)"
+            String(localized: "Failed to list backups: \(reason)")
         case let .parseError(line, message):
             if let line {
-                "Parse error at line \(line): \(message)"
+                String(localized: "Parse error at line \(line): \(message)")
             } else {
-                "Parse error: \(message)"
+                String(localized: "Parse error: \(message)")
             }
         case .backupNotFound:
-            "No backup configuration found"
+            String(localized: "No backup configuration found")
         case let .corruptedFormat(details):
-            "Configuration file is corrupted: \(details)"
+            String(localized: "Configuration file is corrupted: \(details)")
         case let .repairFailed(reason):
-            "Failed to repair configuration: \(reason)"
+            String(localized: "Failed to repair configuration: \(reason)")
         case let .mappingConflicts(conflicts):
             conflicts.map(\.userExplanation).joined(separator: "\n\n")
         }
@@ -314,112 +314,112 @@ public enum KeyPathError: Error, LocalizedError {
     private func processErrorDescription(_ error: ProcessError) -> String {
         switch error {
         case let .startFailed(reason):
-            "Process start failed: \(reason)"
+            String(localized: "Process start failed: \(reason)")
         case let .stopFailed(underlyingError):
-            "Process stop failed: \(underlyingError)"
+            String(localized: "Process stop failed: \(underlyingError)")
         case let .terminateFailed(underlyingError):
-            "Process termination failed: \(underlyingError)"
+            String(localized: "Process termination failed: \(underlyingError)")
         case .notRunning:
-            "Process is not running"
+            String(localized: "Process is not running")
         case .alreadyRunning:
-            "Process is already running"
+            String(localized: "Process is already running")
         case let .launchAgentLoadFailed(reason):
-            "Failed to load launch agent: \(reason)"
+            String(localized: "Failed to load launch agent: \(reason)")
         case let .launchAgentUnloadFailed(reason):
-            "Failed to unload launch agent: \(reason)"
+            String(localized: "Failed to unload launch agent: \(reason)")
         case .launchAgentNotFound:
-            "Launch agent not found"
+            String(localized: "Launch agent not found")
         case let .stateTransitionFailed(from, to):
-            "State transition failed from \(from) to \(to)"
+            String(localized: "State transition failed from \(from) to \(to)")
         case .noManager:
-            "No manager available"
+            String(localized: "No manager available")
         }
     }
 
     private func permissionErrorDescription(_ error: PermissionError) -> String {
         switch error {
         case .accessibilityNotGranted:
-            "\(AccessibilityPermissionPresentation.current.name) permission not granted"
+            String(localized: "\(AccessibilityPermissionPresentation.current.name) permission not granted")
         case .notificationAuthorizationFailed:
-            "Notification authorization failed"
+            String(localized: "Notification authorization failed")
         case .oracleInitializationFailed:
-            "Permission oracle initialization failed"
+            String(localized: "Permission oracle initialization failed")
         case let .keychainSaveFailed(status):
-            "Keychain save failed with status: \(status)"
+            String(localized: "Keychain save failed with status: \(status)")
         case let .keychainLoadFailed(status):
-            "Keychain load failed with status: \(status)"
+            String(localized: "Keychain load failed with status: \(status)")
         case let .keychainDeleteFailed(status):
-            "Keychain delete failed with status: \(status)"
+            String(localized: "Keychain delete failed with status: \(status)")
         case let .privilegedOperationFailed(operation, reason):
-            "Privileged operation '\(operation)' failed: \(reason)"
+            String(localized: "Privileged operation '\(operation)' failed: \(reason)")
         }
     }
 
     private func systemErrorDescription(_ error: SystemError) -> String {
         switch error {
         case .eventTapCreationFailed:
-            "Failed to create event tap"
+            String(localized: "Failed to create event tap")
         case .eventTapEnableFailed:
-            "Failed to enable event tap"
+            String(localized: "Failed to enable event tap")
         case let .eventProcessingFailed(reason):
-            "Event processing failed: \(reason)"
+            String(localized: "Event processing failed: \(reason)")
         case let .outputSynthesisFailed(reason):
-            "Output synthesis failed: \(reason)"
+            String(localized: "Output synthesis failed: \(reason)")
         case let .invalidKeyCode(code):
-            "Invalid key code: \(code)"
+            String(localized: "Invalid key code: \(code)")
         case .deviceNotFound:
-            "Device not found"
+            String(localized: "Device not found")
         case let .driverNotLoaded(driver):
-            "Driver not loaded: \(driver)"
+            String(localized: "Driver not loaded: \(driver)")
         }
     }
 
     private func communicationErrorDescription(_ error: CommunicationError) -> String {
         switch error {
         case .timeout:
-            "Communication timeout"
+            String(localized: "Communication timeout")
         case .noResponse:
-            "No response received from server"
+            String(localized: "No response received from server")
         case .invalidPort:
-            "Invalid port number"
+            String(localized: "Invalid port number")
         case .invalidResponse:
-            "Invalid response from server"
+            String(localized: "Invalid response from server")
         case .notAuthenticated:
-            "Not authenticated"
+            String(localized: "Not authenticated")
         case let .payloadTooLarge(size):
-            "Payload too large: \(size) bytes"
+            String(localized: "Payload too large: \(size) bytes")
         case let .connectionFailed(reason):
-            "Connection failed: \(reason)"
+            String(localized: "Connection failed: \(reason)")
         case .serializationFailed:
-            "Failed to serialize data"
+            String(localized: "Failed to serialize data")
         case .deserializationFailed:
-            "Failed to deserialize response"
+            String(localized: "Failed to deserialize response")
         }
     }
 
     private func coordinationErrorDescription(_ error: CoordinationError) -> String {
         switch error {
         case let .invalidState(expected, actual):
-            "Invalid state: expected \(expected), got \(actual)"
+            String(localized: "Invalid state: expected \(expected), got \(actual)")
         case .operationCancelled:
-            "Operation cancelled"
+            String(localized: "Operation cancelled")
         case let .recordingFailed(reason):
-            "Recording failed: \(reason)"
+            String(localized: "Recording failed: \(reason)")
         case let .systemDetectionFailed(component, reason):
-            "System detection failed for \(component): \(reason)"
+            String(localized: "System detection failed for \(component): \(reason)")
         case let .conflictDetected(service):
-            "Conflict detected with \(service)"
+            String(localized: "Conflict detected with \(service)")
         }
     }
 
     private func loggingErrorDescription(_ error: LoggingError) -> String {
         switch error {
         case let .fileCreationFailed(path):
-            "Failed to create log file: \(path)"
+            String(localized: "Failed to create log file: \(path)")
         case let .writeFailed(reason):
-            "Log write failed: \(reason)"
+            String(localized: "Log write failed: \(reason)")
         case let .logRotationFailed(reason):
-            "Log rotation failed: \(reason)"
+            String(localized: "Log rotation failed: \(reason)")
         }
     }
 }

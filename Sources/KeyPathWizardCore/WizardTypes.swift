@@ -22,13 +22,13 @@ public enum WizardPage: String, CaseIterable, Sendable, Identifiable {
     /// User-friendly display name for accessibility and UI
     public var displayName: String {
         switch self {
-        case .welcome: "Welcome to KeyPath"
-        case .summary: "Setup Overview"
-        case .accessibility: "\(AccessibilityPermissionPresentation.current.name) Permission"
-        case .kanataMigration: "Migrate Existing Kanata Config"
-        case .stopExternalKanata: "Stop External Kanata"
-        case .karabinerImport: "Import Karabiner Rules"
-        case .service: "Start Keyboard Service"
+        case .welcome: String(localized: "Welcome to KeyPath")
+        case .summary: String(localized: "Setup Overview")
+        case .accessibility: String(localized: "\(AccessibilityPermissionPresentation.current.name) Permission")
+        case .kanataMigration: String(localized: "Migrate Existing Kanata Config")
+        case .stopExternalKanata: String(localized: "Stop External Kanata")
+        case .karabinerImport: String(localized: "Import Karabiner Rules")
+        case .service: String(localized: "Start Keyboard Service")
         }
     }
 
@@ -105,13 +105,13 @@ public enum LaunchFailureStatus: Equatable {
         switch self {
         case let .permissionDenied(reason):
             // Preserve specific reason when provided for better deduping; fallback to generic
-            reason.isEmpty ? "Kanata needs permissions" : reason
+            reason.isEmpty ? String(localized: "Kanata needs permissions") : reason
         case let .configError(reason):
-            reason.isEmpty ? "Configuration error" : reason
+            reason.isEmpty ? String(localized: "Configuration error") : reason
         case let .serviceFailure(reason):
-            reason.isEmpty ? "Kanata service failed" : reason
+            reason.isEmpty ? String(localized: "Kanata service failed") : reason
         case let .missingDependency(detail):
-            detail.isEmpty ? "Kanata not installed" : detail
+            detail.isEmpty ? String(localized: "Kanata not installed") : detail
         }
     }
 }
@@ -347,7 +347,7 @@ public struct ComponentCheckResult {
 
 public enum WizardConstants {
     public enum Actions {
-        public static let fixInSetup = "Fix in Setup"
+        public static let fixInSetup = String(localized: "Fix in Setup")
     }
 }
 
@@ -377,7 +377,7 @@ public extension [WizardIssue] {
         let lines = prefix(maxItems).map { "• " + $0.title }
         let remaining = count - lines.count
         if remaining > 0 {
-            return (lines + ["… and \(remaining) more"]).joined(separator: "\n")
+            return (lines + [String(localized: "… and \(remaining) more")]).joined(separator: "\n")
         } else {
             return lines.joined(separator: "\n")
         }

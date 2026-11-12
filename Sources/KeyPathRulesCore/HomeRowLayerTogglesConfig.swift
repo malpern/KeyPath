@@ -121,16 +121,16 @@ public enum LayerToggleMode: String, Codable, Sendable {
     /// Display name for UI
     public var displayName: String {
         switch self {
-        case .whileHeld: "While Held"
-        case .toggle: "Toggle"
+        case .whileHeld: String(localized: "While Held")
+        case .toggle: String(localized: "Toggle")
         }
     }
 
     /// Description for UI
     public var description: String {
         switch self {
-        case .whileHeld: "Layer activates while holding the key"
-        case .toggle: "Layer toggles on/off (sticky)"
+        case .whileHeld: String(localized: "Layer activates while holding the key")
+        case .toggle: String(localized: "Layer toggles on/off (sticky)")
         }
     }
 

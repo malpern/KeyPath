@@ -117,7 +117,7 @@ public extension KeyAction {
         case let .openURL(urlString):
             URLMappingFormatter.displayDomain(for: urlString)
         case let .openFolder(_, name):
-            name ?? "Folder"
+            name ?? String(localized: "Folder")
         case let .runScript(path, name):
             name ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
         case let .systemAction(id):
@@ -139,29 +139,29 @@ public extension KeyAction {
     var autoDescription: String {
         switch self {
         case let .keystroke(key):
-            "Remap to \(key)"
+            String(localized: "Remap to \(key)")
         case .hyper:
-            "Hyper (Cmd+Ctrl+Alt+Shift)"
+            String(localized: "Hyper (Cmd+Ctrl+Alt+Shift)")
         case .meh:
-            "Meh (Ctrl+Alt+Shift)"
+            String(localized: "Meh (Ctrl+Alt+Shift)")
         case let .launchApp(name, _):
-            "Open \(name)"
+            String(localized: "Open \(name)")
         case let .openURL(urlString):
-            "Open \(URLMappingFormatter.displayDomain(for: urlString))"
+            String(localized: "Open \(URLMappingFormatter.displayDomain(for: urlString))")
         case let .openFolder(_, name):
-            "Open \(name ?? "folder")"
+            name.map { String(localized: "Open \($0)") } ?? String(localized: "Open folder")
         case let .runScript(_, name):
-            "Run \(name ?? "script")"
+            name.map { String(localized: "Run \($0)") } ?? String(localized: "Run script")
         case let .systemAction(id):
-            "System: \(id)"
+            String(localized: "System: \(id)")
         case let .notify(title, _, _):
-            "Notify: \(title)"
+            String(localized: "Notify: \(title)")
         case let .windowAction(position):
-            "Window: \(position)"
+            String(localized: "Window: \(position)")
         case let .fakeKey(name, action):
-            "FakeKey: \(name) (\(action.rawValue))"
+            String(localized: "FakeKey: \(name) (\(action.rawValue))")
         case let .activateLayer(name):
-            "Activate \(name) layer"
+            String(localized: "Activate \(name) layer")
         case let .rawKanata(expr):
             expr
         }
@@ -189,9 +189,9 @@ public extension KeyAction {
         case .openURL:
             return DisplayInfo(label: displayName, icon: "link")
         case let .openFolder(_, name):
-            return DisplayInfo(label: name ?? "Folder", icon: "folder.fill")
+            return DisplayInfo(label: name ?? String(localized: "Folder"), icon: "folder.fill")
         case let .runScript(_, name):
-            return DisplayInfo(label: name ?? "Script", icon: "terminal.fill")
+            return DisplayInfo(label: name ?? String(localized: "Script"), icon: "terminal.fill")
         case let .systemAction(id):
             if let action = SystemActionInfo.find(byOutput: id) {
                 return DisplayInfo(label: action.name, icon: action.sfSymbol)
@@ -212,32 +212,32 @@ public extension KeyAction {
 
     private static func resolveKeystroke(_ key: String) -> DisplayInfo? {
         switch key.lowercased() {
-        case "esc": DisplayInfo(label: "Esc", icon: "escape")
-        case "enter", "ret": DisplayInfo(label: "Return", icon: "return")
-        case "bspc": DisplayInfo(label: "Backspace", icon: "delete.backward")
-        case "del": DisplayInfo(label: "Delete", icon: "delete.forward")
-        case "tab": DisplayInfo(label: "Tab", icon: "arrow.right.to.line")
-        case "spc": DisplayInfo(label: "Space", icon: nil)
-        case "up": DisplayInfo(label: "Up", icon: "arrow.up")
-        case "down": DisplayInfo(label: "Down", icon: "arrow.down")
-        case "left": DisplayInfo(label: "Left", icon: "arrow.left")
-        case "right": DisplayInfo(label: "Right", icon: "arrow.right")
-        case "pp": DisplayInfo(label: "Play/Pause", icon: "playpause")
-        case "next": DisplayInfo(label: "Next", icon: "forward")
-        case "prev": DisplayInfo(label: "Previous", icon: "backward")
+        case "esc": DisplayInfo(label: String(localized: "Esc", comment: "Key or shortcut label"), icon: "escape")
+        case "enter", "ret": DisplayInfo(label: String(localized: "Return", comment: "Key or shortcut label"), icon: "return")
+        case "bspc": DisplayInfo(label: String(localized: "Backspace", comment: "Key or shortcut label"), icon: "delete.backward")
+        case "del": DisplayInfo(label: String(localized: "Delete", comment: "Key or shortcut label"), icon: "delete.forward")
+        case "tab": DisplayInfo(label: String(localized: "Tab", comment: "Key or shortcut label"), icon: "arrow.right.to.line")
+        case "spc": DisplayInfo(label: String(localized: "Space", comment: "Key or shortcut label"), icon: nil)
+        case "up": DisplayInfo(label: String(localized: "Up", comment: "Key or shortcut label"), icon: "arrow.up")
+        case "down": DisplayInfo(label: String(localized: "Down", comment: "Key or shortcut label"), icon: "arrow.down")
+        case "left": DisplayInfo(label: String(localized: "Left", comment: "Key or shortcut label"), icon: "arrow.left")
+        case "right": DisplayInfo(label: String(localized: "Right", comment: "Key or shortcut label"), icon: "arrow.right")
+        case "pp": DisplayInfo(label: String(localized: "Play/Pause", comment: "Key or shortcut label"), icon: "playpause")
+        case "next": DisplayInfo(label: String(localized: "Next", comment: "Key or shortcut label"), icon: "forward")
+        case "prev": DisplayInfo(label: String(localized: "Previous", comment: "Key or shortcut label"), icon: "backward")
         default: nil
         }
     }
 
     private static func resolveRawKanata(_ expr: String) -> DisplayInfo? {
         switch expr.lowercased() {
-        case "c-x": return DisplayInfo(label: "Cut", icon: "scissors")
-        case "c-c": return DisplayInfo(label: "Copy", icon: "doc.on.doc")
-        case "c-v": return DisplayInfo(label: "Paste", icon: "doc.on.clipboard")
-        case "c-z": return DisplayInfo(label: "Undo", icon: "arrow.uturn.backward")
-        case "c-y", "c-s-z": return DisplayInfo(label: "Redo", icon: "arrow.uturn.forward")
-        case "c-a": return DisplayInfo(label: "Select All", icon: "selection.pin.in.out")
-        case "c-s": return DisplayInfo(label: "Save", icon: "square.and.arrow.down")
+        case "c-x": return DisplayInfo(label: String(localized: "Cut", comment: "Key or shortcut label"), icon: "scissors")
+        case "c-c": return DisplayInfo(label: String(localized: "Copy", comment: "Key or shortcut label"), icon: "doc.on.doc")
+        case "c-v": return DisplayInfo(label: String(localized: "Paste", comment: "Key or shortcut label"), icon: "doc.on.clipboard")
+        case "c-z": return DisplayInfo(label: String(localized: "Undo", comment: "Key or shortcut label"), icon: "arrow.uturn.backward")
+        case "c-y", "c-s-z": return DisplayInfo(label: String(localized: "Redo", comment: "Key or shortcut label"), icon: "arrow.uturn.forward")
+        case "c-a": return DisplayInfo(label: String(localized: "Select All", comment: "Key or shortcut label"), icon: "selection.pin.in.out")
+        case "c-s": return DisplayInfo(label: String(localized: "Save", comment: "Key or shortcut label"), icon: "square.and.arrow.down")
         default:
             if let action = SystemActionInfo.find(byOutput: expr) {
                 return DisplayInfo(label: action.name, icon: action.sfSymbol)

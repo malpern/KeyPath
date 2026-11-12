@@ -47,7 +47,7 @@ public struct WizardActionSection: View {
     @ViewBuilder
     private var actionButton: some View {
         if systemState == .active, isFullyConfigured {
-            WizardButton("Close Setup", style: .primary, isDefaultAction: true) {
+            WizardButton(String(localized: "Close Setup"), style: .primary, isDefaultAction: true) {
                 onDismiss()
             }
         } else if let firstPage = navSequence.first, let navigate = onNavigateToPage {
@@ -55,11 +55,11 @@ public struct WizardActionSection: View {
                 navigate(firstPage)
             }
         } else if case .serviceNotRunning = systemState {
-            WizardButton("Start KeyPath Runtime", style: .primary, isDefaultAction: true) {
+            WizardButton(String(localized: "Start KeyPath Runtime"), style: .primary, isDefaultAction: true) {
                 onStartService()
             }
         } else if case .ready = systemState {
-            WizardButton("Start KeyPath Runtime", style: .primary, isDefaultAction: true) {
+            WizardButton(String(localized: "Start KeyPath Runtime"), style: .primary, isDefaultAction: true) {
                 onStartService()
             }
         }
@@ -68,11 +68,11 @@ public struct WizardActionSection: View {
     private func buttonLabel(for page: WizardPage) -> String {
         switch page {
         case .accessibility:
-            "Fix \(AccessibilityPermissionPresentation.current.name)"
+            String(localized: "Fix \(AccessibilityPermissionPresentation.current.name)")
         case .service:
-            "Start KeyPath Runtime"
+            String(localized: "Start KeyPath Runtime")
         default:
-            "Continue Setup"
+            String(localized: "Continue Setup")
         }
     }
 }
