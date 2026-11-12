@@ -16,22 +16,29 @@ final class ExternalKanataServiceCommandTests: XCTestCase {
         let child = Process()
         child.executableURL = URL(fileURLWithPath: "/bin/sleep")
         child.arguments = ["30"]
+        let terminated = XCTestExpectation(description: "sleep terminates")
+        child.terminationHandler = { _ in terminated.fulfill() }
         try child.run()
         defer { if child.isRunning { child.terminate() } }
 
         try await ExternalKanataService.killProcess(pid: Int(child.processIdentifier))
-        child.waitUntilExit()
 
-        XCTAssertFalse(child.isRunning)
+        let outcome = await XCTWaiter.fulfillment(of: [terminated], timeout: 5)
+        XCTAssertEqual(outcome, .completed, "Expected sleep to exit after being signalled")
+        guard outcome == .completed else { return }
         XCTAssertEqual(child.terminationReason, .uncaughtSignal)
     }
 
     func testKillProcessTreatsAMissingProcessAsStopped() async throws {
         let child = Process()
         child.executableURL = URL(fileURLWithPath: "/usr/bin/true")
+        let terminated = XCTestExpectation(description: "true terminates")
+        child.terminationHandler = { _ in terminated.fulfill() }
         try child.run()
-        child.waitUntilExit()
 
+        let outcome = await XCTWaiter.fulfillment(of: [terminated], timeout: 5)
+        XCTAssertEqual(outcome, .completed, "Expected true to exit before signalling its PID")
+        guard outcome == .completed else { return }
         try await ExternalKanataService.killProcess(pid: Int(child.processIdentifier))
     }
 
