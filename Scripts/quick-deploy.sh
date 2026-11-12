@@ -446,6 +446,10 @@ else
     cp -R "$PROJECT_DIR/Sources/KeyPathApp/Resources/." "$RESOURCES_DIR/"
 fi
 
+# The app's Info.plist (declared languages, usage strings) changes too; the
+# release build copies it, so a quick deploy must as well.
+cp "$PROJECT_DIR/Sources/KeyPathApp/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
+
 # Sync SwiftPM resource bundles (e.g. KeyPath_KeyPathAppKit.bundle) so that
 # newly added images, markdown docs, etc. appear without a full ./build.sh.
 for bundle in "$BIN_DIR"/KeyPath_*.bundle; do
