@@ -369,6 +369,9 @@ These apply to the session runtime, with `ServiceLifecycleCoordinator` as owner.
 
 - Do not add `launchctl`, LaunchDaemon, or privileged-helper paths; install
   and repair go through `InstallerEngine` and the session runtime.
+  One exception: `ExternalKanataService` runs `launchctl unload`/`disable` on
+  the user's own Kanata LaunchAgent when migrating from a standalone Kanata.
+  That agent is not KeyPath's, and nothing else can turn it off.
 - Do not roll your own `pgrep`/`launchctl` health checks; use
   `ServiceHealthChecker`.
 - Do not start, stop, or restart Kanata except through

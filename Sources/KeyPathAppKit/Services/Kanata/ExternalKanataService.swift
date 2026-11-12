@@ -73,31 +73,25 @@ public enum ExternalKanataService: Sendable {
     // MARK: - Private Helpers
 
     private static func killProcess(pid: Int) async throws {
+        let target = pid_t(pid)
         // Try graceful kill first (SIGTERM)
-        let termResult = try await runCommand("/bin/kill", arguments: ["-TERM", String(pid)])
-
-        if termResult.status == 0 {
-            // Wait a moment for graceful shutdown
-            try? await Task.sleep(for: .milliseconds(500))
-
-            // Check if still running
-            let checkResult = try await runCommand("/bin/kill", arguments: ["-0", String(pid)])
-            if checkResult.status != 0 {
-                // Process exited
-                return
-            }
-
-            // Force kill if still running
-            _ = try await runCommand("/bin/kill", arguments: ["-9", String(pid)])
-        } else if termResult.status == 1 {
+        guard kill(target, SIGTERM) == 0 else {
             // Process doesn't exist - that's fine
-            return
-        } else {
+            if errno == ESRCH { return }
+            let reason = String(cString: strerror(errno))
             throw NSError(
                 domain: "ExternalKanataService",
-                code: Int(termResult.status),
-                userInfo: [NSLocalizedDescriptionKey: "Failed to kill process: \(termResult.stderr)"]
+                code: Int(errno),
+                userInfo: [NSLocalizedDescriptionKey: "Failed to kill process: \(reason)"]
             )
+        }
+
+        // Wait a moment for graceful shutdown
+        try? await Task.sleep(for: .milliseconds(500))
+
+        // Force kill if still running
+        if SystemStateProvider.isProcessAlive(pid: target) {
+            _ = kill(target, SIGKILL)
         }
     }
 
