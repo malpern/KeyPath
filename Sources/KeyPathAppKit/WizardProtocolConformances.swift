@@ -40,16 +40,11 @@ extension SystemValidator: WizardSystemValidating {
 
 extension PermissionRequestService: WizardPermissionRequesting {}
 
-// MARK: - TCPProbe + WizardTCPProbing
-
-extension TCPProbe: WizardTCPProbing {}
-
 // MARK: - WizardDependencies Configuration
 
 /// Configure WizardDependencies at app launch (call from App.init or similar)
 @MainActor
 public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) {
-    WizardDependencies.isRunningAdHoc = WizardSignatureHealthCheck.isRunningAdHoc()
     WizardDependencies.runtimeCoordinator = runtimeCoordinator
     let sharedValidator = SystemValidator(kanataManager: runtimeCoordinator)
     WizardDependencies.systemValidator = sharedValidator
@@ -80,24 +75,8 @@ public func configureWizardDependencies(runtimeCoordinator: RuntimeCoordinator) 
             return outcome.result
         })
     }
-    WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
 
-    // ExternalKanataService static methods
-    WizardDependencies.getExternalKanataInfo = {
-        ExternalKanataService.getExternalKanataInfo()
-    }
-    WizardDependencies.stopExternalKanata = { info in
-        let result = await ExternalKanataService.stopExternalKanata(info)
-        switch result {
-        case .success: return .success(())
-        case .processNotFound: return .success(())
-        case let .killFailed(reason): return .failure(NSError(domain: "ExternalKanata", code: 1, userInfo: [NSLocalizedDescriptionKey: reason]))
-        case let .launchAgentDisableFailed(reason): return .failure(NSError(domain: "ExternalKanata", code: 2, userInfo: [NSLocalizedDescriptionKey: reason]))
-        }
-    }
-    WizardDependencies.hasExternalKanataRunning = {
-        ExternalKanataService.hasExternalKanataRunning()
-    }
+    configureExternalKanataDependencies()
 
     // Page view factories for pages that live in KeyPathAppKit
     WizardDependencies.makeKanataMigrationPage = { onMigrationComplete, onSkip in
@@ -125,28 +104,24 @@ func configureCLIWizardDependencies(systemValidator: SystemValidator) {
 
     // The CLI cannot uninstall: the session runtime belongs to the running app.
     WizardDependencies.createUninstallCoordinator = nil
-    WizardDependencies.resourceBundle = KeyPathAppKitResources.bundle
 
+    configureExternalKanataDependencies()
+}
+
+/// The wizard's Stop Kanata page reaches ExternalKanataService through these.
+@MainActor
+private func configureExternalKanataDependencies() {
     WizardDependencies.getExternalKanataInfo = {
         ExternalKanataService.getExternalKanataInfo()
     }
     WizardDependencies.stopExternalKanata = { info in
-        let result = await ExternalKanataService.stopExternalKanata(info)
-        switch result {
+        switch await ExternalKanataService.stopExternalKanata(info) {
         case .success, .processNotFound:
-            return .success(())
+            .success(())
         case let .killFailed(reason):
-            return .failure(NSError(
-                domain: "ExternalKanata",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: reason]
-            ))
+            .failure(NSError(domain: "ExternalKanata", code: 1, userInfo: [NSLocalizedDescriptionKey: reason]))
         case let .launchAgentDisableFailed(reason):
-            return .failure(NSError(
-                domain: "ExternalKanata",
-                code: 2,
-                userInfo: [NSLocalizedDescriptionKey: reason]
-            ))
+            .failure(NSError(domain: "ExternalKanata", code: 2, userInfo: [NSLocalizedDescriptionKey: reason]))
         }
     }
     WizardDependencies.hasExternalKanataRunning = {

@@ -20,8 +20,8 @@ final class EngineTransportLintTests: XCTestCase {
             under: LintScanner.path("Sources"),
             patterns: Self.tcpEnginePatterns,
             // The endpoint type defines the test-only TCP case, the client its
-            // test-only initializer, and SystemStateProvider keeps a generic port probe.
-            allowFileNames: ["KanataEngineEndpoint.swift", "KanataTCPClient.swift", "SystemStateProvider.swift"]
+            // test-only initializer.
+            allowFileNames: ["KanataEngineEndpoint.swift", "KanataTCPClient.swift"]
         )
         XCTAssertTrue(
             violations.isEmpty,
