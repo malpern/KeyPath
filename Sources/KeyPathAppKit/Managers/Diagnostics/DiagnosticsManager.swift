@@ -5,16 +5,13 @@ import KeyPathCore
 @MainActor
 final class DiagnosticsManager {
     private var diagnostics: [KanataDiagnostic] = []
-    private let diagnosticsService: DiagnosticsServiceProtocol
     private let healthMonitor: ServiceHealthMonitor
     private let processStatusProvider: @MainActor @Sendable () async -> ProcessHealthStatus
 
     init(
-        diagnosticsService: DiagnosticsServiceProtocol,
         healthMonitor: ServiceHealthMonitor,
         processStatusProvider: @escaping @MainActor @Sendable () async -> ProcessHealthStatus
     ) {
-        self.diagnosticsService = diagnosticsService
         self.healthMonitor = healthMonitor
         self.processStatusProvider = processStatusProvider
     }
@@ -50,9 +47,5 @@ final class DiagnosticsManager {
 
     func recordGrabSuccess() async {
         await healthMonitor.recordGrabSuccess()
-    }
-
-    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic] {
-        await diagnosticsService.getSystemDiagnostics(engineClient: engineClient)
     }
 }

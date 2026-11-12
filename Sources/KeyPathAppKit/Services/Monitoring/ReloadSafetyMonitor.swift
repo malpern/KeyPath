@@ -17,7 +17,7 @@ actor ReloadSafetyMonitor {
     // MARK: - Configuration
 
     /// Minimum time between reload attempts (prevents spam)
-    private let reloadCooldownSeconds: TimeInterval = 2.0
+    private let reloadCooldownSeconds: TimeInterval
 
     /// Time window to track reload history
     private let trackingWindowSeconds: TimeInterval = 60.0
@@ -46,6 +46,10 @@ actor ReloadSafetyMonitor {
 
     /// Service restart history (PID changes indicate restarts)
     private var restartHistory: [(timestamp: Date, pid: Int)] = []
+
+    init(reloadCooldownSeconds: TimeInterval = 2.0) {
+        self.reloadCooldownSeconds = reloadCooldownSeconds
+    }
 
     // MARK: - Public API
 
@@ -112,7 +116,7 @@ actor ReloadSafetyMonitor {
         cleanupOldHistory()
 
         if !succeeded {
-            AppLogger.shared.warn("⚠️ [ReloadSafety] Reload failed - monitoring for potential crash")
+            AppLogger.shared.warnUnlessQuietTest("⚠️ [ReloadSafety] Reload failed - monitoring for potential crash")
         }
     }
 

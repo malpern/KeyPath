@@ -46,8 +46,6 @@ enum DiagnosticCategory: String, CaseIterable, Sendable {
 protocol DiagnosticsServiceProtocol: Sendable {
     /// Get comprehensive system diagnostics
     func getSystemDiagnostics() async -> [KanataDiagnostic]
-    /// Overload used by managers expecting to pass an engine client
-    func getSystemDiagnostics(engineClient: EngineClient?) async -> [KanataDiagnostic]
 
     /// Check for Kanata process conflicts
     func checkProcessConflicts() async -> [KanataDiagnostic]
@@ -68,10 +66,6 @@ final class DiagnosticsService: DiagnosticsServiceProtocol, @unchecked Sendable 
     ) {
         self.processDetector = processDetector
         self.systemStateProvider = systemStateProvider
-    }
-
-    func getSystemDiagnostics(engineClient _: EngineClient?) async -> [KanataDiagnostic] {
-        await getSystemDiagnostics()
     }
 
     // MARK: - System Diagnostics

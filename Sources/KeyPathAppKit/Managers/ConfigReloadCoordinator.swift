@@ -2,7 +2,7 @@ import Foundation
 import KeyPathCore
 import KeyPathPermissions
 
-/// Manages configuration reload operations via TCP.
+/// Manages configuration reloads through the session worker's engine socket.
 ///
 /// Extracted from `RuntimeCoordinator+Configuration.swift` to give config reload
 /// its own focused type. `RuntimeCoordinator` delegates all reload calls here.
@@ -12,11 +12,10 @@ final class ConfigReloadCoordinator {
 
     // MARK: - Dependencies
 
-    private let engineClient: EngineClient
+    private let reloadEngine: @MainActor @Sendable () async -> TCPReloadResult
     private let reloadSafetyMonitor: ReloadSafetyMonitor
     private let healthStatusProvider: @MainActor @Sendable () async -> ServiceHealthStatus
     private let isRuntimeTransitioning: @MainActor @Sendable () -> Bool
-    private let tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)?
     private let transitionRetryMaximumPolls: Int
     private let transitionRetryWait: @MainActor @Sendable () async -> Void
     private let automaticDeferredRetriesEnabled: Bool
@@ -45,11 +44,10 @@ final class ConfigReloadCoordinator {
     // MARK: - Init
 
     init(
-        engineClient: EngineClient,
         reloadSafetyMonitor: ReloadSafetyMonitor,
         healthStatusProvider: @escaping @MainActor @Sendable () async -> ServiceHealthStatus,
         isRuntimeTransitioning: @escaping @MainActor @Sendable () -> Bool = { false },
-        tcpReloadOverride: (@MainActor @Sendable () async -> TCPReloadResult)? = nil,
+        reloadEngine: @escaping @MainActor @Sendable () async -> TCPReloadResult = ConfigReloadCoordinator.reloadThroughEngineSocket,
         transitionRetryMaximumPolls: Int = Int((RuntimeStartupTiming.uiGracePeriod / 0.5).rounded(.up)),
         transitionRetryWait: @escaping @MainActor @Sendable () async -> Void = {
             try? await Task.sleep(for: .milliseconds(500))
@@ -68,11 +66,10 @@ final class ConfigReloadCoordinator {
         admittedIntermediateOverride: (@MainActor @Sendable () -> UInt32)? = nil
     ) {
         self.startRuntimeForExplicitApply = startRuntimeForExplicitApply
-        self.engineClient = engineClient
+        self.reloadEngine = reloadEngine
         self.reloadSafetyMonitor = reloadSafetyMonitor
         self.healthStatusProvider = healthStatusProvider
         self.isRuntimeTransitioning = isRuntimeTransitioning
-        self.tcpReloadOverride = tcpReloadOverride
         self.transitionRetryMaximumPolls = transitionRetryMaximumPolls
         self.transitionRetryWait = transitionRetryWait
         self.automaticDeferredRetriesEnabled = automaticDeferredRetriesEnabled
@@ -383,10 +380,6 @@ final class ConfigReloadCoordinator {
         guard expectedIntent == runtimeIntentGeneration() else {
             return .networkError(Self.runtimeIntentChangedMessage)
         }
-        if let tcpReloadOverride, sessionValidationOverride == nil {
-            return await tcpReloadOverride()
-        }
-
         if TestEnvironment.isRunningTests, sessionValidationOverride == nil {
             AppLogger.shared.debug("🧪 [TCP Reload] Skipping TCP reload in test environment")
             return .networkError("Test environment - TCP disabled")
@@ -435,20 +428,12 @@ final class ConfigReloadCoordinator {
         }
         // A profile without Caps rules has nothing paused once it is loaded.
         let capsGone = !validation.managedCaps && admission?.capsPaused != true
-        func finished(_ result: TCPReloadResult) -> TCPReloadResult {
-            if result.isSuccess, capsGone { capsNoLongerNeeded?() }
-            return result
-        }
-        if let tcpReloadOverride {
-            return await finished(tcpReloadOverride())
-        }
-
         // Check reload safety first
         let safetyCheck = await reloadSafetyMonitor.checkReloadSafety()
 
         if !safetyCheck.isSafe {
             let reason = safetyCheck.reason ?? "Safety check failed"
-            AppLogger.shared.warn("⛔️ [TCP Reload] Reload blocked by safety monitor: \(reason)")
+            AppLogger.shared.warnUnlessQuietTest("⛔️ [TCP Reload] Reload blocked by safety monitor: \(reason)")
             return .networkError("Reload blocked: \(reason)")
         }
 
@@ -458,14 +443,14 @@ final class ConfigReloadCoordinator {
         guard currentManagedCaps() == validation.managedCaps || staysPaused && currentCapsPaused() else {
             return .failure(error: String(localized: "The Caps runtime mode changed during reload; retry after the session settles"), response: "")
         }
-        AppLogger.shared.log("📡 [TCP Reload] Triggering config reload via EngineClient (TCP)")
-        let res = await engineClient.reloadConfig()
-        let mapped = mapEngineToTCP(res)
+        AppLogger.shared.log("📡 [Reload] Sending config reload to the engine socket")
+        let result = await reloadEngine()
 
         // Record the reload attempt for safety monitoring
-        await reloadSafetyMonitor.recordReloadAttempt(succeeded: mapped.isSuccess)
+        await reloadSafetyMonitor.recordReloadAttempt(succeeded: result.isSuccess)
 
-        return finished(mapped)
+        if result.isSuccess, capsGone { capsNoLongerNeeded?() }
+        return result
     }
 
     /// Main reload method that should be used by new code
@@ -480,11 +465,12 @@ final class ConfigReloadCoordinator {
 
     // MARK: - Private Helpers
 
-    private func mapEngineToTCP(_ result: EngineReloadResult) -> TCPReloadResult {
-        switch result {
-        case let .success(response: resp): .success(response: resp)
-        case let .failure(error: err, response: resp): .failure(error: err, response: resp)
-        case let .networkError(err): .networkError(err)
+    private static func reloadThroughEngineSocket() async -> TCPReloadResult {
+        await EngineReloadSingleFlight.shared.run(reason: "ConfigReloadCoordinator.reloadEngine") {
+            let client = KanataTCPClient(timeout: 5.0)
+            let result = await client.reloadConfig()
+            await client.cancelInflightAndCloseConnection()
+            return result
         }
     }
 }

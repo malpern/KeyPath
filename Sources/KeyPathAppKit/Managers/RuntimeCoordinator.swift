@@ -168,14 +168,10 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     let diagnosticsManager: DiagnosticsManager
     let configRepairService: ConfigRepairService
 
-    /// Manager dependencies (exposed for extensions that need direct access)
-    let engineClient: EngineClient
-
     let configurationService: ConfigurationService
 
     // Additional dependencies needed by extensions
     let installerEngine: InstallerEngine
-    nonisolated let diagnosticsService: DiagnosticsServiceProtocol
     let reloadSafetyMonitor = ReloadSafetyMonitor() // internal for use by extensions
     let configBackupManager: ConfigBackupManager
     let ruleCollectionsManager: RuleCollectionsManager
@@ -212,7 +208,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     }
 
     init(
-        engineClient: EngineClient? = nil,
         injectedConfigurationService: ConfigurationService? = nil,
         injectedRuleCollectionsManager: RuleCollectionsManager? = nil,
         configRepairService: ConfigRepairService? = nil
@@ -238,8 +233,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
             )
         }
 
-        let processDetector = KanataProcessDetector()
-
         // Initialize configuration file watcher for hot reload
         configFileWatcher = ConfigFileWatcher()
 
@@ -249,10 +242,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         )
 
         // Initialize manager dependencies
-        let diagnosticsService = DiagnosticsService(processDetector: processDetector)
         installerEngine = InstallerEngine()
         // Store for extensions
-        self.diagnosticsService = diagnosticsService
         self.configBackupManager = configBackupManager
 
         // Initialize RuleCollectionsManager
@@ -275,7 +266,6 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
 
         // Initialize DiagnosticsManager
         diagnosticsManager = DiagnosticsManager(
-            diagnosticsService: diagnosticsService,
             healthMonitor: serviceHealthMonitor,
             processStatusProvider: { [serviceLifecycleCoordinator] in
                 let report = serviceLifecycleCoordinator.currentSessionReport()
@@ -287,12 +277,8 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Initialize ConfigRepairService
         self.configRepairService = configRepairService ?? AnthropicConfigRepairService()
 
-        // Initialize EngineClient
-        self.engineClient = engineClient ?? TCPEngineClient()
-
         // Initialize ConfigReloadCoordinator
         configReloadCoordinator = ConfigReloadCoordinator(
-            engineClient: self.engineClient,
             reloadSafetyMonitor: reloadSafetyMonitor,
             healthStatusProvider: { [diagnosticsManager] in
                 await diagnosticsManager.checkHealth()
