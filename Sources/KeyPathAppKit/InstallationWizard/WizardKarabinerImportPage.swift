@@ -71,7 +71,7 @@ struct WizardKarabinerImportPage: View {
                         .accessibilityIdentifier("wizard-karabiner-continue")
                 } else if conversionResult != nil {
                     let count = selectedCollectionIds.count + selectedAppKeymapIds.count
-                    Button("Import \(count) Rule\(count == 1 ? "" : "s")") {
+                    Button("Import \(count) Rules") {
                         Task { await performImport() }
                     }
                     .buttonStyle(.borderedProminent)
@@ -134,7 +134,7 @@ struct WizardKarabinerImportPage: View {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                Text("\(converted) rule\(converted == 1 ? "" : "s") ready to import")
+                Text("\(converted) rules ready to import")
                     .fontWeight(.medium)
                 if !result.skippedRules.isEmpty {
                     Text("(\(result.skippedRules.count) skipped)")

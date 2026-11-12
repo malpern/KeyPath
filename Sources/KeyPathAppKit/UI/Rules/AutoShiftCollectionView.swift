@@ -212,7 +212,9 @@ struct AutoShiftCollectionView: View {
             #endif
         }
         .accessibilityIdentifier("autoshift-key-\(key)")
-        .accessibilityLabel("Tap \(labels?.normal ?? key), hold for \(labels?.shifted ?? ""), \(isEnabled ? "enabled" : "disabled")")
+        .accessibilityLabel(isEnabled
+            ? Text("Tap \(labels?.normal ?? key), hold for \(labels?.shifted ?? ""), enabled")
+            : Text("Tap \(labels?.normal ?? key), hold for \(labels?.shifted ?? ""), disabled"))
         .accessibilityAddTraits(isEnabled ? .isSelected : [])
     }
 

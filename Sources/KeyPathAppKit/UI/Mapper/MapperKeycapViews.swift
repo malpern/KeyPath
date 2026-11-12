@@ -419,7 +419,7 @@ struct MapperKeycapView: View {
         }
         .accessibilityIdentifier("mapper-output-keycap")
         .accessibilityLabel(isRecording ? "Recording \(label)" : label)
-        .accessibilityHint("Click to \(isRecording ? "stop" : "start") recording")
+        .accessibilityHint(isRecording ? Text("Click to stop recording") : Text("Click to start recording"))
     }
 
     // MARK: - Styling (matching OverlayKeycapView dark style)

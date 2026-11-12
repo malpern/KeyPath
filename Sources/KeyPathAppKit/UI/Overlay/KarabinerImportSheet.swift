@@ -330,7 +330,7 @@ struct KarabinerImportSheet: View {
                             .padding(.vertical, 2)
                         }
                     } label: {
-                        Text("\(result.skippedRules.count) skipped rule\(result.skippedRules.count == 1 ? "" : "s")")
+                        Text("\(result.skippedRules.count) skipped rules")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -363,7 +363,7 @@ struct KarabinerImportSheet: View {
             Spacer()
             if conversionResult != nil {
                 let totalSelected = selectedCollectionIds.count + selectedAppKeymapIds.count + selectedLauncherIds.count
-                Button("Import \(totalSelected) Item\(totalSelected == 1 ? "" : "s")") {
+                Button("Import \(totalSelected) Items") {
                     Task { await performImport() }
                 }
                 .buttonStyle(.borderedProminent)
