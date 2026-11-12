@@ -19,15 +19,20 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-files=()
-while IFS= read -r file; do files+=(--stringsdata "$file"); done < <(l10n_stringsdata_files "$build_dir")
-if [ ${#files[@]} -eq 0 ]; then
-    echo "❌ No .stringsdata under $build_dir. Run a Debug swift build first." >&2
+list="$(l10n_stringsdata_files "$build_dir")" || {
+    echo "❌ Run a Debug swift build first (or pass --build-dir)." >&2
     exit 1
-fi
+}
+files=()
+while IFS= read -r file; do files+=(--stringsdata "$file"); done <<<"$list"
 
 if [ "$check" -eq 0 ]; then
-    xcrun xcstringstool sync "$L10N_CATALOG" "${files[@]}" 2>&1 | grep -v "^notice:" || true
+    out="$(xcrun xcstringstool sync "$L10N_CATALOG" "${files[@]}" 2>&1)" || {
+        echo "$out" >&2
+        echo "❌ xcstringstool sync failed" >&2
+        exit 1
+    }
+    grep -v "^notice:" <<<"$out" || true
     echo "✅ Synced $L10N_CATALOG from $((${#files[@]} / 2)) files"
     exit 0
 fi
@@ -35,7 +40,11 @@ fi
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 cp "$L10N_CATALOG" "$scratch/Localizable.xcstrings"
-xcrun xcstringstool sync "$scratch/Localizable.xcstrings" "${files[@]}" >/dev/null 2>&1
+if ! out="$(xcrun xcstringstool sync "$scratch/Localizable.xcstrings" "${files[@]}" 2>&1)"; then
+    echo "$out" >&2
+    echo "❌ xcstringstool sync failed" >&2
+    exit 1
+fi
 missing="$(python3 - "$L10N_CATALOG" "$scratch/Localizable.xcstrings" <<'PY'
 import json, sys
 before = set(json.load(open(sys.argv[1]))["strings"])

@@ -16,7 +16,12 @@ l10n_stringsdata_files() {
     local intermediates="$build_dir/out/Intermediates.noindex/KeyPath.build/Debug"
     local module
     for module in $L10N_MODULES; do
-        [ -d "$intermediates/$module-t.build" ] || continue
+        # A listed module with no output means the build did not cover it;
+        # skipping it would let a check pass without reading its strings.
+        if [ -z "$(find "$intermediates/$module-t.build" -name "*.stringsdata" -print -quit 2>/dev/null)" ]; then
+            echo "❌ No .stringsdata for $module under $intermediates" >&2
+            return 1
+        fi
         find "$intermediates/$module-t.build" -name "*.stringsdata"
     done
 }
