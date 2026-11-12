@@ -102,7 +102,12 @@ final class ServiceLifecycleCoordinator {
     #endif
 
     /// Mutable flag shared with RuntimeCoordinator to track in-progress start attempts.
-    var isStartingKanata = false
+    var isStartingKanata = false {
+        didSet {
+            if oldValue != isStartingKanata { publishCurrentRuntimeValidationState() }
+        }
+    }
+
     /// A completed recovery refusal survives absence of a worker report.
     var sessionRecoveryRefusal: String?
 
@@ -151,6 +156,48 @@ final class ServiceLifecycleCoordinator {
 
     /// Called to notify the UI of a state change.
     var onStateChanged: (() -> Void)?
+
+    struct RuntimeValidationState: Equatable, Sendable {
+        let isHealthy: Bool
+        let recoveryRevision: UInt64
+    }
+
+    private var validationUpdates: AsyncStream<RuntimeValidationState>.Continuation?
+    private var publishedValidationState: RuntimeValidationState?
+
+    /// MainAppStateController consumes the latest state while its validation is in flight.
+    func runtimeValidationUpdates() -> AsyncStream<RuntimeValidationState> {
+        validationUpdates?.finish()
+        let (updates, continuation) = AsyncStream.makeStream(
+            of: RuntimeValidationState.self,
+            bufferingPolicy: .bufferingNewest(1)
+        )
+        validationUpdates = continuation
+        publishedValidationState = nil
+        publishCurrentRuntimeValidationState()
+        return updates
+    }
+
+    func notifyStateChanged() {
+        publishCurrentRuntimeValidationState()
+        onStateChanged?()
+    }
+
+    private func publishCurrentRuntimeValidationState() {
+        guard validationUpdates != nil else { return }
+        publishRuntimeValidationState(report: currentSessionReport())
+    }
+
+    func publishRuntimeValidationState(report: SessionRuntimeReport?) {
+        guard let validationUpdates else { return }
+        let state = RuntimeValidationState(
+            isHealthy: !isStartingKanata && Self.isRunning(report),
+            recoveryRevision: sessionWakeRecoveryRevision
+        )
+        guard publishedValidationState != state else { return }
+        publishedValidationState = state
+        if case .terminated = validationUpdates.yield(state) { self.validationUpdates = nil }
+    }
 
     /// Called at each session start with what admission learned about Caps
     /// Lock (phase 4d); `RuntimeCoordinator` hands it to the rules manager.
@@ -204,6 +251,7 @@ final class ServiceLifecycleCoordinator {
 
     deinit {
         sessionWakeObservationTasks.forEach { $0.cancel() }
+        validationUpdates?.finish()
     }
 
     // MARK: - Start / Stop / Restart
@@ -260,7 +308,7 @@ final class ServiceLifecycleCoordinator {
         // An explicit choice replaces any claim of a disconnected keyboard.
         SessionCapsSelectionStore.setDisplaced(nil, name: nil)
         refreshSessionConfigurationAdmission()
-        onStateChanged?()
+        notifyStateChanged()
         return true
     }
 
@@ -378,7 +426,7 @@ final class ServiceLifecycleCoordinator {
         guard case .valid = admission else {
             retainOwnedSessionSupervision(generation: generation)
             onError?(refusalMessage(admission))
-            onStateChanged?()
+            notifyStateChanged()
             return false
         }
         return true
@@ -523,8 +571,12 @@ final class ServiceLifecycleCoordinator {
             }
             return .stopped
         }
-        return report.state == .running && report.tapActive
+        return Self.isRunning(report)
             ? .running(pid: Int(report.pid)) : .failed(reason: report.failure ?? report.state.rawValue)
+    }
+
+    private static func isRunning(_ report: SessionRuntimeReport?) -> Bool {
+        report?.state == .running && report?.tapActive == true
     }
 
     // MARK: - Validation Start

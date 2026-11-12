@@ -30,6 +30,58 @@ final class ServiceLifecycleCoordinatorTests: KeyPathTestCase {
         }
     }
 
+    func testValidationUpdatesTrackWorkerHealthAndRecoveryRevision() async {
+        let initial = XCTestExpectation(description: "initial stopped state")
+        let ready = XCTestExpectation(description: "worker became ready")
+        let lost = XCTestExpectation(description: "worker stopped")
+        let recovery = XCTestExpectation(description: "recovery changed while stopped")
+        let events = coordinator.runtimeValidationUpdates()
+        let collector = Task {
+            var states: [ServiceLifecycleCoordinator.RuntimeValidationState] = []
+            for await state in events {
+                states.append(state)
+                switch states.count {
+                case 1: initial.fulfill()
+                case 2: ready.fulfill()
+                case 3: lost.fulfill()
+                case 4: recovery.fulfill()
+                default: break
+                }
+            }
+            return states
+        }
+        defer { collector.cancel() }
+
+        let initialResult = await XCTWaiter.fulfillment(of: [initial], timeout: 5)
+        XCTAssertEqual(initialResult, .completed)
+        let report = SessionRuntimeReport(nonce: "owned", pid: 100, uid: 501, state: .running,
+                                          accessibility: true, effectiveInputAccess: true, tapActive: true,
+                                          inputCount: 1, outputCount: 1, timestamp: Date())
+        coordinator.publishRuntimeValidationState(report: report)
+        let readyResult = await XCTWaiter.fulfillment(of: [ready], timeout: 5)
+        XCTAssertEqual(readyResult, .completed)
+
+        coordinator.publishRuntimeValidationState(report: report)
+        coordinator.publishRuntimeValidationState(report: nil)
+        let lostResult = await XCTWaiter.fulfillment(of: [lost], timeout: 5)
+        XCTAssertEqual(lostResult, .completed)
+
+        coordinator.sessionWakeRecoveryRevision += 1
+        coordinator.notifyStateChanged()
+        let recoveryResult = await XCTWaiter.fulfillment(of: [recovery], timeout: 5)
+        XCTAssertEqual(recoveryResult, .completed)
+
+        coordinator.notifyStateChanged()
+        _ = coordinator.runtimeValidationUpdates()
+        let states = await collector.value
+        XCTAssertEqual(states, [
+            .init(isHealthy: false, recoveryRevision: 0),
+            .init(isHealthy: true, recoveryRevision: 0),
+            .init(isHealthy: false, recoveryRevision: 0),
+            .init(isHealthy: false, recoveryRevision: 1),
+        ])
+    }
+
     func testSessionShutdownNeverSignalsBroadcastOrProcessGroupTargets() {
         for signal in [SIGTERM, SIGKILL] {
             var sent: [Int32] = []
