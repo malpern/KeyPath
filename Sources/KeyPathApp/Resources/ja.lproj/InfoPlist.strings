@@ -1,0 +1,3 @@
+/* Permission prompts shown by macOS. Keys are Info.plist keys. */
+"NSAccessibilityUsageDescription" = "KeyPath がキーボードショートカットをリマップし、キー入力を監視するには、アクセシビリティへのアクセスが必要です。";
+"NSAppleEventsUsageDescription" = "KeyPath は、ルールに追加した AppleScript アクションを実行し、セットアップ中に開いた Finder ウインドウを閉じます。";

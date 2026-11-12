@@ -1,0 +1,3 @@
+/* Permission prompts shown by macOS. Keys are Info.plist keys. */
+"NSAccessibilityUsageDescription" = "KeyPath needs Accessibility access to remap your keyboard shortcuts and monitor key events.";
+"NSAppleEventsUsageDescription" = "KeyPath runs the AppleScript actions you add to your rules, and closes the Finder window it opened during setup.";
