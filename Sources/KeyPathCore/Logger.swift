@@ -268,9 +268,10 @@ public final class AppLogger {
     private static let subsystem = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
     private static let systemLoggers = Mutex<[String: os.Logger]>([:])
 
-    /// Trace, debug and info lines can name the keys someone typed, so their text
-    /// is private in the unified log (shown only with a logging profile). Warnings
-    /// and errors are public: they describe KeyPath's state, not the user's input.
+    /// The text is private at every level: lines at any level can carry key codes,
+    /// app names or pieces of the user's config. Console still shows the level,
+    /// category (source file), time and process; the text needs a logging profile.
+    /// The file log keeps the full text for diagnostics.
     static func writeToSystemLog(_ message: String, level: AppLogLevel, category: String) {
         let logger = systemLoggers.withLock { loggers in
             if let existing = loggers[category] { return existing }
@@ -281,8 +282,8 @@ public final class AppLogger {
         switch level {
         case .trace, .debug: logger.debug("\(message, privacy: .private)")
         case .info: logger.info("\(message, privacy: .private)")
-        case .warn: logger.warning("\(message, privacy: .public)")
-        case .error: logger.error("\(message, privacy: .public)")
+        case .warn: logger.warning("\(message, privacy: .private)")
+        case .error: logger.error("\(message, privacy: .private)")
         }
     }
 
