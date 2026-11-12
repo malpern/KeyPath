@@ -6,7 +6,6 @@ struct KanataHostBridgeCoreTests {
     @Test("Probe reports unavailable when bridge library is missing")
     func probeReportsUnavailableWhenLibraryMissing() {
         let runtimeHost = KanataRuntimeHost(
-            launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
             kanataEngineBundlePath: "/tmp/Kanata Engine.app"
@@ -33,7 +32,6 @@ struct KanataHostBridgeCoreTests {
     @Test("Passthru runtime creation reports unavailable when bridge library is missing")
     func passthruRuntimeReportsUnavailableWhenLibraryMissing() {
         let runtimeHost = KanataRuntimeHost(
-            launcherPath: "/tmp/kanata-launcher",
             bridgeLibraryPath: "/definitely/missing/libkeypath_kanata_host_bridge.dylib",
             bundledCorePath: "/tmp/kanata",
             kanataEngineBundlePath: "/tmp/Kanata Engine.app"
@@ -41,8 +39,7 @@ struct KanataHostBridgeCoreTests {
 
         let result = KanataHostBridge.createPassthruRuntime(
             runtimeHost: runtimeHost,
-            configPath: "/tmp/keypath.kbd",
-            tcpPort: 37001
+            configPath: "/tmp/keypath.kbd"
         )
 
         #expect(

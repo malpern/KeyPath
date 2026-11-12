@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "KeyPathSmokeHarness",
     platforms: [
-        .macOS(.v15)
+        .macOS("27.0")
     ],
     dependencies: [
         .package(name: "KeyPath", path: "../..")

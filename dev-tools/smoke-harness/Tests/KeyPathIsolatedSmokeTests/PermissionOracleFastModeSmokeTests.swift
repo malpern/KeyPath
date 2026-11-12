@@ -16,8 +16,8 @@ struct PermissionOracleFastModeSmokeTests {
         let duration = Date().timeIntervalSince(start)
 
         #expect(duration < 1.0)
-        #expect(snapshot.keyPath.confidence == .low)
-        #expect(snapshot.keyPath.source.contains("test"))
+        #expect(snapshot.runtimeKeyAccess.confidence == .low)
+        #expect(snapshot.runtimeKeyAccess.source.contains("test"))
     }
 
     @Test("Cached snapshot has same timestamp on immediate re-read")
@@ -44,7 +44,7 @@ struct PermissionOracleFastModeSmokeTests {
         let duration = Date().timeIntervalSince(start)
 
         #expect(duration < 1.0)
-        #expect(snapshot.keyPath.confidence == .low)
+        #expect(snapshot.runtimeKeyAccess.confidence == .low)
         #expect(!snapshot.diagnosticSummary.isEmpty)
     }
 }
