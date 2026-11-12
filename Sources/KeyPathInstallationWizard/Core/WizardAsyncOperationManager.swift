@@ -288,7 +288,6 @@ public enum WizardOperations {
                 // Give the service a short window to settle so the summary screen doesn’t flicker.
                 let clock = ContinuousClock()
                 try await clock.sleep(for: .seconds(1))
-                await kanataManager.updateStatus()
             }
 
             progressCallback(1.0)

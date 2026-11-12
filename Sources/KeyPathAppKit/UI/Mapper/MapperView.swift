@@ -181,12 +181,10 @@ struct MapperView: View {
                 viewModel.setLayer(layerName)
             }
         }
-        .onChange(of: kanataManager.lastError) { _, newError in
-            if let error = newError {
-                errorAlertMessage = error
+        .onChange(of: kanataManager.reportedError) { _, reportedError in
+            if let reportedError {
+                errorAlertMessage = reportedError.message
                 showingErrorAlert = true
-                // Clear the error so it doesn't re-trigger
-                kanataManager.lastError = nil
             }
         }
         .alert("Configuration Error", isPresented: $showingErrorAlert) {

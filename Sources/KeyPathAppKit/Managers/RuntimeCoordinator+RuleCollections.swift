@@ -28,7 +28,6 @@ extension RuntimeCoordinator {
     func refreshRuleMappings() {
         let mappings = ruleCollectionsManager.committedRuleCollections.enabledMappings() + ruleCollectionsManager.committedCustomRules.enabledMappings()
         applyKeyMappings(mappings)
-        notifyStateChanged()
     }
 
     func batchEnableCollections(ids: [UUID]) async {

@@ -685,7 +685,6 @@ struct RulesTabView: View {
                     Task {
                         let manager = kanataManager.underlyingManager.ruleCollectionsManager
                         try? await PackInstaller.shared.uninstall(packID: owner.packID, manager: manager)
-                        kanataManager.underlyingManager.notifyStateChanged()
                         await refreshCollectionOwnership()
                     }
                     managedToggleCollection = nil

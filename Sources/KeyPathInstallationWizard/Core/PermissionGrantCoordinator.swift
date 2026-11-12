@@ -211,13 +211,7 @@ public class PermissionGrantCoordinator {
     }
 
     private func attemptKanataRestart(kanataManager: any RuntimeCoordinating) async -> Bool {
-        let success = await kanataManager.restartKanata(
-            reason: "Permission grant restart"
-        )
-        if success {
-            await kanataManager.updateStatus()
-        }
-        return success
+        await kanataManager.restartKanata(reason: "Permission grant restart")
     }
 
     private func logPermissionSnapshot() {

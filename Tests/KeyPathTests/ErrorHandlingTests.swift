@@ -404,7 +404,6 @@ final class ErrorHandlingTests: KeyPathTestCase {
 
     func testKanataProcessErrorHandling() async {
         // Test error handling when Kanata process operations fail
-        await manager.updateStatus()
         // Process operations via manager are deprecated/removed.
         // We check that cleanup (which delegates to privilege broker) works.
         await manager.cleanup()

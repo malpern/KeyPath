@@ -72,7 +72,8 @@ struct SettingsContainerView: View {
         .controlSize(.regular)
         .accessibilityIdentifier("settings-window")
         .background(tabShortcutHandlers)
-        .sheet(item: $kanataManager.pendingRuleSetup) { session in
+        // RuleSetupSheet owns cancellation and waits for any save in progress.
+        .sheet(item: Binding(get: { kanataManager.pendingRuleSetup }, set: { _ in })) { session in
             RuleSetupSheet(session: session)
                 .interactiveDismissDisabled()
         }

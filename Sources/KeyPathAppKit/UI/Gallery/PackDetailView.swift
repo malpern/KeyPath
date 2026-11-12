@@ -169,7 +169,6 @@ struct PackDetailView: View {
                     Task {
                         let manager = kanataManager.underlyingManager.ruleCollectionsManager
                         try? await PackInstaller.shared.uninstall(packID: managingPackID, manager: manager)
-                        kanataManager.underlyingManager.notifyStateChanged()
                         await refreshInstallState()
                     }
                 }
