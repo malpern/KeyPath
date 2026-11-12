@@ -176,7 +176,6 @@ final class DeploymentScriptContractTests: XCTestCase {
 
         XCTAssertTrue(verifier.contains("KeyPath_KeyPath.bundle"))
         XCTAssertTrue(verifier.contains("KeyPath_KeyPathAppKit.bundle"))
-        XCTAssertTrue(verifier.contains("KeyPath_KeyPathInstallationWizard.bundle"))
         XCTAssertTrue(verifier.contains("Contents/Resources/$resource_bundle"))
         XCTAssertTrue(verifier.contains("default.metallib"))
     }

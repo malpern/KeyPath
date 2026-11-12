@@ -1,5 +1,4 @@
 import Foundation
-@_exported import KeyPathSystemProbes
 
 /// Central owner for system-state evidence used by installer and runtime decisions.
 ///
