@@ -84,7 +84,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
         XCTAssertEqual(service.currentLayer, "base")
-        center.post(name: .kanataLayerChanged, object: nil, userInfo: ["layerName": "nav"])
+        center.post(KanataLayerChange(layerName: "nav", source: .kanata))
         await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.currentLayer, "nav")
     }
@@ -93,7 +93,7 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
         postKeyInput(center, key: "a")
-        center.post(name: .kanataLayerChanged, object: nil, userInfo: ["layerName": "nav"])
+        center.post(KanataLayerChange(layerName: "nav", source: .kanata))
         postKeyInput(center, key: "b")
         await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.segments.count, 3)
@@ -178,6 +178,38 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         XCTAssertEqual(tapDance.key, "q")
         XCTAssertEqual(tapDance.tapCount, 2)
         XCTAssertEqual(tapDance.action, "tab")
+    }
+
+    func testTypedHrmTraceAndActionPreserveHistoryDetails() async throws {
+        let center = NotificationCenter()
+        let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
+        service.thresholdLookup = { (baseMs: 200, offsets: ["f": 10]) }
+        let uri = try XCTUnwrap(KeyPathActionURI(string: "keypath://launch/Safari"))
+
+        center.post(KanataHrmTraceEvent(
+            key: "f", decision: .hold, reason: .oppositeHand, decideLatencyMs: 209,
+            nextKey: "j", nextKeyHand: .right
+        ))
+        center.post(KanataActionDispatched(uri: uri))
+        await flushNotificationsAndBatch(service)
+
+        let cards = service.segments.compactMap { segment -> EventCardKind? in
+            guard case let .eventCard(card) = segment else { return nil }
+            return card.cardKind
+        }
+        guard cards.count == 2,
+              case let .hrmDecision(trace) = cards[0],
+              case let .actionDispatched(action) = cards[1]
+        else { return XCTFail("Expected HRM and action cards in order") }
+        XCTAssertEqual(trace.key, "f")
+        XCTAssertEqual(trace.decision, .hold)
+        XCTAssertEqual(trace.reason, .oppositeHand)
+        XCTAssertEqual(trace.nextKey, "j")
+        XCTAssertEqual(trace.decideLatencyMs, 209)
+        XCTAssertEqual(trace.configuredThresholdMs, 210)
+        XCTAssertEqual(action.action, uri.action)
+        XCTAssertEqual(action.target, uri.target)
+        XCTAssertEqual(action.uri, uri.url.absoluteString)
     }
 
     // MARK: - Recording Toggle

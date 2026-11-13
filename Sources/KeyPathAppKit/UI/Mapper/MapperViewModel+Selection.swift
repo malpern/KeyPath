@@ -59,12 +59,6 @@ extension MapperViewModel {
     func setLayer(_ layer: String) {
         currentLayer = layer
         AppLogger.shared.log("🗂️ [MapperViewModel] Layer set to: \(layer)")
-
-        NotificationCenter.default.post(
-            name: .kanataLayerChanged,
-            object: nil,
-            userInfo: ["layer": layer]
-        )
     }
 
     /// Update input from a key click in the overlay (used by mapper drawer).

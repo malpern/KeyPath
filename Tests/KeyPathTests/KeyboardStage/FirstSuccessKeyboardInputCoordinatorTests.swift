@@ -173,7 +173,7 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         ))
         await yieldUntilAsync { await sleeper.waiterCount == 1 }
 
-        center.post(name: .kanataTcpHeartbeat, object: nil)
+        center.post(KanataHeartbeat())
         for _ in 0 ..< 5 {
             await Task.yield()
         }

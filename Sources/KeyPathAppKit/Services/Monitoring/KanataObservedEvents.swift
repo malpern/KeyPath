@@ -16,3 +16,49 @@ struct KeypressObservationMetadata: Equatable {
     let kanataTimestamp: UInt64?
     let observedAt: Date?
 }
+
+struct KanataLayerChange: NotificationCenter.MainActorMessage {
+    typealias Subject = NSObject
+
+    enum Source: String {
+        case kanata
+        case push
+    }
+
+    let layerName: String
+    let source: Source
+}
+
+/// A layer observation from the engine, even when the layer has not changed.
+struct KanataHeartbeat: NotificationCenter.MainActorMessage {
+    typealias Subject = NSObject
+}
+
+struct KanataMessagePush: NotificationCenter.MainActorMessage {
+    typealias Subject = NSObject
+
+    let message: String
+}
+
+struct KanataCapabilitiesUpdate: NotificationCenter.MainActorMessage {
+    typealias Subject = NSObject
+
+    let capabilities: [String]
+}
+
+struct KanataGrabStatus: NotificationCenter.MainActorMessage {
+    typealias Subject = NSObject
+
+    let active: Bool
+    let reason: String?
+}
+
+struct KanataActionDispatched: NotificationCenter.MainActorMessage {
+    typealias Subject = NSObject
+
+    let uri: KeyPathActionURI
+}
+
+extension KanataHrmTraceEvent: NotificationCenter.MainActorMessage {
+    public typealias Subject = NSObject
+}

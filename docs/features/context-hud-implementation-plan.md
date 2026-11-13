@@ -21,7 +21,7 @@ MAL-56 (Overlay Context Integration) already delivered collection-aware color-co
 ## Architecture
 
 ```
-Notification Center (.kanataLayerChanged, KanataOneShotActivation, KanataObservedKeyInput)
+Notification Center (KanataLayerChange, KanataOneShotActivation, KanataObservedKeyInput)
          │
          ▼
 ContextHUDController (singleton, @MainActor)
@@ -110,7 +110,7 @@ All four dismiss triggers, handled in `ContextHUDController`:
 1. **Mapped key press**: `KanataObservedKeyInput` observer checks if key is in current `layerKeyMap` -> dismiss
 2. **Timeout**: `Task.sleep` with cancellation token, configurable via `PreferencesService.contextHUDTimeout`
 3. **Escape**: `KanataObservedKeyInput` where key == `"esc"` -> dismiss
-4. **Context change**: `.kanataLayerChanged` -> show new content or dismiss if returning to base
+4. **Context change**: `KanataLayerChange` -> show new content or dismiss if returning to base
 
 ### Phase 5: Edge Cases & Polish (1 day)
 
@@ -128,7 +128,7 @@ All four dismiss triggers, handled in `ContextHUDController`:
 | Pattern | Source File | What to Reuse |
 |---------|------------|---------------|
 | Floating window lifecycle | `UI/LayerIndicatorWindow.swift` | Singleton manager + timer dismiss + fade animation |
-| Notification subscriptions | `UI/Overlay/LiveKeyboardOverlayController.swift:261-287` | `.kanataLayerChanged` observer pattern |
+| Notification subscriptions | `UI/Overlay/LiveKeyboardOverlayController.swift:261-287` | `KanataLayerChange` observer pattern |
 | Frosted glass background | `UI/Style/AppGlass.swift` | `AppGlassBackground(style: .sheetBold)` = `.hudWindow` material |
 | Layer key data | `Services/LayerKeyMapper.swift` | `getMapping(for:configPath:layout:collections:)` -> `[UInt16: LayerKeyInfo]` |
 | Collection color routing | `UI/Overlay/OverlayKeycapView+CollectionColors.swift` | Color mapping by collectionId |

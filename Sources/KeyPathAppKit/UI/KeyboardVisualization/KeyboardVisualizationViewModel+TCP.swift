@@ -20,14 +20,9 @@ extension KeyboardVisualizationViewModel {
 
     /// Set up observer for Kanata TCP heartbeat events (layer polling)
     func setupTcpHeartbeatObserver() {
-        tcpHeartbeatObserver = NotificationCenter.default.addObserver(
-            forName: .kanataTcpHeartbeat,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor in
-                self.noteTcpEventReceived()
+        tcpHeartbeatObserver = NotificationCenter.default.addObserver(for: KanataHeartbeat.self) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.noteTcpEventReceived()
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] TCP heartbeat observer registered")
@@ -55,16 +50,9 @@ extension KeyboardVisualizationViewModel {
 
     /// Set up observer for Kanata TCP MessagePush events (icon/emphasis messages)
     func setupMessagePushObserver() {
-        messagePushObserver = NotificationCenter.default.addObserver(
-            forName: .kanataMessagePush,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let self else { return }
-            guard let message = notification.userInfo?["message"] as? String else { return }
-
-            Task { @MainActor in
-                self.handleMessagePush(message)
+        messagePushObserver = NotificationCenter.default.addObserver(for: KanataMessagePush.self) { [weak self] event in
+            Task { @MainActor [weak self] in
+                self?.handleMessagePush(event.message)
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] Message push observer registered")

@@ -75,48 +75,17 @@ extension RuleCollectionsManager {
                 },
                 onHrmTrace: { trace in
                     await MainActor.run {
-                        var userInfo: [String: Any] = [
-                            "schemaVersion": trace.schemaVersion,
-                            "key": trace.key,
-                            "decision": trace.decision.rawValue,
-                            "reason": trace.reason.rawValue
-                        ]
-                        if let latency = trace.decideLatencyMs {
-                            userInfo["decideLatencyMs"] = latency
-                        }
-                        if let nextKey = trace.nextKey {
-                            userInfo["nextKey"] = nextKey
-                        }
-                        if let nextKeyHand = trace.nextKeyHand?.rawValue {
-                            userInfo["nextKeyHand"] = nextKeyHand
-                        }
-                        NotificationCenter.default.post(
-                            name: .kanataHrmTrace,
-                            object: nil,
-                            userInfo: userInfo
-                        )
+                        NotificationCenter.default.post(trace)
                     }
                 },
                 onCapabilitiesUpdated: { capabilities in
                     await MainActor.run {
-                        NotificationCenter.default.post(
-                            name: .kanataCapabilitiesUpdated,
-                            object: nil,
-                            userInfo: ["capabilities": capabilities]
-                        )
+                        NotificationCenter.default.post(KanataCapabilitiesUpdate(capabilities: capabilities))
                     }
                 },
                 onGrabStatus: { active, reason in
-                    // Authoritative keyboard-grab status from kanata (#625). Route to
-                    // RuntimeCoordinator, which owns the recovery guard + action.
                     await MainActor.run {
-                        var userInfo: [String: Any] = ["active": active]
-                        if let reason { userInfo["reason"] = reason }
-                        NotificationCenter.default.post(
-                            name: .kanataGrabStatusChanged,
-                            object: nil,
-                            userInfo: userInfo
-                        )
+                        NotificationCenter.default.post(KanataGrabStatus(active: active, reason: reason))
                     }
                 }
             )
@@ -132,15 +101,7 @@ extension RuleCollectionsManager {
 
         // Post to keystroke history (skip layer: URIs — already shown as layer dividers)
         if actionURI.action != "layer" {
-            NotificationCenter.default.post(
-                name: .kanataActionDispatched,
-                object: nil,
-                userInfo: [
-                    "action": actionURI.action,
-                    "target": actionURI.target ?? "",
-                    "uri": actionURI.url.absoluteString,
-                ]
-            )
+            NotificationCenter.default.post(KanataActionDispatched(uri: actionURI))
         }
 
         // Also notify any external observers
@@ -160,12 +121,8 @@ extension RuleCollectionsManager {
             }
         }
 
-        // Post notification for keyboard visualization (icon/emphasis handling)
-        NotificationCenter.default.post(
-            name: .kanataMessagePush,
-            object: nil,
-            userInfo: ["message": message]
-        )
+        // Forward icon and emphasis messages to keyboard visualization.
+        NotificationCenter.default.post(KanataMessagePush(message: message))
 
         // Also notify external observers
         onUnknownMessage?(message)

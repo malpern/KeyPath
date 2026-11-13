@@ -173,12 +173,10 @@ struct MapperView: View {
                 )
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .kanataLayerChanged)) { notification in
-            // Update layer when it changes (if not opened from overlay with specific layer)
-            if let layerName = notification.userInfo?["layerName"] as? String,
-               viewModel.originalInputKey == nil
-            { // Only auto-update if not opened from overlay
-                viewModel.setLayer(layerName)
+        .onKanataLayerChange { change in
+            // Keep the explicit layer when opened for a key selected in the overlay.
+            if viewModel.originalInputKey == nil {
+                viewModel.setLayer(change.layerName)
             }
         }
         .onChange(of: kanataManager.reportedError) { _, reportedError in

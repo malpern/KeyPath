@@ -15,6 +15,7 @@ final class FirstSuccessKeyboardInputCoordinator {
     @ObservationIgnored private let staleStateTimeout: Duration
     @ObservationIgnored private let staleStateSleep: @Sendable (Duration) async -> Void
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var heartbeatObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var holdObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var tapObserver: NotificationCenter.ObservationToken?
@@ -57,21 +58,11 @@ final class FirstSuccessKeyboardInputCoordinator {
             receiveTapActivated(key: activation.key, listenerSessionID: activation.sessionID)
         }
 
-        observers.observe(
-            .kanataTcpHeartbeat,
-            queue: .main,
-            center: notificationCenter
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.isObserving else { return }
-                // A layer-poll heartbeat has no listener session identity. Once
-                // a physical key event establishes a session, letting anonymous
-                // heartbeats extend its deadline could preserve a stranded key
-                // forever across a listener reconnect. Repeats and other
-                // session-scoped key events still refresh the deadline.
-                guard self.listenerSessionID == nil else { return }
-                self.noteTCPActivity()
-            }
+        heartbeatObserver = notificationCenter.addObserver(for: KanataHeartbeat.self) { [weak self] _ in
+            guard let self, isObserving else { return }
+            // An anonymous heartbeat must not keep a stranded key alive after reconnect.
+            guard listenerSessionID == nil else { return }
+            noteTCPActivity()
         }
 
         observers.observe(
@@ -89,6 +80,7 @@ final class FirstSuccessKeyboardInputCoordinator {
 
     func stop() {
         isObserving = false
+        heartbeatObserver = nil
         keyInputObserver = nil
         holdObserver = nil
         tapObserver = nil

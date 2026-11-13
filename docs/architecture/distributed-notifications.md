@@ -85,7 +85,7 @@ end)
 
 ## Implementation
 
-The bridge is implemented in `DistributedNotificationBridge.swift`. It observes the internal `NotificationCenter` event `.kanataLayerChanged` (which consolidates both TCP and push-msg sources) and rebroadcasts via `DistributedNotificationCenter`.
+The bridge is implemented in `DistributedNotificationBridge.swift`. It observes the internal `NotificationCenter` event `KanataLayerChange` (which consolidates both TCP and push-msg sources) and rebroadcasts via `DistributedNotificationCenter`.
 
 Key details:
 - `deliverImmediately: true` — bypasses macOS notification coalescing so rapid hold-release layer switches are not missed

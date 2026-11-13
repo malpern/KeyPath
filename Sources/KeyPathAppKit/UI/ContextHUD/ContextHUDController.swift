@@ -21,6 +21,8 @@ final class ContextHUDController {
 
     var dismissTask: Task<Void, Never>?
     var layerMapTask: Task<Void, Never>?
+    private var layerObserver: NotificationCenter.ObservationToken?
+    private var pushObserver: NotificationCenter.ObservationToken?
     private var keyInputObserver: NotificationCenter.ObservationToken?
     private var holdObserver: NotificationCenter.ObservationToken?
     private var previousLayer: String = "base"
@@ -76,34 +78,18 @@ final class ContextHUDController {
             }
         }
 
-        NotificationCenter.default.addObserver(
-            forName: .kanataLayerChanged,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let layerName = notification.userInfo?["layerName"] as? String else { return }
-            let sourceRaw = notification.userInfo?["source"] as? String
-            Task { @MainActor in
-                guard let self else { return }
-                self.handleLayerChange(layerName, source: sourceRaw)
+        layerObserver = NotificationCenter.default.addObserver(for: KanataLayerChange.self) { [weak self] change in
+            Task { @MainActor [weak self] in
+                self?.handleLayerChange(change.layerName, source: change.source)
             }
         }
 
-        // Also handle "layer:" push-msg messages (e.g., from fakekey layer broadcasts)
-        // These arrive via .kanataMessagePush when layer-while-held doesn't generate
-        // a LayerChange TCP event. Mirrors KeyboardVisualizationViewModel+TCP handling.
-        NotificationCenter.default.addObserver(
-            forName: .kanataMessagePush,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let message = notification.userInfo?["message"] as? String,
-                  message.hasPrefix("layer:")
-            else { return }
-            let layerName = String(message.dropFirst(6)).trimmingCharacters(in: .whitespaces)
-            Task { @MainActor in
-                guard let self else { return }
-                self.handleLayerChange(layerName, source: "push")
+        // Fake-key layer pushes cover layer-while-held actions that do not emit LayerChange.
+        pushObserver = NotificationCenter.default.addObserver(for: KanataMessagePush.self) { [weak self] event in
+            guard event.message.hasPrefix("layer:") else { return }
+            let layerName = String(event.message.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+            Task { @MainActor [weak self] in
+                self?.handleLayerChange(layerName, source: .push)
             }
         }
 
@@ -149,10 +135,10 @@ final class ContextHUDController {
 
     // MARK: - Layer Change Handling
 
-    func handleLayerChange(_ layerName: String, source: String?) {
+    func handleLayerChange(_ layerName: String, source: KanataLayerChange.Source?) {
         let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let triggerMode = PreferencesService.shared.contextHUDTriggerMode
-        AppLogger.shared.debug("🎯 [ContextHUD] handleLayerChange: '\(layerName)' normalized='\(normalized)' source=\(source ?? "nil") prev='\(previousLayer)'")
+        AppLogger.shared.debug("🎯 [ContextHUD] handleLayerChange: '\(layerName)' normalized='\(normalized)' source=\(source?.rawValue ?? "nil") prev='\(previousLayer)'")
 
         // Context HUD list is an experimental feature - skip when disabled
         guard FeatureFlags.contextHUDListEnabled else { return }
@@ -166,7 +152,7 @@ final class ContextHUDController {
         // Handle one-shot override to avoid flicker
         if let source {
             switch source {
-            case "push":
+            case .push:
                 // One-shot override is only needed in tap-to-toggle mode.
                 // In hold-to-show mode, push layer events should not block the
                 // subsequent Kanata "base" event on release.
@@ -179,7 +165,7 @@ final class ContextHUDController {
                 } else if normalized == "base" {
                     oneShotOverride.clear()
                 }
-            case "kanata":
+            case .kanata:
                 if normalized == "base" {
                     // Always honor Kanata's return-to-base signal.
                     // Ignoring this causes the HUD to get stuck on nav.
@@ -189,8 +175,6 @@ final class ContextHUDController {
                 {
                     return
                 }
-            default:
-                break
             }
         }
 
