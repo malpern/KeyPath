@@ -12,69 +12,68 @@ need a running system to confirm, are marked *unconfirmed*. `External/kanata`
 was not checked out, so statements about the engine's TCP command set come from
 ADR-046 and the Swift client, not the fork's source.
 
-## Status (updated 2026-11-11)
+## Status (updated 2026-11-12)
 
-**Overall:** about 55% of the review is done by item count. The top-ranked quick fixes and the deletion pass have shipped. A few small items remain (P4, P5, the CLI link in O8). Most of what is left is the large refactors (O2–O5) and the product decisions. Lines that describe open work are as of 2026-11-11.
+Verified against `master` through [#1448](https://github.com/malpern/KeyPath/pull/1448). The installer and wizard refactors, UI state and rule forwarding, localization rollout, and first O5 changes have merged. The findings below this status section describe the original review.
 
-Key: ✅ done · 🟡 partly done or waiting on a gate · ⬜ not started · 🔒 tracked privately
+Key: ✅ done · 🟡 partly done or in progress · ⬜ not started · 🔒 tracked privately
 
 ### Top recommendations
 
 | # | Item | Status | Where |
 |---|---|---|---|
-| 1 | ADR-046 (S1) | 🟡 Phases 1–3 and docs shipped: the engine uses a private Unix socket that admits only the app's own PID, and the TCP port is gone. Phase 4, the code-signature check, is in open PR #1416, which also updates ADR-046 to make it a release gate. Until it merges, ADR-046 on master still says phase 4 is not scheduled. | #1412, #1413, #1414, #1416 |
+| 1 | ADR-046 (S1) | ✅ The TCP port is gone. The private Unix socket checks the app PID and its code signature. CLI coverage and design docs merged. | #1412–#1416 |
 | — | Other security findings | 🔒 Tracked privately | — |
-| 2 | Public docs | ✅ Fixed on master and republished to the website, including `getting-started/` and `migration/` | #1394, #1402 |
-| 3 | `BehaviorStatePicker` + 15 MB of PNGs | ✅ Deleted | #1398 |
-| 4 | Deletion pass (~34k lines) | ✅ Done | #1395, #1397, #1398, #1399, #1406 |
-| 5 | Update story | 🟡 Sparkle is re-enabled and passed four update scenarios. One release gate is left: rerun scenarios 1, 2 and 4 on notarized builds with a managed Caps Lock rule active (in progress) | #1409 |
-| 6 | Installer collapse (O1) | 🟡 Step 1 merged. Step 2 is written but not yet in a PR | #1410 |
-| 7 | `NSAppleEventsUsageDescription` | ✅ Added. Not yet confirmed on a clean VM | #1404 |
+| 2 | Public docs | ✅ Fixed on master and republished to the website, including `getting-started/` and `migration/`. | #1394, #1402 |
+| 3 | `BehaviorStatePicker` + 15 MB of PNGs | ✅ Deleted. | #1398 |
+| 4 | Deletion pass (~34k lines) | ✅ Done. Remaining asset and package follow-ups are listed below. | #1395, #1397, #1398, #1399, #1406 |
+| 5 | Update story | ✅ Sparkle is re-enabled. The managed Caps Lock gate passed on notarized builds after a worker-exit fix. | #1409, #1418, #1419 |
+| 6 | Installer collapse (O1) | ✅ Planner indirection removed. One repair action remains: Start Remapping Engine. | #1410, #1421 |
+| 7 | `NSAppleEventsUsageDescription` | ✅ Added. Clean-VM consent verification is open. | #1404 |
 
 ### By section
 
 | Item | Status | Notes |
 |---|---|---|
-| **O1** Installer planner | 🟡 | See row 6 |
-| **O2** Four copies of UI state | ⬜ | Large, medium risk |
-| **O3** Forwarding layers on the rule path | ⬜ | Falls out of O2 |
-| **O4** Wizard module boundary | ⬜ | After O1 |
-| **O5** Events, health polling, stacked caches | ⬜ | Dead `EventRouter` chain removed in #1406; the typed event hub, polling and caches remain |
-| **O6** Plugin system | ✅ | Downloads removed (#1407); Insights linked into the app (#1411) |
-| **O7** Metal stage, onboarding, packs, CLI split | ⬜ | Product decisions not made |
-| **O8** Unimplemented flags, wording, public-docs lint | ✅ | #1405 |
-| **O8** Leftover `/usr/local/bin/keypath-cli` link on uninstall | 🟡 | Documented, not fixed |
-| **O8** `TestEnvironment` in production, singletons vs `ServiceContainer`, retiring finished lint tests | ⬜ | |
-| **B1** Dead view and images | ✅ | #1398 |
-| **B2** Scripts | ✅ | #1395 |
-| **B3** Dead Swift | ✅ | #1398, #1406. The function-level Periphery pass has not run |
-| **B4** Tests for removed behaviour | 🟡 | Dead tests removed. Refreshing two stale snapshot references is written but not yet in a PR. `Tests/Experiments` is kept, because two scripts compile it |
-| **B5** Binary assets | 🟡 | Unused assets deleted (#1397). Not done: recompressing `images/help` (60 MB), removing its duplicates in app resources, rendering Metal snapshots at a smaller scale |
-| **B6** Root and package stragglers | 🟡 | Root files deleted (#1395). Not done: folding `KeyPathSystemProbes` into `KeyPathCore`, the nine unused library products, the wizard's unused screenshot |
-| **B7** Docs | 🟡 | Public pages fixed and published; `docs/archive` deleted (#1399). `KEYPATH_USE_INSTALLER_ENGINE` removed from `AGENTS.md`, the wizard smoke checklist and the reliability-matrix script (this change). Not done: rewrite `runtime-architecture.html` (marked out of date), recapture the macOS 27 Accessibility screenshot |
-| **P1** Sparkle | 🟡 | See row 5 |
-| **P2** Apple Events usage string | ✅ | #1404 |
-| **P3** Blocking subprocesses | ✅ | #1404: `SecCodeCopySelf` instead of `codesign`, and pipes drained before waiting. `ps` is kept for the wizard's migration page |
-| **P4** Shell-outs with API replacements | ⬜ | `mdfind`, `defaults`, `chflags`, `open -t`, `/bin/kill` |
-| **P5** `os.Logger` in `AppLogger` | ⬜ | |
-| **P6** Concurrency leftovers | ⬜ | `@unchecked Sendable`, `NSLock` → `Mutex`, `asyncAfter`, default main-actor isolation |
-| **P7** Liquid Glass | ✅ | System glass in `AppGlassBackground` (#1408). Checked on screen over busy and plain backgrounds, light and dark |
-| **P7** Other idioms | ⬜ | 668 `.foregroundColor`, 20 `activate(ignoringOtherApps:)`, 6 `lockFocus()`, `NSViewRepresentable` wrappers, plain `Window` scenes |
-| **P8** Localization | ⬜ | Decision needed |
-| **P9** Test isolation | ⬜ | |
+| **O1** Installer planner | ✅ | See row 6. |
+| **O2** Four copies of UI state | ✅ | The UI reads status and dialogs from their owners. Settled collections and custom rules are observed directly. `KanataUIState`, `StatePublisherService`, and manual UI refresh calls were removed (#1435, #1436, #1443, #1447). |
+| **O3** Forwarding layers on the rule path | ✅ | Rule toggles and custom rules use the settled rule state. `RuleCollectionsCoordinator` was removed, and reloads use one result and transport seam (#1435, #1436, #1441, #1444). |
+| **O4** Wizard module boundary | ✅ | Kept the module for the CLI. Removed dead boundary code, unified runtime status, and replaced `WizardDependencies` with environment-provided `InstallerServices` (#1423–#1425). |
+| **O5** Events, health polling, stacked caches | 🟡 | Dead router removed (#1406). App validation reacts to lifecycle health changes (#1442). Physical key input now reaches eight consumers as a typed message, preserving action, session ID, and timestamps (#1448). Remaining event payloads, permission caches, and timeout helpers are open. |
+| **O6** Plugin system | ✅ | Downloads removed (#1407); Insights linked into the app (#1411). |
+| **O7** Metal stage, onboarding, packs, CLI split | ⬜ | Product decisions open. |
+| **O8** Unimplemented flags, wording, public-docs lint | ✅ | #1405. |
+| **O8** CLI link and service ownership | ✅ | New links install under `~/.local/bin` and uninstall removes matching links. `AGENTS.md` documents when to use `ServiceContainer` or a singleton (#1429). |
+| **O8** Test-mode checks and lint ratchets | 🟡 | Retired lint tests and passwordless sudo test mode (#1428). Replacing remaining production `TestEnvironment` checks with injected dependencies is open. |
+| **B1** Dead view and images | ✅ | #1398. |
+| **B2** Scripts | ✅ | #1395. |
+| **B3** Dead Swift | ✅ | Deletion pass merged (#1398, #1406). Function-level Periphery scan remains open. |
+| **B4** Tests for removed behaviour | ✅ | Dead tests removed and two stale references refreshed (#1420). A later General Settings snapshot mismatch reproduced on the base of #1434 and remains a separate follow-up. |
+| **B5** Binary assets | 🟡 | Unused assets removed (#1397). Help asset compression and deduplication are in open PR #1422. Metal snapshot sizing remains open. |
+| **B6** Root and package stragglers | 🟡 | Root cleanup merged (#1395). Process probes moved into Core and the unused wizard screenshot and resource bundle were removed (#1440). Unused library products remain. |
+| **B7** Docs | 🟡 | Public docs republished, archive removed, and runtime architecture page rewritten and published (#1394, #1399, #1402, #1437). The macOS 27 Accessibility screenshot remains. |
+| **P1** Sparkle | ✅ | See row 5. |
+| **P2** Apple Events usage string | ✅ | #1404. Verify the consent prompt on a clean VM. |
+| **P3** Blocking subprocesses | ✅ | `SecCodeCopySelf` replaces the signing shell-out and pipes are drained before waiting (#1404). The migration process probe remains. |
+| **P4** Shell-outs with API replacements | ✅ | Hidden flags, editor launch, function key preference writes, and signals use direct APIs. Spotlight search keeps a cancellable subprocess (#1426). |
+| **P5** `os.Logger` in `AppLogger` | ✅ | Unified log output added (#1427). File logger state is synchronized and queued writes flush (#1445). |
+| **P6** Concurrency leftovers | 🟡 | Feature flags and the app icon cache were synchronized (#1439). Broader Sendable, lock, timer, and actor isolation work remains. |
+| **P7** Liquid Glass | ✅ | System glass in `AppGlassBackground` (#1408), checked on screen in light and dark. |
+| **P7** Other idioms | ⬜ | Color, activation, image drawing, wrappers, and window scenes remain opportunistic. |
+| **P8** Localization | 🟡 | English and Japanese, a CI-checked catalog, plurals, and localization of text passed to views as `String` merged (#1430–#1433). Accessibility IDs, remaining English values, layout fit, and native-speaker review remain. |
+| **P9** Test isolation | 🟡 | Config migration tests use isolated directories and passed concurrently (#1434). Subprocess test waits are bounded (#1438), and standalone smoke and Core lanes passed concurrently (#1446). Broader on-disk state isolation remains. |
 
 ### Also done since the review (not in its list)
 
-- ADR-048 keyboard attribution: spike, matcher and the log-only matcher in the session worker (#1392, #1393, #1396, #1400, #1401)
-- The CLI's engine commands are answered by the app (#1388, #1413); tests for that path are in open PR #1415
+- ADR-048 keyboard attribution: spike, matcher, and log-only matcher in the session worker (#1392, #1393, #1396, #1400, #1401).
+- The running app answers the CLI's engine commands. Coverage for that path merged (#1388, #1413, #1415).
 
-### Next, in order
+### Open follow-ups
 
-1. Merge #1415, then #1416 (the phase 4 release gate)
-2. Finish the Caps Lock gate for Sparkle (P1)
-3. Open PRs for the snapshot refresh, then installer step 2
-4. Run the clean-VM install test (also confirms P2)
-5. The large refactors: O2/O3, then O4, then O5
+- O5: migrate the remaining engine events and review the permission caches and timeout helpers.
+- P2: run the clean-VM installation and confirm the Apple Events consent prompt. B7 also tracks the macOS 27 Accessibility screenshot.
+- P8 and P9: finish localization verification and continue isolating shared test state.
+- B5: help asset compression and deduplication are tracked in [#1422](https://github.com/malpern/KeyPath/pull/1422).
 
 ---
 
