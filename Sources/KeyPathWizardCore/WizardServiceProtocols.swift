@@ -5,9 +5,9 @@ import KeyPathPermissions
 // MARK: - SystemValidator Protocol
 
 public enum WizardSystemSnapshotFreshness: Sendable, Equatable {
-    /// Reuse a recent canonical snapshot when available; otherwise capture one.
+    /// Capture current system evidence, allowing the Oracle to reuse recent permission evidence.
     case cached
-    /// Capture current evidence, coalescing only with an in-flight capture.
+    /// Capture current system evidence and refresh permissions through the Oracle.
     case fresh
 }
 
@@ -15,15 +15,12 @@ public enum WizardSystemSnapshotFreshness: Sendable, Equatable {
 public protocol WizardSystemValidating: AnyObject, Sendable {
     func checkSystem() async -> SystemSnapshot
     func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot
-    func invalidateCaches()
 }
 
 public extension WizardSystemValidating {
     func checkSystem(freshness _: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
         await checkSystem()
     }
-
-    func invalidateCaches() {}
 }
 
 // MARK: - UninstallCoordinator Protocol

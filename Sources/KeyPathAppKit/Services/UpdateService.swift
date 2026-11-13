@@ -488,7 +488,6 @@ extension UpdateService {
     private func finalizeUpdate() async {
         // Use the same driverless readiness path as normal launch. No obsolete
         // driver/helper requirements or automatic installer repair after update.
-        MainAppStateController.shared.invalidateValidationCooldown()
         await MainAppStateController.shared.revalidate()
     }
 }

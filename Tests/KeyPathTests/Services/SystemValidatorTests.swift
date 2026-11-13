@@ -21,20 +21,21 @@ struct SystemValidatorTests {
         snapshot.validate()
     }
 
-    @Test("Cached capture reuses the recent canonical snapshot")
-    func cachedCaptureReusesRecentSnapshot() async {
-        let validator = SystemValidator()
-        let fresh = await validator.checkSystem(freshness: .fresh)
-        let cached = await validator.checkSystem(freshness: .cached)
+    @Test("Cached permission reads still check runtime readiness on every capture")
+    func cachedPermissionReadsStillCheckRuntimeReadiness() async {
+        let runtime = StoppedRuntimeProbe()
+        let validator = SystemValidator(
+            appSessionReady: { await runtime.isRunning() },
+            useTestSnapshot: false
+        )
 
-        #expect(cached.timestamp == fresh.timestamp)
+        let first = await validator.checkSystem(freshness: .cached)
+        let second = await validator.checkSystem(freshness: .cached)
 
-        let freshAgain = await validator.checkSystem(freshness: .fresh)
-        #expect(freshAgain.id != cached.id)
-
-        validator.invalidateCaches()
-        let recaptured = await validator.checkSystem(freshness: .cached)
-        #expect(recaptured.timestamp >= freshAgain.timestamp)
+        #expect(first.captureStatus == .complete)
+        #expect(second.captureStatus == .complete)
+        #expect(first.id != second.id)
+        #expect(await runtime.checkCount == 2)
     }
 
     @Test("SystemSnapshot validates staleness")
@@ -119,5 +120,14 @@ struct SystemValidatorTests {
 
         let snapshot = await capture.value
         #expect(snapshot.captureStatus == .cancelled)
+    }
+}
+
+private actor StoppedRuntimeProbe {
+    private(set) var checkCount = 0
+
+    func isRunning() -> Bool {
+        checkCount += 1
+        return false
     }
 }

@@ -18,7 +18,6 @@ extension WizardOperations {
             id: "state_detection",
             name: "System State Detection"
         ) { operationProgressCallback in
-            // Forward progress from SystemValidator to the operation callback
             if let machine = stateMachine {
                 progressCallback(0.1)
                 let result = await machine.detectCurrentState(freshness: freshness)

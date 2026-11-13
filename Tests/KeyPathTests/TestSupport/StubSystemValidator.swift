@@ -7,7 +7,6 @@ final class StubSystemValidator: WizardSystemValidating {
     private let snapshots: [SystemSnapshot]
     private var nextSnapshotIndex = 0
     private(set) var freshnessRequests: [WizardSystemSnapshotFreshness] = []
-    private(set) var cacheInvalidationCount = 0
 
     init(snapshot: SystemSnapshot) {
         snapshots = [snapshot]
@@ -34,10 +33,6 @@ final class StubSystemValidator: WizardSystemValidating {
     func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
         freshnessRequests.append(freshness)
         return nextSnapshot()
-    }
-
-    func invalidateCaches() {
-        cacheInvalidationCount += 1
     }
 
     private func nextSnapshot() -> SystemSnapshot {

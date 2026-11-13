@@ -5,14 +5,7 @@ import KeyPathPermissions
 import KeyPathWizardCore
 import Observation
 
-/// Main app state controller using SystemValidator
-///
-/// Replaces StartupValidator with simpler, pull-based model using SystemValidator.
-/// Key design:
-/// - EXPLICIT validation only (no automatic reactivity)
-/// - Single validation on app launch
-/// - Manual refresh via user action
-/// - SystemValidator defensive assertions active
+/// Coordinates validation requests and publishes their results to the main app UI.
 @MainActor
 @Observable
 class MainAppStateController {
@@ -59,18 +52,12 @@ class MainAppStateController {
     @ObservationIgnored private var validationRefreshPending = false
     @ObservationIgnored private weak var serviceLifecycle: ServiceLifecycleCoordinator?
     @ObservationIgnored private var onSystemHealthy: (() -> Void)?
-    @ObservationIgnored private var hasRunInitialValidation = false
 
     /// Returns true if configure() has been called.
     /// Use this to assert initialization order invariants.
     var isConfigured: Bool {
         validator != nil
     }
-
-    // MARK: - Validation Cooldown (Optimization: Skip redundant validations on rapid restarts)
-
-    @ObservationIgnored private var lastValidationTime: Date?
-    @ObservationIgnored private let validationCooldown: TimeInterval = 30.0 // Skip validation if completed within last 30 seconds
 
     // MARK: - Validation Log Throttling (avoid flooding the log with repeat cycles)
 
@@ -226,8 +213,7 @@ class MainAppStateController {
                 try? await Task.sleep(for: .seconds(60)) // 60 seconds
                 guard let self, !Task.isCancelled else { break }
 
-                // Only refresh if validation is stale (>30s since last check)
-                if let lastTime = lastValidationTime,
+                if let lastTime = lastValidationDate,
                    Date().timeIntervalSince(lastTime) > 30
                 {
                     AppLogger.shared.log("🔄 [MainAppStateController] Periodic refresh triggered (stale state)")
@@ -241,110 +227,28 @@ class MainAppStateController {
 
     // MARK: - Validation Methods
 
-    /// Perform initial validation on app launch
-    /// Can be called multiple times - first time waits for service, subsequent times validate immediately
-    /// Optimization: Skips validation if completed within cooldown period (30s) to avoid redundant work on rapid restarts
+    /// Validate after startup or wizard dismissal.
     func performInitialValidation() async {
         guard serviceLifecycle != nil else {
             AppLogger.shared.warnUnlessQuietTest("⚠️ [MainAppStateController] Cannot validate - not configured")
             return
         }
 
-        // Optimization: Skip validation if recently completed (prevents redundant work on rapid restarts)
-        if let lastTime = lastValidationTime,
-           Date().timeIntervalSince(lastTime) < validationCooldown
-        {
-            let timeSince = Int(Date().timeIntervalSince(lastTime))
-            AppLogger.shared.log(
-                "⏭️ [MainAppStateController] Skipping validation - completed \(timeSince)s ago (cooldown: \(Int(validationCooldown))s)"
-            )
-            return
+        if FeatureFlags.shared.startupModeActive {
+            FeatureFlags.shared.deactivateStartupMode()
         }
-
-        let isFirstRun = !hasRunInitialValidation
-
-        if isFirstRun {
-            hasRunInitialValidation = true
-            AppLogger.shared.log("🎯 [MainAppStateController] Performing INITIAL validation (Phase 3)")
-
-            let firstRunStart = Date()
-
-            // Wait for services to be ready (first time only)
-            // Optimized: Reduced timeout from 10s to 3s, fast process check added
-            // NOTE: Don't show spinner during service wait - only show during actual validation
-            AppLogger.shared.log("⏳ [MainAppStateController] Waiting for KeyPath runtime to be ready...")
-            AppLogger.shared.log("⏱️ [TIMING] Service wait START")
-            let serviceWaitStart = Date()
-
-            // Legacy waitForServiceReady removed.
-            // We accept the current state as-is.
-            let isReady = true
-
-            let serviceWaitDuration = Date().timeIntervalSince(serviceWaitStart)
-            AppLogger.shared.log(
-                "⏱️ [TIMING] Service wait COMPLETE: \(String(format: "%.3f", serviceWaitDuration))s (ready: \(isReady))"
-            )
-            AppLogger.shared.log(
-                "⏱️ [MainAppStateController] Service wait completed in \(String(format: "%.3f", serviceWaitDuration))s (ready: \(isReady))"
-            )
-
-            AppLogger.shared.info(
-                "✅ [MainAppStateController] Service is ready, proceeding with validation"
-            )
-
-            // Clear startup mode flag now that services are ready
-            if FeatureFlags.shared.startupModeActive {
-                FeatureFlags.shared.deactivateStartupMode()
-                AppLogger.shared.log(
-                    "🔍 [MainAppStateController] Cleared startup mode flag"
-                )
-            }
-
-            let firstRunDuration = Date().timeIntervalSince(firstRunStart)
-            AppLogger.shared.log(
-                "⏱️ [TIMING] First-run overhead COMPLETE: \(String(format: "%.3f", firstRunDuration))s (service wait + cache)"
-            )
-            AppLogger.shared.log(
-                "⏱️ [MainAppStateController] First-run overhead: \(String(format: "%.3f", firstRunDuration))s (service wait + cache)"
-            )
-        } else {
-            AppLogger.shared.info("🔄 [MainAppStateController] Revalidation (skipping service wait)")
-        }
-
-        // Set checking state ONLY when we're about to start actual validation
-        // This prevents showing spinner during service wait (which is a background operation)
         validationState = .checking
-
-        // Run validation (always)
-        await performValidation()
+        await revalidate()
     }
 
-    /// Manual refresh (explicit user action only)
-    /// If force=true, bypasses cooldown and always validates
+    /// Manual refresh, with a new permission sample when forced.
     func refreshValidation(force: Bool = false) async {
         AppLogger.shared.info("🔄 [MainAppStateController] Manual refresh requested (force: \(force))")
-        if force {
-            // Force refresh: clear cooldown
-            lastValidationTime = nil
-            validator?.invalidateCaches()
-            AppLogger.shared.log("🔄 [MainAppStateController] Force refresh - cooldown cleared")
-        }
         await performValidation(requiresFreshResult: force)
     }
 
-    /// Invalidate validation cooldown (call when system state may have changed externally)
-    /// Called automatically when wizard closes to ensure fresh validation after setup changes
-    func invalidateValidationCooldown() {
-        lastValidationTime = nil
-        validator?.invalidateCaches()
-        AppLogger.shared.log("🔄 [MainAppStateController] Validation cooldown invalidated")
-    }
-
-    /// Force a fresh validation immediately (clears cooldown and runs)
     func revalidate() async {
-        AppLogger.shared.log("🔄 [MainAppStateController] Revalidate requested - clearing cooldown")
-        lastValidationTime = nil
-        validator?.invalidateCaches()
+        AppLogger.shared.log("🔄 [MainAppStateController] Revalidate requested")
         await performValidation(requiresFreshResult: true)
     }
 
@@ -388,14 +292,13 @@ class MainAppStateController {
             return
         }
 
+        validationRefreshPending = requiresFreshResult
         let task = Task<Void, Never> { @MainActor [weak self] in
             guard let self else { return }
             repeat {
+                let freshness: WizardSystemSnapshotFreshness = validationRefreshPending ? .fresh : .cached
                 validationRefreshPending = false
-                await performValidationBody()
-                // An explicit refresh may arrive after this capture started. Invalidate
-                // again because the completed capture can have repopulated caches.
-                if validationRefreshPending { validator?.invalidateCaches() }
+                await performValidationBody(freshness: freshness)
             } while validationRefreshPending
             inProgressValidation = nil
         }
@@ -403,13 +306,12 @@ class MainAppStateController {
         await task.value
     }
 
-    private func performValidationBody() async {
+    private func performValidationBody(freshness: WizardSystemSnapshotFreshness) async {
         guard let validator else {
             AppLogger.shared.warnUnlessQuietTest("⚠️ [MainAppStateController] Cannot validate - validator not configured")
             validationState = .checking
             issues = []
             lastValidationDate = Date()
-            lastValidationTime = Date()
             return
         }
 
@@ -464,7 +366,7 @@ class MainAppStateController {
         // receives the same first-class `.timedOut` snapshot evidence.
         AppLogger.shared.log("🔍 [MainAppStateController] Canonical validation run started")
         let recoveryRevision = serviceLifecycle?.sessionWakeRecoveryRevision
-        let snapshot = await validator.checkSystem()
+        let snapshot = await validator.checkSystem(freshness: freshness)
         if let refusal = serviceLifecycle?.recoveryRefusalForStartup {
             publishSessionConfigurationRefusal(refusal, kind: .recovery)
             return
@@ -528,7 +430,6 @@ class MainAppStateController {
         lastInstallerStateMatrixPlan = context.installerStateMatrixPlan
         issues = adapted.issues
         lastValidationDate = Date()
-        lastValidationTime = Date() // Track for cooldown optimization
 
         // Determine validation state
         let blockingIssues = issues.filter { $0.severity == .critical || $0.severity == .error }
@@ -666,7 +567,6 @@ class MainAppStateController {
         lastInstallerStateMatrixRow = nil
         lastInstallerStateMatrixPlan = []
         lastValidationDate = Date()
-        lastValidationTime = Date()
         AppLogger.shared.errorUnlessQuietTest("Driverless start refused (\(kind)): \(reason)")
     }
 
@@ -675,7 +575,6 @@ class MainAppStateController {
         lastAdaptedState = .initializing
         issues = []
         lastValidationDate = Date()
-        lastValidationTime = Date()
     }
 
     private func evaluateKanataStartupGate() async -> KanataStartupGateResult {
