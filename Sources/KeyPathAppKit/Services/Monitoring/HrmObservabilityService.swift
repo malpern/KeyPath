@@ -101,6 +101,8 @@ final class HrmObservabilityService {
     }
 
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var holdObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var tapObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private let notificationCenter: NotificationCenter
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private var isMonitoring = false
@@ -288,32 +290,23 @@ final class HrmObservabilityService {
 
         // Bridge HoldActivated/TapActivated events (with reason) into the trace pipeline.
         // This provides data even without the dedicated HrmTrace message type.
-        observers.observe(.kanataHoldActivated, center: notificationCenter) { [weak self] note in
-            guard let self else { return }
-            guard let key = note.userInfo?["key"] as? String else { return }
-            let reasonStr = note.userInfo?["reason"] as? String
-            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else {
-                if let reasonStr { AppLogger.shared.debug("📈 [HRM] Unrecognized hold reason: \(reasonStr)") }
-                return
-            }
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                ingestActivationEvent(key: key, decision: .hold, reason: reason)
-            }
+        holdObserver = notificationCenter.addObserver(for: KanataHoldActivation.self) { [weak self] activation in
+            self?.observeActivation(key: activation.key, decision: .hold, reason: activation.reason)
         }
 
-        observers.observe(.kanataTapActivated, center: notificationCenter) { [weak self] note in
-            guard let self else { return }
-            guard let key = note.userInfo?["key"] as? String else { return }
-            let reasonStr = note.userInfo?["reason"] as? String
-            guard let reason = reasonStr.flatMap({ KanataHrmDecisionReason(rawValue: $0) }) else {
-                if let reasonStr { AppLogger.shared.debug("📈 [HRM] Unrecognized tap reason: \(reasonStr)") }
-                return
-            }
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                ingestActivationEvent(key: key, decision: .tap, reason: reason)
-            }
+        tapObserver = notificationCenter.addObserver(for: KanataTapActivation.self) { [weak self] activation in
+            self?.observeActivation(key: activation.key, decision: .tap, reason: activation.reason)
+        }
+    }
+
+    private func observeActivation(key: String, decision: KanataHrmDecision, reason rawReason: String?) {
+        guard let rawReason else { return }
+        guard let reason = KanataHrmDecisionReason(rawValue: rawReason) else {
+            AppLogger.shared.debug("📈 [HRM] Unrecognized \(decision.rawValue) reason: \(rawReason)")
+            return
+        }
+        Task { @MainActor [weak self] in
+            self?.ingestActivationEvent(key: key, decision: decision, reason: reason)
         }
     }
 

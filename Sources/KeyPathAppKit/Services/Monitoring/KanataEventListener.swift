@@ -271,7 +271,9 @@ public enum KanataKeyAction: String, Sendable {
 
 /// Hold activation info from Kanata TCP HoldActivated events
 /// Sent when a tap-hold key transitions to hold state after the hold threshold
-public struct KanataHoldActivation: Sendable {
+public struct KanataHoldActivation: Sendable, NotificationCenter.MainActorMessage {
+    public typealias Subject = NSObject
+
     /// Physical key name (e.g., "caps")
     public let key: String
     /// Hold action description (e.g., "lctl+lmet+lalt+lsft")
@@ -288,7 +290,9 @@ public struct KanataHoldActivation: Sendable {
 
 /// Tap activation info from Kanata TCP TapActivated events
 /// Sent when a tap-hold key triggers its tap action
-public struct KanataTapActivation: Sendable {
+public struct KanataTapActivation: Sendable, NotificationCenter.MainActorMessage {
+    public typealias Subject = NSObject
+
     /// Physical key name (e.g., "caps")
     public let key: String
     /// Tap action output (e.g., "esc")
@@ -305,7 +309,9 @@ public struct KanataTapActivation: Sendable {
 
 /// One-shot activation info from Kanata TCP OneShotActivated events
 /// Sent when a one-shot modifier key is activated
-public struct KanataOneShotActivation: Sendable {
+public struct KanataOneShotActivation: Sendable, NotificationCenter.MainActorMessage {
+    public typealias Subject = NSObject
+
     /// Physical key name (e.g., "lsft")
     public let key: String
     /// Modifier(s) being applied (e.g., "lsft" or "lctl+lsft")
@@ -320,7 +326,9 @@ public struct KanataOneShotActivation: Sendable {
 
 /// Chord resolution info from Kanata TCP ChordResolved events
 /// Sent when a chord (multi-key combo) resolves to an action
-public struct KanataChordResolution: Sendable {
+public struct KanataChordResolution: Sendable, NotificationCenter.MainActorMessage {
+    public typealias Subject = NSObject
+
     /// Chord keys pressed (e.g., "s+d")
     public let keys: String
     /// Resolved action description
@@ -335,7 +343,9 @@ public struct KanataChordResolution: Sendable {
 
 /// Tap-dance resolution info from Kanata TCP TapDanceResolved events
 /// Sent when a tap-dance resolves to a specific action
-public struct KanataTapDanceResolution: Sendable {
+public struct KanataTapDanceResolution: Sendable, NotificationCenter.MainActorMessage {
+    public typealias Subject = NSObject
+
     /// Physical key name (e.g., "q")
     public let key: String
     /// Number of taps detected

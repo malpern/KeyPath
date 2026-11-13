@@ -109,12 +109,10 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
     func testHoldActivatedCreatesEventCard() async {
         let center = NotificationCenter()
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
-        center.post(name: .kanataHoldActivated, object: nil, userInfo: [
-            "key": "caps",
-            "action": "lctl+lmet+lalt+lsft",
-            "reason": "opposite-hand",
-            "kanataTimestamp": UInt64(1000),
-        ])
+        center.post(KanataHoldActivation(
+            key: "caps", action: "lctl+lmet+lalt+lsft", timestamp: 1000, sessionID: 1,
+            observedAt: Date(), reason: "opposite-hand"
+        ))
         await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.segments.count, 1)
         if case let .eventCard(card) = service.segments.first,
@@ -132,12 +130,10 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
     func testTapActivatedCreatesEventCard() async {
         let center = NotificationCenter()
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
-        center.post(name: .kanataTapActivated, object: nil, userInfo: [
-            "key": "caps",
-            "action": "esc",
-            "reason": "release-before-timeout",
-            "kanataTimestamp": UInt64(1000),
-        ])
+        center.post(KanataTapActivation(
+            key: "caps", action: "esc", timestamp: 1000, sessionID: 1,
+            observedAt: Date(), reason: "release-before-timeout"
+        ))
         await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.segments.count, 1)
         if case let .eventCard(card) = service.segments.first,
@@ -149,6 +145,39 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
         } else {
             XCTFail("Expected tap-hold event card")
         }
+    }
+
+    func testTypedOneShotChordAndTapDanceCreateOrderedEventCards() async {
+        let center = NotificationCenter()
+        let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
+        let observedAt = Date()
+        center.post(KanataOneShotActivation(
+            key: "lsft", modifiers: "lctl+lsft", timestamp: 10, sessionID: 1, observedAt: observedAt
+        ))
+        center.post(KanataChordResolution(
+            keys: "s+d", action: "esc", timestamp: 20, sessionID: 1, observedAt: observedAt
+        ))
+        center.post(KanataTapDanceResolution(
+            key: "q", tapCount: 2, action: "tab", timestamp: 30, sessionID: 1, observedAt: observedAt
+        ))
+        await flushNotificationsAndBatch(service)
+
+        let cards = service.segments.compactMap { segment -> EventCardKind? in
+            guard case let .eventCard(card) = segment else { return nil }
+            return card.cardKind
+        }
+        guard cards.count == 3,
+              case let .oneShot(oneShot) = cards[0],
+              case let .chord(chord) = cards[1],
+              case let .tapDance(tapDance) = cards[2]
+        else { return XCTFail("Expected one-shot, chord, and tap-dance cards in order") }
+        XCTAssertEqual(oneShot.key, "lsft")
+        XCTAssertEqual(oneShot.modifiers, "lctl+lsft")
+        XCTAssertEqual(chord.keys, "s+d")
+        XCTAssertEqual(chord.action, "esc")
+        XCTAssertEqual(tapDance.key, "q")
+        XCTAssertEqual(tapDance.tapCount, 2)
+        XCTAssertEqual(tapDance.action, "tab")
     }
 
     // MARK: - Recording Toggle

@@ -279,16 +279,6 @@ extension Notification.Name {
     static let kanataConfigChanged = Notification.Name("KeyPath.KanataConfigChanged")
     /// Posted when a TCP message is received from Kanata (heartbeat for connection state)
     static let kanataTcpHeartbeat = Notification.Name("KeyPath.KanataTcpHeartbeat")
-    /// Posted when a tap-hold key transitions to hold state (userInfo["key"] = String, ["action"] = String)
-    static let kanataHoldActivated = Notification.Name("KeyPath.KanataHoldActivated")
-    /// Posted when a tap-hold key triggers its tap action (userInfo["key"] = String, ["action"] = String)
-    static let kanataTapActivated = Notification.Name("KeyPath.KanataTapActivated")
-    /// Posted when a one-shot modifier is activated (userInfo["key"] = String, ["modifiers"] = String)
-    static let kanataOneShotActivated = Notification.Name("KeyPath.KanataOneShotActivated")
-    /// Posted when a chord resolves (userInfo["keys"] = String, ["action"] = String)
-    static let kanataChordResolved = Notification.Name("KeyPath.KanataChordResolved")
-    /// Posted when a tap-dance resolves (userInfo["key"] = String, ["tapCount"] = Int, ["action"] = String)
-    static let kanataTapDanceResolved = Notification.Name("KeyPath.KanataTapDanceResolved")
     /// Posted when a generic push-msg is received (userInfo["message"] = String) - e.g., "icon:arrow-left", "emphasis:h,j,k,l"
     static let kanataMessagePush = Notification.Name("KeyPath.KanataMessagePush")
     /// Posted when HRM per-decision trace events are received.
