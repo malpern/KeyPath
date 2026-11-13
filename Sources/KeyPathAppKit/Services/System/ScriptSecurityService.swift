@@ -12,7 +12,8 @@ public protocol ScriptApprovalStore: AnyObject {
     func isApproved(path: String, digest: String) -> Bool
     /// Returns false when the approval could not be saved.
     func approve(path: String, digest: String) -> Bool
-    func removeAll()
+    /// Returns false when the approvals could not be removed.
+    func removeAll() -> Bool
     var count: Int { get }
 }
 
@@ -32,8 +33,9 @@ public final class InMemoryScriptApprovalStore: ScriptApprovalStore {
         return true
     }
 
-    public func removeAll() {
+    public func removeAll() -> Bool {
         approvals.removeAll()
+        return true
     }
 
     public var count: Int {
@@ -62,7 +64,7 @@ public final class KeychainScriptApprovalStore: ScriptApprovalStore {
         items.insert(ScriptApproval.key(path: path, digest: digest))
     }
 
-    public func removeAll() {
+    public func removeAll() -> Bool {
         items.removeAll()
     }
 
@@ -76,9 +78,17 @@ enum ScriptApproval {
         "\(digest) \(path)"
     }
 
-    /// SHA-256 of the file's contents, or nil when it cannot be read.
+    /// Scripts larger than this are not run; reading them would stall the main thread.
+    static let maximumScriptBytes = 16 * 1_048_576
+
+    /// SHA-256 of the file's contents, or nil when it is not a regular file,
+    /// is larger than `maximumScriptBytes`, or cannot be read.
     static func digest(ofFileAt path: String) -> String? {
-        guard let data = Foundation.FileManager().contents(atPath: path) else { return nil }
+        guard let attributes = try? Foundation.FileManager().attributesOfItem(atPath: path),
+              attributes[.type] as? FileAttributeType == .typeRegular,
+              let size = attributes[.size] as? Int, size <= maximumScriptBytes,
+              let data = Foundation.FileManager().contents(atPath: path)
+        else { return nil }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
@@ -188,10 +198,13 @@ public final class ScriptSecurityService {
     }
 
     /// Forget every "Always Allow" choice, so each script asks again.
-    public func forgetApprovedScripts() {
-        approvals.removeAll()
-        approvedScriptCount = 0
-        AppLogger.shared.log("🔐 [ScriptSecurity] Forgot all approved scripts")
+    /// Returns false when the Keychain refused; the approvals then still apply.
+    @discardableResult
+    public func forgetApprovedScripts() -> Bool {
+        let removed = approvals.removeAll()
+        approvedScriptCount = approvals.count
+        AppLogger.shared.log("🔐 [ScriptSecurity] Forget approved scripts: \(removed ? "done" : "FAILED")")
+        return removed
     }
 
     /// Log a script execution for audit
@@ -250,11 +263,14 @@ public final class ScriptSecurityService {
         isAppleScript(path) || isShellScript(path) || isInterpretedScript(path)
     }
 
-    /// Reset all security settings (for uninstall/reset)
-    public func resetAllSettings() {
+    /// Reset all security settings (for uninstall/reset). Returns false when
+    /// the Keychain refused to remove the approvals.
+    @discardableResult
+    public func resetAllSettings() -> Bool {
         isScriptExecutionEnabled = false
-        forgetApprovedScripts()
+        let forgot = forgetApprovedScripts()
         defaults.removeObject(forKey: Keys.scriptExecutionLog)
         AppLogger.shared.log("🔐 [ScriptSecurity] All settings reset")
+        return forgot
     }
 }

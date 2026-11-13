@@ -18911,6 +18911,16 @@
         }
       }
     },
+    "KeyPath couldn't remove the approved scripts from the Keychain. They still apply." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "許可したスクリプトをキーチェーンから削除できませんでした。許可は引き続き有効です。"
+          }
+        }
+      }
+    },
     "KeyPath couldn't save “Always Allow” for this script. It will ask again next time." : {
       "localizations" : {
         "ja" : {

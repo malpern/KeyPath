@@ -36,9 +36,16 @@ final class KeychainStringSet {
         return save(next)
     }
 
-    func removeAll() {
-        SecItemDelete(baseQuery as CFDictionary)
+    /// Removes the item. Returns false, and keeps the cached members, when the Keychain refuses.
+    @discardableResult
+    func removeAll() -> Bool {
+        let status = SecItemDelete(baseQuery as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            AppLogger.shared.log("⚠️ [Keychain] Could not delete \(account) (status \(status))")
+            return false
+        }
         cache = []
+        return true
     }
 
     private var baseQuery: [String: Any] {

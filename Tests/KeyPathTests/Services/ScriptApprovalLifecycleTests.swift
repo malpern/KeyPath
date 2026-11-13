@@ -93,6 +93,23 @@ final class ScriptApprovalLifecycleTests: XCTestCase {
         }
     }
 
+    func testAlwaysAllowRefusesScriptChangedWhileAsking() async throws {
+        try await withFixture { dispatcher, security, path, executed in
+            var always: (() -> Void)?
+            var errors: [String] = []
+            dispatcher.onScriptConfirmationNeeded = { always = $0.alwaysAllow }
+            dispatcher.onError = { errors.append($0) }
+            _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "script:" + path)))
+            try Data("#!/bin/sh\necho swapped\n".utf8).write(to: URL(fileURLWithPath: path))
+            try XCTUnwrap(always)()
+            await dispatcher.scriptTask?.value
+            XCTAssertTrue(executed.paths.isEmpty)
+            security.refreshApprovedScriptCount()
+            XCTAssertEqual(security.approvedScriptCount, 0, "Nothing is remembered for changed contents")
+            XCTAssertTrue(errors.contains(where: { $0.contains("changed") }))
+        }
+    }
+
     private final class Executed { var paths: [String] = [] }
 
     private func withFixture(_ body: (ActionDispatcher, ScriptSecurityService, String, Executed) async throws -> Void) async throws {

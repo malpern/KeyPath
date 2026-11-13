@@ -52,7 +52,9 @@ public final class InMemoryLinkGrantStore: LinkGrantStore {
 ///
 /// Still allowed: `launch` (an app name, never a path), `folder` (shows a
 /// folder in Finder), `layer`, `window`, `system`, `notify`, `settings`,
-/// `overlay` and `runtime` (start or stop remapping).
+/// `overlay`, `rule` (feedback only) and `runtime` (start or stop remapping;
+/// a link can turn remapping off, which is a nuisance, not a way in).
+/// A new action defaults to allowed, so add it here deliberately.
 enum ExternalActionPolicy {
     enum Decision: Equatable {
         case allow

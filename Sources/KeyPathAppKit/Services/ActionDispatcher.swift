@@ -152,7 +152,7 @@ public final class ActionDispatcher {
             case .allow:
                 break
             case let .refuse(message):
-                AppLogger.shared.log("🛡️ [ActionDispatcher] Refused \(uri.action) from another app")
+                AppLogger.shared.log("🛡️ [ActionDispatcher] Refused \(uri.action)/\(uri.target ?? "") from another app")
                 onError?(message)
                 return .failed(uri.action, NSError(domain: "ActionDispatcher", code: 12, userInfo: [
                     NSLocalizedDescriptionKey: message

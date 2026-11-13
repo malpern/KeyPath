@@ -21,7 +21,7 @@ final class ExternalActionPolicyTests: XCTestCase {
     }
 
     func testOpenAllowsOnlyWebPages() throws {
-        XCTAssertEqual(try decision("keypath://open/https://example.com"), .allow)
+        XCTAssertEqual(try decision("keypath://open/https:%2F%2Fexample.com"), .allow)
         XCTAssertEqual(try decision("keypath://open/example.com"), .allow)
         guard case .refuse = try decision("keypath://open/file:%2F%2F%2Fetc%2Fhosts") else {
             return XCTFail("file:// must be refused")
@@ -121,6 +121,48 @@ final class ExternalActionPolicyTests: XCTestCase {
         defer { cleanup() }
         guard case .failed = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .externalURL) else {
             return XCTFail("Expected a refusal without a prompt")
+        }
+    }
+
+    func testAlwaysAllowLetsLaterLinksPressVirtualKeysWithoutAsking() throws {
+        let (dispatcher, _, grants, cleanup) = try makeFixture()
+        defer { cleanup() }
+        var prompts = 0
+        dispatcher.onExternalActionConfirmationNeeded = { prompts += 1; $0.alwaysAllow() }
+        _ = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .externalURL)
+        XCTAssertTrue(grants.allowsVirtualKeys)
+        _ = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .externalURL)
+        XCTAssertEqual(prompts, 1)
+    }
+
+    func testFailedAlwaysAllowStillAsksNextTime() throws {
+        final class RefusingGrants: LinkGrantStore {
+            var allowsVirtualKeys: Bool {
+                false
+            }
+
+            func setAllowsVirtualKeys(_: Bool) -> Bool {
+                false
+            }
+        }
+        let dispatcher = ActionDispatcher(linkGrants: RefusingGrants())
+        var errors: [String] = []
+        var prompts = 0
+        dispatcher.onError = { errors.append($0) }
+        dispatcher.onExternalActionConfirmationNeeded = { prompts += 1; $0.alwaysAllow() }
+        _ = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .externalURL)
+        _ = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .externalURL)
+        XCTAssertEqual(prompts, 2)
+        XCTAssertTrue(errors.contains(where: { $0.contains("couldn't save") }))
+    }
+
+    func testDispatcherRefusesLaunchPathFromAnyOrigin() throws {
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
+        for origin in [ActionOrigin.externalURL, .engine] {
+            guard case .failed = try dispatcher.dispatch(uri("keypath://launch/..%2F..%2Ftmp%2Fevil"), origin: origin) else {
+                return XCTFail("A path must not be launched (\(origin))")
+            }
         }
     }
 }

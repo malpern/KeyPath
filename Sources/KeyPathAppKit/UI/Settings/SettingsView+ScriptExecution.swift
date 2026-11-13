@@ -39,7 +39,11 @@ struct ScriptExecutionSettingsSection: View {
                         .foregroundColor(.secondary)
                     Spacer()
                     Button(String(localized: "Forget Approved Scripts (\(securityService.approvedScriptCount))")) {
-                        securityService.forgetApprovedScripts()
+                        if !securityService.forgetApprovedScripts() {
+                            UserNotificationService.shared.notifyActionError(
+                                String(localized: "KeyPath couldn't remove the approved scripts from the Keychain. They still apply.")
+                            )
+                        }
                     }
                     .disabled(securityService.approvedScriptCount == 0)
                     .accessibilityIdentifier("settings-script-forget-approvals-button")
@@ -61,6 +65,20 @@ struct ScriptExecutionSettingsSection: View {
                 .padding(.leading, 24)
                 .padding(.top, 4)
             }
+            if linksPressVirtualKeys {
+                HStack {
+                    Text("Links from other apps can press virtual keys without asking.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button(String(localized: "Ask Again")) {
+                        if KeychainLinkGrantStore.shared.setAllowsVirtualKeys(false) {
+                            linksPressVirtualKeys = false
+                        }
+                    }
+                    .accessibilityIdentifier("settings-links-virtual-keys-ask-again-button")
+                }
+            }
         }
         .sheet(isPresented: $showingExecutionLog) {
             ScriptExecutionLogView()
@@ -71,21 +89,6 @@ struct ScriptExecutionSettingsSection: View {
         }
         .onChange(of: securityService.isScriptExecutionEnabled) { _, enabled in
             if enabled { securityService.refreshApprovedScriptCount() }
-        }
-
-        if linksPressVirtualKeys {
-            HStack {
-                Text("Links from other apps can press virtual keys without asking.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Spacer()
-                Button(String(localized: "Ask Again")) {
-                    if KeychainLinkGrantStore.shared.setAllowsVirtualKeys(false) {
-                        linksPressVirtualKeys = false
-                    }
-                }
-                .accessibilityIdentifier("settings-links-virtual-keys-ask-again-button")
-            }
         }
     }
 }
