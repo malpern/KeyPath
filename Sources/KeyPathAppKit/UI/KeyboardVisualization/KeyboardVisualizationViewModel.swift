@@ -172,7 +172,7 @@ class KeyboardVisualizationViewModel {
     // MARK: - Observers
 
     /// Key input notification observer
-    @ObservationIgnored var keyInputObserver: Any?
+    @ObservationIgnored var keyInputObserver: NotificationCenter.ObservationToken?
     /// TCP heartbeat notification observer (layer polling)
     @ObservationIgnored var tcpHeartbeatObserver: Any?
     /// Hold activated notification observer

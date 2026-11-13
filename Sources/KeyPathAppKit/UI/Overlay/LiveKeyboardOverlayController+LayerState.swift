@@ -68,19 +68,14 @@ extension LiveKeyboardOverlayController {
     }
 
     func setupKeyInputObserver() {
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.kanataKeyInput,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (notification: Foundation.Notification) in
-            let key = notification.userInfo?["key"] as? String
-            let action = notification.userInfo?["action"] as? String
-            Task { @MainActor in
+        keyInputObserver = NotificationCenter.default.addObserver(for: KanataObservedKeyInput.self) { [weak self] observation in
+            guard observation.action == .press else { return }
+            Task { @MainActor [weak self] in
                 guard let self else { return }
-                guard let key, action == "press" else { return }
-                self.applyLayerRevealEffects(self.layerReveal.keyPressed())
+                let key = observation.key
+                applyLayerRevealEffects(layerReveal.keyPressed())
 
-                if let overrideLayer = self.oneShotOverride.clearOnKeyPress(
+                if let overrideLayer = oneShotOverride.clearOnKeyPress(
                     key,
                     modifierKeys: Self.modifierKeys
                 ) {
@@ -91,7 +86,7 @@ extension LiveKeyboardOverlayController {
 
                 // Allow physical Escape to always dismiss momentary/one-shot layer state.
                 // This recovers from missed layer-exit notifications.
-                if Self.isEscapeKeyName(key), self.currentLayerName.lowercased() != "base" {
+                if Self.isEscapeKeyName(key), currentLayerName.lowercased() != "base" {
                     _ = ActionDispatcher.shared.dispatch(message: "layer:base")
                 }
             }

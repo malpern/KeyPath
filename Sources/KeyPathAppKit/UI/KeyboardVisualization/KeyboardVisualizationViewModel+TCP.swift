@@ -10,18 +10,9 @@ extension KeyboardVisualizationViewModel {
 
     /// Set up observer for Kanata TCP KeyInput events (physical key presses)
     func setupKeyInputObserver() {
-        keyInputObserver = NotificationCenter.default.addObserver(
-            forName: .kanataKeyInput,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let self else { return }
-            guard let key = notification.userInfo?["key"] as? String,
-                  let actionStr = notification.userInfo?["action"] as? String
-            else { return }
-
-            Task { @MainActor in
-                self.handleTcpKeyInput(key: key, action: actionStr)
+        keyInputObserver = NotificationCenter.default.addObserver(for: KanataObservedKeyInput.self) { [weak self] observation in
+            Task { @MainActor [weak self] in
+                self?.handleTcpKeyInput(key: observation.key, action: observation.action.rawValue)
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] TCP key input observer registered")

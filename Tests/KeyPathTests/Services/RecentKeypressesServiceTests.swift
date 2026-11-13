@@ -34,27 +34,6 @@ final class RecentKeypressesServiceTests: XCTestCase {
         service.setCurrentLayerForTesting(layerName)
     }
 
-    private func postKeyNotification(
-        _ key: String,
-        action: String,
-        observedAt: Date = Date(timeIntervalSince1970: 1),
-        listenerSessionID: Int? = nil,
-        kanataTimestamp: UInt64? = nil
-    ) {
-        var userInfo: [String: Any] = [
-            "key": key,
-            "action": action,
-            "observedAt": observedAt,
-        ]
-        if let listenerSessionID {
-            userInfo["listenerSessionID"] = listenerSessionID
-        }
-        if let kanataTimestamp {
-            userInfo["kanataTimestamp"] = kanataTimestamp
-        }
-        notificationCenter.post(name: .kanataKeyInput, object: nil, userInfo: userInfo)
-    }
-
     // MARK: - Deduplication Tests
 
     func testDeduplication_DuplicateWithin100ms_IsSkipped() {
@@ -213,14 +192,14 @@ final class RecentKeypressesServiceTests: XCTestCase {
         XCTAssertEqual(service.events[0].kanataTimestamp, 55)
     }
 
-    func testNotificationCenterKeyInputPath_ParsesUserInfo() async {
-        postKeyNotification(
-            "a",
-            action: "press",
-            observedAt: Date(timeIntervalSince1970: 2),
-            listenerSessionID: 18,
-            kanataTimestamp: 56
-        )
+    func testTypedKeyInputPreservesObservationMetadata() async {
+        notificationCenter.post(KanataObservedKeyInput(
+            key: "a",
+            action: .press,
+            kanataTimestamp: 56,
+            sessionID: 18,
+            observedAt: Date(timeIntervalSince1970: 2)
+        ))
         await Task.yield()
 
         XCTAssertEqual(service.events.count, 1)

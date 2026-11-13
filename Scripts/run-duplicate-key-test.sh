@@ -77,7 +77,7 @@ CORPUS_VICIOUS=(
     "func debounce<T>(delay: Duration, operation: @escaping (T) async -> Void) -> (T) async -> Void { var task: Task<Void, Never>?; return { value in task?.cancel(); task = Task { try? await Task.sleep(for: delay); await operation(value) } } } "
     "class KanataTCPClient { private let connection: NWConnection; private var requestCounter: UInt64 = 0; private let timeout: TimeInterval = 5.0 } "
     "Simplicity is prerequisite for reliability. The unavoidable price of reliability is simplicity. It is a price which the very rich find most hard to pay. "
-    "NotificationCenter.default.publisher(for: .kanataKeyInput).compactMap { $0.userInfo }.sink { info in handleKey(info) }.store(in: &cancellables) "
+    "let token = NotificationCenter.default.addObserver(for: KanataObservedKeyInput.self) { event in handleKey(event) } "
     "Any fool can write code that a computer can understand. Good programmers write code that humans can understand. "
     "let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase; encoder.dateEncodingStrategy = .iso8601; let data = try encoder.encode(payload) "
     "The most dangerous phrase in the English language is: We have always done it this way. "

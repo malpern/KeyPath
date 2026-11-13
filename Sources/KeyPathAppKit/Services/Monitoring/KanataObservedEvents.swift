@@ -1,6 +1,9 @@
 import Foundation
 
-struct KanataObservedKeyInput: Sendable, Equatable {
+/// Physical key events are delivered on the main actor in engine order.
+struct KanataObservedKeyInput: Sendable, Equatable, NotificationCenter.MainActorMessage {
+    typealias Subject = NSObject
+
     let key: String
     let action: KanataKeyAction
     let kanataTimestamp: UInt64?
@@ -12,12 +15,4 @@ struct KeypressObservationMetadata: Equatable {
     let listenerSessionID: Int?
     let kanataTimestamp: UInt64?
     let observedAt: Date?
-
-    static func from(userInfo: [AnyHashable: Any]?) -> KeypressObservationMetadata {
-        KeypressObservationMetadata(
-            listenerSessionID: userInfo?["listenerSessionID"] as? Int,
-            kanataTimestamp: userInfo?["kanataTimestamp"] as? UInt64,
-            observedAt: userInfo?["observedAt"] as? Date
-        )
-    }
 }

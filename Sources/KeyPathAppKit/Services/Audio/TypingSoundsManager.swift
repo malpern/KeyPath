@@ -113,7 +113,7 @@ final class TypingSoundsManager {
     @ObservationIgnored private let playerPoolSize = 8
 
     /// Observer for TCP key input events
-    @ObservationIgnored private var keyInputObserver: Any?
+    @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
 
     private init() {
         // Restore saved preferences
@@ -130,21 +130,14 @@ final class TypingSoundsManager {
     }
 
     private func setupKeyInputObserver() {
-        keyInputObserver = NotificationCenter.default.addObserver(
-            forName: .kanataKeyInput,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let action = notification.userInfo?["action"] as? String else { return }
+        keyInputObserver = NotificationCenter.default.addObserver(for: KanataObservedKeyInput.self) { [weak self] observation in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                switch action {
-                case "press", "repeat":
+                switch observation.action {
+                case .press, .repeat:
                     playKeydown()
-                case "release":
+                case .release:
                     playKeyup()
-                default:
-                    break
                 }
             }
         }

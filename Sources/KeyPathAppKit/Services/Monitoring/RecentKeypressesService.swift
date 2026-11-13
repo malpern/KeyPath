@@ -66,6 +66,7 @@ final class RecentKeypressesService {
     @ObservationIgnored private var lastKeyAction: String?
 
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private let notificationCenter: NotificationCenter
     #if DEBUG
         @ObservationIgnored var dateProvider: () -> Date = Date.init
@@ -77,16 +78,18 @@ final class RecentKeypressesService {
     }
 
     private func setupObservers() {
-        // Listen for key input events
-        observers.observe(.kanataKeyInput, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            let key = userInfo?["key"] as? String
-            let action = userInfo?["action"] as? String
-            let metadata = KeypressObservationMetadata.from(userInfo: userInfo)
+        keyInputObserver = notificationCenter.addObserver(for: KanataObservedKeyInput.self) { [weak self] observation in
             Task { @MainActor [weak self] in
-                guard let self, isRecording, let key, let action else { return }
-                addEvent(key: key, action: action, metadata: metadata)
+                guard let self, isRecording else { return }
+                addEvent(
+                    key: observation.key,
+                    action: observation.action.rawValue,
+                    metadata: KeypressObservationMetadata(
+                        listenerSessionID: observation.sessionID,
+                        kanataTimestamp: observation.kanataTimestamp,
+                        observedAt: observation.observedAt
+                    )
+                )
             }
         }
 

@@ -44,23 +44,8 @@ extension RuleCollectionsManager {
                         AppLogger.shared.info(DuplicateInvestigationSupport.makeKeyTransitionLog(transition))
                     }
 
-                    // Post notification for TCP-based physical key input events
-                    // Used by KeyboardVisualizationViewModel for overlay highlighting
                     await MainActor.run {
-                        var userInfo: [String: Any] = [
-                            "key": observation.key,
-                            "action": observation.action.rawValue.lowercased(),
-                            "listenerSessionID": observation.sessionID,
-                            "observedAt": observation.observedAt
-                        ]
-                        if let kanataTimestamp = observation.kanataTimestamp {
-                            userInfo["kanataTimestamp"] = kanataTimestamp
-                        }
-                        NotificationCenter.default.post(
-                            name: .kanataKeyInput,
-                            object: nil,
-                            userInfo: userInfo
-                        )
+                        NotificationCenter.default.post(observation)
                     }
                 },
                 onHoldActivated: { activation in
