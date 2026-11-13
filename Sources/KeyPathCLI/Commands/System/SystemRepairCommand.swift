@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 import KeyPathCLISupport
+import KeyPathCore
 
 struct SystemRepair: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -22,10 +23,10 @@ struct SystemRepair: AsyncParsableCommand {
         let facade = SystemFacade()
         let report: CLIInstallerReport
         do {
-            report = try await withThrowingTimeout(seconds: globals.timeout) {
+            report = try await withTimeout(.seconds(globals.timeout), cancellation: .waitForOperation) {
                 await facade.runRepair(dryRun: dryRun)
             }
-        } catch is TimeoutError {
+        } catch is OperationTimeoutError {
             spinner.fail("Repair timed out after \(globals.timeout)s")
             throw ExitCode.failure
         }

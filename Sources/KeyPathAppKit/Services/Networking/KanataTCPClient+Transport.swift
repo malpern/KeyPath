@@ -88,7 +88,7 @@ extension KanataTCPClient {
                 let timeLeft = deadline - CFAbsoluteTimeGetCurrent()
                 guard timeLeft > 0 else {
                     closeConnection()
-                    throw TCPTimeoutError()
+                    throw OperationTimeoutError()
                 }
                 remaining = timeLeft
             } else {
@@ -149,7 +149,7 @@ extension KanataTCPClient {
                 DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
                     if completionFlag.markCompleted() {
                         connection.cancel()
-                        continuation.resume(throwing: TCPTimeoutError())
+                        continuation.resume(throwing: OperationTimeoutError())
                         Task {
                             await self.closeConnection()
                         }
@@ -290,42 +290,5 @@ extension KanataTCPClient {
                 }
             )
         }
-    }
-}
-
-// MARK: - Timeout Helper
-
-/// Error thrown when a TCP operation times out
-private struct TCPTimeoutError: Error, LocalizedError {
-    var errorDescription: String? {
-        "Operation timed out"
-    }
-}
-
-/// Execute an async operation with a timeout
-func withTimeout<T: Sendable>(
-    seconds: TimeInterval, operation: @escaping @Sendable () async throws -> T
-) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
-        // Add the actual operation
-        group.addTask {
-            try await operation()
-        }
-
-        // Add a timeout task
-        group.addTask {
-            try await Task.sleep(for: .seconds(seconds))
-            throw TCPTimeoutError()
-        }
-
-        // Wait for the first one to complete
-        guard let result = try await group.next() else {
-            throw TCPTimeoutError()
-        }
-
-        // Cancel the other task
-        group.cancelAll()
-
-        return result
     }
 }

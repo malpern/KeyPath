@@ -52,24 +52,3 @@ extension WizardOperations {
         )
     }
 }
-
-// MARK: - Timeout helper for auto-fix actions
-
-public struct AutoFixTimeoutError: Error {}
-
-public func runWithTimeout<T: Sendable>(
-    seconds: Double,
-    operation: @Sendable @escaping () async -> T
-) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
-        group.addTask { await operation() }
-        group.addTask {
-            let clock = ContinuousClock()
-            try await clock.sleep(for: .seconds(seconds))
-            throw AutoFixTimeoutError()
-        }
-        let result = try await group.next()!
-        group.cancelAll()
-        return result
-    }
-}

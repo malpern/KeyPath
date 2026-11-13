@@ -14,6 +14,7 @@ final class SnapshotConsumerLintTests: XCTestCase {
         let validator = try String(contentsOf: validatorURL, encoding: .utf8)
         XCTAssertTrue(validator.contains("canonicalCaptureTimeout"))
         XCTAssertTrue(validator.contains("boundedCapture(timeout:"))
+        XCTAssertTrue(validator.contains("withTimeout(.seconds(timeout), cancellation: .returnImmediately"))
 
         let mainControllerURL = LintScanner.path(
             "Sources/KeyPathAppKit/Services/MainAppStateController.swift"

@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 import KeyPathCLISupport
+import KeyPathCore
 
 struct SystemUninstall: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -27,10 +28,10 @@ struct SystemUninstall: AsyncParsableCommand {
         let timeoutSeconds = globals.timeout
         let report: CLIInstallerReport
         do {
-            report = try await withThrowingTimeout(seconds: timeoutSeconds) {
+            report = try await withTimeout(.seconds(timeoutSeconds), cancellation: .waitForOperation) {
                 await facade.runUninstall(deleteConfig: shouldDeleteConfig)
             }
-        } catch is TimeoutError {
+        } catch is OperationTimeoutError {
             CLIOutput.progress("Uninstall timed out after \(timeoutSeconds)s", context: ctx)
             throw ExitCode.failure
         }

@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 import KeyPathCLISupport
+import KeyPathCore
 
 struct SystemInstall: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -20,10 +21,10 @@ struct SystemInstall: AsyncParsableCommand {
         let facade = SystemFacade()
         let report: CLIInstallerReport
         do {
-            report = try await withThrowingTimeout(seconds: globals.timeout) {
+            report = try await withTimeout(.seconds(globals.timeout), cancellation: .waitForOperation) {
                 await facade.runInstall(dryRun: dryRun)
             }
-        } catch is TimeoutError {
+        } catch is OperationTimeoutError {
             spinner.fail("Installation timed out after \(globals.timeout)s")
             throw ExitCode.failure
         }
