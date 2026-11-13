@@ -22,6 +22,7 @@ final class ContextHUDController {
     var dismissTask: Task<Void, Never>?
     var layerMapTask: Task<Void, Never>?
     private var keyInputObserver: NotificationCenter.ObservationToken?
+    private var holdObserver: NotificationCenter.ObservationToken?
     private var previousLayer: String = "base"
 
     var holdLabelCache: [String: [UInt16: String]] = [:]
@@ -112,16 +113,9 @@ final class ContextHUDController {
             }
         }
 
-        NotificationCenter.default.addObserver(
-            forName: .kanataHoldActivated,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            let key = notification.userInfo?["key"] as? String
-            let action = notification.userInfo?["action"] as? String
-            Task { @MainActor in
-                guard let self else { return }
-                self.handleHoldActivated(key: key, action: action)
+        holdObserver = NotificationCenter.default.addObserver(for: KanataHoldActivation.self) { [weak self] activation in
+            Task { @MainActor [weak self] in
+                self?.handleHoldActivated(key: activation.key, action: activation.action)
             }
         }
 

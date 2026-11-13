@@ -16,6 +16,8 @@ final class FirstSuccessKeyboardInputCoordinator {
     @ObservationIgnored private let staleStateSleep: @Sendable (Duration) async -> Void
     @ObservationIgnored private let observers = NotificationObserverManager()
     @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var holdObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var tapObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var isObserving = false
     @ObservationIgnored private var listenerSessionID: Int?
     @ObservationIgnored private var staleStateTask: Task<Void, Never>?
@@ -45,44 +47,14 @@ final class FirstSuccessKeyboardInputCoordinator {
             )
         }
 
-        observers.observe(
-            .kanataHoldActivated,
-            queue: .main,
-            center: notificationCenter
-        ) { [weak self] notification in
-            let key = notification.userInfo?["key"] as? String
-            let sessionID = notification.userInfo?["listenerSessionID"] as? Int
-            MainActor.assumeIsolated {
-                guard let self, self.isObserving,
-                      let key
-                else {
-                    return
-                }
-                self.receiveHoldActivated(
-                    key: key,
-                    listenerSessionID: sessionID
-                )
-            }
+        holdObserver = notificationCenter.addObserver(for: KanataHoldActivation.self) { [weak self] activation in
+            guard let self, isObserving else { return }
+            receiveHoldActivated(key: activation.key, listenerSessionID: activation.sessionID)
         }
 
-        observers.observe(
-            .kanataTapActivated,
-            queue: .main,
-            center: notificationCenter
-        ) { [weak self] notification in
-            let key = notification.userInfo?["key"] as? String
-            let sessionID = notification.userInfo?["listenerSessionID"] as? Int
-            MainActor.assumeIsolated {
-                guard let self, self.isObserving,
-                      let key
-                else {
-                    return
-                }
-                self.receiveTapActivated(
-                    key: key,
-                    listenerSessionID: sessionID
-                )
-            }
+        tapObserver = notificationCenter.addObserver(for: KanataTapActivation.self) { [weak self] activation in
+            guard let self, isObserving else { return }
+            receiveTapActivated(key: activation.key, listenerSessionID: activation.sessionID)
         }
 
         observers.observe(
@@ -118,6 +90,8 @@ final class FirstSuccessKeyboardInputCoordinator {
     func stop() {
         isObserving = false
         keyInputObserver = nil
+        holdObserver = nil
+        tapObserver = nil
         observers.removeAll()
         listenerSessionID = nil
         clearInteraction()

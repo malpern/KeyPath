@@ -4,6 +4,31 @@ import KeyPathRulesCore
 
 @MainActor
 final class HrmObservabilityServiceTests: XCTestCase {
+    func testTypedActivationReasonsFeedTraceWhenRecognized() async {
+        let center = NotificationCenter()
+        let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
+        let observedAt = Date()
+
+        center.post(KanataHoldActivation(
+            key: "F", action: "lsft", timestamp: 10,
+            sessionID: 1, observedAt: observedAt, reason: "opposite-hand"
+        ))
+        center.post(KanataTapActivation(
+            key: "j", action: "j", timestamp: 20,
+            sessionID: 1, observedAt: observedAt, reason: "release-before-timeout"
+        ))
+        center.post(KanataTapActivation(
+            key: "k", action: "k", timestamp: 30,
+            sessionID: 1, observedAt: observedAt, reason: "unknown-future-reason"
+        ))
+        await Task.yield()
+        await Task.yield()
+
+        XCTAssertEqual(service.recentTraceEvents.map(\.key), ["f", "j"])
+        XCTAssertEqual(service.recentTraceEvents.map(\.decision), [.hold, .tap])
+        XCTAssertEqual(service.recentTraceEvents.map(\.reason.rawValue), ["opposite-hand", "release-before-timeout"])
+    }
+
     func testCapabilitiesNotificationMarksSupported() async {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)

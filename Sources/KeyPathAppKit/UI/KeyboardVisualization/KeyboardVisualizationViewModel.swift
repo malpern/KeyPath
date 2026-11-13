@@ -176,15 +176,15 @@ class KeyboardVisualizationViewModel {
     /// TCP heartbeat notification observer (layer polling)
     @ObservationIgnored var tcpHeartbeatObserver: Any?
     /// Hold activated notification observer
-    @ObservationIgnored var holdActivatedObserver: Any?
+    @ObservationIgnored var holdActivatedObserver: NotificationCenter.ObservationToken?
     /// Tap activated notification observer
-    @ObservationIgnored var tapActivatedObserver: Any?
+    @ObservationIgnored var tapActivatedObserver: NotificationCenter.ObservationToken?
     /// Push message notification observer (for icon/emphasis messages)
     @ObservationIgnored var messagePushObserver: Any?
     /// Rule collections changed notification observer (for feature toggle updates)
     @ObservationIgnored var ruleCollectionsObserver: Any?
     /// One-shot activated notification observer
-    @ObservationIgnored var oneShotObserver: Any?
+    @ObservationIgnored var oneShotObserver: NotificationCenter.ObservationToken?
     /// App context observation task (for app-specific key overrides)
     @ObservationIgnored var appContextObservationTask: Task<Void, Never>?
     /// Current app's bundle identifier for overlay updates

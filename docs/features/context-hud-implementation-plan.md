@@ -21,7 +21,7 @@ MAL-56 (Overlay Context Integration) already delivered collection-aware color-co
 ## Architecture
 
 ```
-Notification Center (.kanataLayerChanged, .kanataOneShotActivated, KanataObservedKeyInput)
+Notification Center (.kanataLayerChanged, KanataOneShotActivation, KanataObservedKeyInput)
          │
          ▼
 ContextHUDController (singleton, @MainActor)

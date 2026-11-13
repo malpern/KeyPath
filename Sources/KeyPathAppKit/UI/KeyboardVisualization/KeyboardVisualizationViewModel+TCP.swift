@@ -35,18 +35,9 @@ extension KeyboardVisualizationViewModel {
 
     /// Set up observer for Kanata TCP HoldActivated events (tap-hold transitions to hold)
     func setupHoldActivatedObserver() {
-        holdActivatedObserver = NotificationCenter.default.addObserver(
-            forName: .kanataHoldActivated,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let self else { return }
-            guard let key = notification.userInfo?["key"] as? String,
-                  let action = notification.userInfo?["action"] as? String
-            else { return }
-
-            Task { @MainActor in
-                self.handleHoldActivated(key: key, action: action)
+        holdActivatedObserver = NotificationCenter.default.addObserver(for: KanataHoldActivation.self) { [weak self] activation in
+            Task { @MainActor [weak self] in
+                self?.handleHoldActivated(key: activation.key, action: activation.action)
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] Hold activated observer registered")
@@ -54,18 +45,9 @@ extension KeyboardVisualizationViewModel {
 
     /// Set up observer for Kanata TCP TapActivated events (tap-hold triggers tap action)
     func setupTapActivatedObserver() {
-        tapActivatedObserver = NotificationCenter.default.addObserver(
-            forName: .kanataTapActivated,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let self else { return }
-            guard let key = notification.userInfo?["key"] as? String,
-                  let action = notification.userInfo?["action"] as? String
-            else { return }
-
-            Task { @MainActor in
-                self.handleTapActivated(key: key, action: action)
+        tapActivatedObserver = NotificationCenter.default.addObserver(for: KanataTapActivation.self) { [weak self] activation in
+            Task { @MainActor [weak self] in
+                self?.handleTapActivated(key: activation.key, action: activation.action)
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] Tap activated observer registered")
@@ -111,16 +93,9 @@ extension KeyboardVisualizationViewModel {
 
     /// Set up observer for one-shot modifier activations
     func setupOneShotObserver() {
-        oneShotObserver = NotificationCenter.default.addObserver(
-            forName: .kanataOneShotActivated,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let self else { return }
-            guard let modifiers = notification.userInfo?["modifiers"] as? String else { return }
-
-            Task { @MainActor in
-                self.handleOneShotActivated(modifiers: modifiers)
+        oneShotObserver = NotificationCenter.default.addObserver(for: KanataOneShotActivation.self) { [weak self] activation in
+            Task { @MainActor [weak self] in
+                self?.handleOneShotActivated(modifiers: activation.modifiers)
             }
         }
         AppLogger.shared.debug("⌨️ [KeyboardViz] One-shot observer registered")

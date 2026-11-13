@@ -49,96 +49,28 @@ extension RuleCollectionsManager {
                     }
                 },
                 onHoldActivated: { activation in
-                    // Post notification when tap-hold key transitions to hold state
-                    // Used by KeyboardVisualizationViewModel for showing hold labels
-                    // and HrmObservabilityService for decision tracking
                     await MainActor.run {
-                        var userInfo: [String: Any] = [
-                            "key": activation.key,
-                            "action": activation.action,
-                            "listenerSessionID": activation.sessionID,
-                            "observedAt": activation.observedAt,
-                            "kanataTimestamp": activation.timestamp
-                        ]
-                        if let reason = activation.reason {
-                            userInfo["reason"] = reason
-                        }
-                        NotificationCenter.default.post(
-                            name: .kanataHoldActivated,
-                            object: nil,
-                            userInfo: userInfo
-                        )
+                        NotificationCenter.default.post(activation)
                     }
                 },
                 onTapActivated: { activation in
-                    // Post notification when tap-hold key triggers its tap action
-                    // Used by KeyboardVisualizationViewModel for suppressing output keys
-                    // and HrmObservabilityService for decision tracking
                     await MainActor.run {
-                        var userInfo: [String: Any] = [
-                            "key": activation.key,
-                            "action": activation.action,
-                            "listenerSessionID": activation.sessionID,
-                            "observedAt": activation.observedAt,
-                            "kanataTimestamp": activation.timestamp
-                        ]
-                        if let reason = activation.reason {
-                            userInfo["reason"] = reason
-                        }
-                        NotificationCenter.default.post(
-                            name: .kanataTapActivated,
-                            object: nil,
-                            userInfo: userInfo
-                        )
+                        NotificationCenter.default.post(activation)
                     }
                 },
                 onOneShotActivated: { activation in
-                    // Post notification when one-shot modifier key is activated
                     await MainActor.run {
-                        NotificationCenter.default.post(
-                            name: .kanataOneShotActivated,
-                            object: nil,
-                            userInfo: [
-                                "key": activation.key,
-                                "modifiers": activation.modifiers,
-                                "listenerSessionID": activation.sessionID,
-                                "observedAt": activation.observedAt,
-                                "kanataTimestamp": activation.timestamp
-                            ]
-                        )
+                        NotificationCenter.default.post(activation)
                     }
                 },
                 onChordResolved: { resolution in
-                    // Post notification when chord (multi-key combo) resolves
                     await MainActor.run {
-                        NotificationCenter.default.post(
-                            name: .kanataChordResolved,
-                            object: nil,
-                            userInfo: [
-                                "keys": resolution.keys,
-                                "action": resolution.action,
-                                "listenerSessionID": resolution.sessionID,
-                                "observedAt": resolution.observedAt,
-                                "kanataTimestamp": resolution.timestamp
-                            ]
-                        )
+                        NotificationCenter.default.post(resolution)
                     }
                 },
                 onTapDanceResolved: { resolution in
-                    // Post notification when tap-dance resolves to action
                     await MainActor.run {
-                        NotificationCenter.default.post(
-                            name: .kanataTapDanceResolved,
-                            object: nil,
-                            userInfo: [
-                                "key": resolution.key,
-                                "tapCount": resolution.tapCount,
-                                "action": resolution.action,
-                                "listenerSessionID": resolution.sessionID,
-                                "observedAt": resolution.observedAt,
-                                "kanataTimestamp": resolution.timestamp
-                            ]
-                        )
+                        NotificationCenter.default.post(resolution)
                     }
                 },
                 onHrmTrace: { trace in

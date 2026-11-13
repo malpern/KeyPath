@@ -95,6 +95,34 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         coordinator.stop()
     }
 
+    func testTypedHoldAndTapUseListenerSessionAndStopWithCoordinator() {
+        let center = NotificationCenter()
+        let coordinator = FirstSuccessKeyboardInputCoordinator(notificationCenter: center)
+        coordinator.start()
+
+        let observedAt = Date()
+        let hold = KanataHoldActivation(
+            key: "caps", action: "lctl+lmet+lalt+lsft", timestamp: 10,
+            sessionID: 2, observedAt: observedAt, reason: nil
+        )
+        let tap = KanataTapActivation(
+            key: "caps", action: "esc", timestamp: 20,
+            sessionID: 3, observedAt: observedAt, reason: nil
+        )
+
+        center.post(hold)
+        XCTAssertEqual(coordinator.interaction.heldKeyCodes, [57])
+        center.post(tap)
+        XCTAssertTrue(coordinator.interaction.heldKeyCodes.isEmpty)
+        XCTAssertEqual(coordinator.capsTapRevision, 1)
+
+        coordinator.stop()
+        center.post(hold)
+        center.post(tap)
+        XCTAssertTrue(coordinator.interaction.pressedKeyCodes.isEmpty)
+        XCTAssertEqual(coordinator.capsTapRevision, 1)
+    }
+
     func testMissingHeartbeatClearsStrandedPressedStateAfterTimeout() async {
         let center = NotificationCenter()
         let coordinator = FirstSuccessKeyboardInputCoordinator(

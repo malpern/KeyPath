@@ -22,6 +22,11 @@ final class KeystrokeHistoryService {
     @ObservationIgnored private var batchTimer: Timer?
     @ObservationIgnored private let observers = NotificationObserverManager()
     @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var holdActivatedObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var tapActivatedObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var oneShotActivatedObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var chordResolvedObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var tapDanceResolvedObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private let workspaceObservers = NotificationObserverManager()
     @ObservationIgnored private var currentAppBundleId: String?
     @ObservationIgnored private var currentAppName: String?
@@ -85,22 +90,13 @@ final class KeystrokeHistoryService {
             }
         }
 
-        observers.observe(.kanataHoldActivated, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let key = userInfo?["key"] as? String,
-                  let action = userInfo?["action"] as? String
-            else { return }
-            let reason = userInfo?["reason"] as? String
-            let timestamp = (userInfo?["kanataTimestamp"] as? UInt64) ?? 0
+        holdActivatedObserver = notificationCenter.addObserver(for: KanataHoldActivation.self) { [weak self] activation in
             let event = KeystrokeTimelineEvent(
                 id: UUID(),
                 timestamp: Date(),
                 kind: .holdActivated(TapHoldPayload(
-                    key: key,
-                    outputAction: action,
-                    reason: reason,
-                    kanataTimestamp: timestamp
+                    key: activation.key, outputAction: activation.action,
+                    reason: activation.reason, kanataTimestamp: activation.timestamp
                 ))
             )
             Task { @MainActor [weak self] in
@@ -108,22 +104,13 @@ final class KeystrokeHistoryService {
             }
         }
 
-        observers.observe(.kanataTapActivated, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let key = userInfo?["key"] as? String,
-                  let action = userInfo?["action"] as? String
-            else { return }
-            let reason = userInfo?["reason"] as? String
-            let timestamp = (userInfo?["kanataTimestamp"] as? UInt64) ?? 0
+        tapActivatedObserver = notificationCenter.addObserver(for: KanataTapActivation.self) { [weak self] activation in
             let event = KeystrokeTimelineEvent(
                 id: UUID(),
                 timestamp: Date(),
                 kind: .tapActivated(TapHoldPayload(
-                    key: key,
-                    outputAction: action,
-                    reason: reason,
-                    kanataTimestamp: timestamp
+                    key: activation.key, outputAction: activation.action,
+                    reason: activation.reason, kanataTimestamp: activation.timestamp
                 ))
             )
             Task { @MainActor [weak self] in
@@ -170,32 +157,22 @@ final class KeystrokeHistoryService {
             }
         }
 
-        observers.observe(.kanataOneShotActivated, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let key = userInfo?["key"] as? String,
-                  let modifiers = userInfo?["modifiers"] as? String
-            else { return }
+        oneShotActivatedObserver = notificationCenter.addObserver(for: KanataOneShotActivation.self) { [weak self] activation in
             let event = KeystrokeTimelineEvent(
                 id: UUID(),
                 timestamp: Date(),
-                kind: .oneShotActivated(OneShotPayload(key: key, modifiers: modifiers))
+                kind: .oneShotActivated(OneShotPayload(key: activation.key, modifiers: activation.modifiers))
             )
             Task { @MainActor [weak self] in
                 self?.ingest(event)
             }
         }
 
-        observers.observe(.kanataChordResolved, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let keys = userInfo?["keys"] as? String,
-                  let action = userInfo?["action"] as? String
-            else { return }
+        chordResolvedObserver = notificationCenter.addObserver(for: KanataChordResolution.self) { [weak self] resolution in
             let event = KeystrokeTimelineEvent(
                 id: UUID(),
                 timestamp: Date(),
-                kind: .chordResolved(ChordPayload(keys: keys, action: action))
+                kind: .chordResolved(ChordPayload(keys: resolution.keys, action: resolution.action))
             )
             Task { @MainActor [weak self] in
                 self?.ingest(event)
@@ -218,17 +195,11 @@ final class KeystrokeHistoryService {
             }
         }
 
-        observers.observe(.kanataTapDanceResolved, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let key = userInfo?["key"] as? String,
-                  let tapCount = userInfo?["tapCount"] as? UInt8,
-                  let action = userInfo?["action"] as? String
-            else { return }
+        tapDanceResolvedObserver = notificationCenter.addObserver(for: KanataTapDanceResolution.self) { [weak self] resolution in
             let event = KeystrokeTimelineEvent(
                 id: UUID(),
                 timestamp: Date(),
-                kind: .tapDanceResolved(TapDancePayload(key: key, tapCount: tapCount, action: action))
+                kind: .tapDanceResolved(TapDancePayload(key: resolution.key, tapCount: resolution.tapCount, action: resolution.action))
             )
             Task { @MainActor [weak self] in
                 self?.ingest(event)
