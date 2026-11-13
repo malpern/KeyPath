@@ -79,9 +79,7 @@ extension KeyboardVisualizationViewModel {
         isShowingLayerPreview = false
 
         // Remove notification observers
-        for observer in [tcpHeartbeatObserver, messagePushObserver, ruleCollectionsObserver] {
-            if let observer { NotificationCenter.default.removeObserver(observer) }
-        }
+        if let ruleCollectionsObserver { NotificationCenter.default.removeObserver(ruleCollectionsObserver) }
         keyInputObserver = nil
         tcpHeartbeatObserver = nil
         holdActivatedObserver = nil

@@ -26,6 +26,7 @@ final class LiveKeyboardOverlayController: NSObject, NSWindowDelegate {
     var resizeStartMouse: NSPoint = .zero
     var resizeStartFrame: NSRect = .zero
     var inspectorDebugLastLog: CFTimeInterval = 0
+    var layerObserver: NotificationCenter.ObservationToken?
     var keyInputObserver: NotificationCenter.ObservationToken?
     var healthObserver: OverlayHealthIndicatorObserver?
     weak var hostingView: NSHostingView<LiveKeyboardOverlayView>?

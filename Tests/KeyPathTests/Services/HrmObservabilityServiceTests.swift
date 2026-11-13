@@ -33,11 +33,7 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["reload", "hrm-stats", "hrm-trace"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["reload", "hrm-stats", "hrm-trace"]))
         await Task.yield()
         await Task.yield()
 
@@ -50,11 +46,7 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["reload", "hrm-trace"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["reload", "hrm-trace"]))
         await Task.yield()
         await Task.yield()
 
@@ -68,16 +60,7 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
 
-        center.post(
-            name: .kanataHrmTrace,
-            object: nil,
-            userInfo: [
-                "schemaVersion": 1,
-                "key": "f",
-                "decision": "hold",
-                "reason": "opposite-hand"
-            ]
-        )
+        center.post(KanataHrmTraceEvent(key: "f", decision: .hold, reason: .oppositeHand))
         await Task.yield()
         await Task.yield()
 
@@ -92,16 +75,7 @@ final class HrmObservabilityServiceTests: XCTestCase {
         service._testSetAvailability(.traceOnly)
         service._testSetAdvertisedCapabilities(["hrm-trace", "hrm-stats"])
 
-        center.post(
-            name: .kanataHrmTrace,
-            object: nil,
-            userInfo: [
-                "schemaVersion": 1,
-                "key": "f",
-                "decision": "hold",
-                "reason": "opposite-hand"
-            ]
-        )
+        center.post(KanataHrmTraceEvent(key: "f", decision: .hold, reason: .oppositeHand))
         await Task.yield()
         await Task.yield()
 
@@ -114,20 +88,12 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["hrm-trace"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["hrm-trace"]))
         await Task.yield()
         await Task.yield()
         XCTAssertEqual(service.availability, .traceOnly)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["hrm-trace", "hrm-stats"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["hrm-trace", "hrm-stats"]))
         await Task.yield()
         await Task.yield()
 
@@ -140,20 +106,12 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["hrm-trace", "hrm-stats"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["hrm-trace", "hrm-stats"]))
         await Task.yield()
         await Task.yield()
         XCTAssertEqual(service.availability, .supported)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["hrm-trace"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["hrm-trace"]))
         await Task.yield()
         await Task.yield()
 
@@ -166,20 +124,12 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["hrm-trace", "hrm-stats"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["hrm-trace", "hrm-stats"]))
         await Task.yield()
         await Task.yield()
         service._testSetAvailability(.disabledInRuntimeConfig)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["hrm-trace"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["hrm-trace"]))
         await Task.yield()
         await Task.yield()
 
@@ -193,11 +143,7 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
         service._testSetAvailability(.disabledInRuntimeConfig)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["reload"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["reload"]))
         await Task.yield()
         await Task.yield()
 
@@ -210,21 +156,13 @@ final class HrmObservabilityServiceTests: XCTestCase {
         let center = NotificationCenter()
         let service = HrmObservabilityService.makeTestInstance(notificationCenter: center)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["hrm-trace", "hrm-stats"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["hrm-trace", "hrm-stats"]))
         await Task.yield()
         await Task.yield()
         XCTAssertEqual(service.availability, .supported)
         XCTAssertTrue(service.supportsHrmStats)
 
-        center.post(
-            name: .kanataCapabilitiesUpdated,
-            object: nil,
-            userInfo: ["capabilities": ["reload"]]
-        )
+        center.post(KanataCapabilitiesUpdate(capabilities: ["reload"]))
         await Task.yield()
         await Task.yield()
 

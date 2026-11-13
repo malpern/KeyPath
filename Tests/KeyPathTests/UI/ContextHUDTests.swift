@@ -657,15 +657,15 @@ final class ContextHUDControllerTests: XCTestCase {
     func testPushSourceActivatesOneShot() {
         PreferencesService.shared.contextHUDDisplayMode = .both
 
-        controller.handleLayerChange("nav", source: "push")
+        controller.handleLayerChange("nav", source: .push)
         XCTAssertEqual(controller.currentPreviousLayer, "nav")
     }
 
     func testPushBaseClearsOneShot() {
         PreferencesService.shared.contextHUDDisplayMode = .both
 
-        controller.handleLayerChange("nav", source: "push")
-        controller.handleLayerChange("base", source: "push")
+        controller.handleLayerChange("nav", source: .push)
+        controller.handleLayerChange("base", source: .push)
         XCTAssertEqual(controller.currentPreviousLayer, "base")
     }
 
@@ -674,10 +674,10 @@ final class ContextHUDControllerTests: XCTestCase {
         PreferencesService.shared.contextHUDTriggerMode = .tapToToggle
 
         // Activate one-shot for "nav"
-        controller.handleLayerChange("nav", source: "push")
+        controller.handleLayerChange("nav", source: .push)
 
         // Kanata reports "base" while one-shot is active - should be honored
-        controller.handleLayerChange("base", source: "kanata")
+        controller.handleLayerChange("base", source: .kanata)
         XCTAssertEqual(controller.currentPreviousLayer, "base", "Kanata base should always clear one-shot override")
     }
 

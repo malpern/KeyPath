@@ -74,18 +74,14 @@ final class ServiceHealthMonitor {
 
     /// Track EventListener heartbeat to avoid redundant TCP connections
     private var lastHeartbeatTime: Date?
-    private var heartbeatObserver: NSObjectProtocol?
+    private var heartbeatObserver: NotificationCenter.ObservationToken?
     private let heartbeatFreshnessThreshold: TimeInterval = 5.0
 
     // MARK: - Initialization
 
     init() {
-        heartbeatObserver = NotificationCenter.default.addObserver(
-            forName: .kanataTcpHeartbeat, object: nil, queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.lastHeartbeatTime = Date()
-            }
+        heartbeatObserver = NotificationCenter.default.addObserver(for: KanataHeartbeat.self) { [weak self] _ in
+            self?.lastHeartbeatTime = Date()
         }
         AppLogger.shared.info("[HealthMonitor] Initialized")
     }

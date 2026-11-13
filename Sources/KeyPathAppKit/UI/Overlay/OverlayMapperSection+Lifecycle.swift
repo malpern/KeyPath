@@ -64,12 +64,8 @@ extension OverlayMapperSection {
             updateConfiguredBehaviorSlots()
         }
 
-        let withLayerChange = withInputChange.onReceive(
-            NotificationCenter.default.publisher(for: .kanataLayerChanged)
-        ) { notification in
-            if let layerName = notification.userInfo?["layerName"] as? String {
-                viewModel.setLayer(layerName)
-            }
+        let withLayerChange = withInputChange.onKanataLayerChange { change in
+            viewModel.setLayer(change.layerName)
         }
 
         let withDrawerSelection = withLayerChange.onReceive(

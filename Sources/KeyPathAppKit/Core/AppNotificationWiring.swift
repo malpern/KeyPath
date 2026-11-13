@@ -165,12 +165,7 @@ enum AppNotificationWiring {
                 // Update the keyboard overlay
                 LiveKeyboardOverlayController.shared.updateLayerName(layerName)
 
-                // Post notification for other listeners (e.g., RuleCollectionsManager)
-                NotificationCenter.default.post(
-                    name: .kanataLayerChanged,
-                    object: nil,
-                    userInfo: ["layerName": layerName, "source": "push"]
-                )
+                NotificationCenter.default.post(KanataLayerChange(layerName: layerName, source: .push))
 
                 AppLogger.shared.log("🔄 [App] Layer action dispatched: '\(layerName)'")
             }

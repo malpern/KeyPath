@@ -58,28 +58,6 @@ import Observation
 @MainActor
 @Observable
 public class RuntimeCoordinator: SaveCoordinatorDelegate {
-    final class NotificationTokenStore: @unchecked Sendable {
-        private var tokens: [NSObjectProtocol] = []
-        private let lock = NSLock()
-
-        func append(_ token: NSObjectProtocol) {
-            lock.lock()
-            defer { lock.unlock() }
-            tokens.append(token)
-        }
-
-        func removeAll() {
-            lock.lock()
-            let tokens = tokens
-            self.tokens.removeAll()
-            lock.unlock()
-
-            for token in tokens {
-                NotificationCenter.default.removeObserver(token)
-            }
-        }
-    }
-
     // MARK: - Internal State Properties
 
     // Note: These are internal (not private) to allow extensions to access them
@@ -188,7 +166,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
     let configReloadCoordinator: ConfigReloadCoordinator
 
     var isInitializing = false
-    let notificationObserverTokens = NotificationTokenStore()
+    @ObservationIgnored private var grabStatusObserver: NotificationCenter.ObservationToken?
     let isHeadlessMode: Bool
 
     // MARK: - Process Synchronization (Phase 1)
@@ -382,12 +360,7 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         }
         ruleCollectionsManager.onLayerChanged = { [weak self] layerName in
             self?.currentLayerName = layerName
-            // Notify overlay about layer change
-            NotificationCenter.default.post(
-                name: .kanataLayerChanged,
-                object: nil,
-                userInfo: ["layerName": layerName, "source": "kanata"]
-            )
+            NotificationCenter.default.post(KanataLayerChange(layerName: layerName, source: .kanata))
         }
         ruleCollectionsManager.onError = { [weak self] error in
             AppLogger.shared.debug("🚨 [RuntimeCoordinator] onError callback received: \(error)")
@@ -467,25 +440,14 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         if !isOneShotProbeMode {
             // Authoritative kanata grab status (#625): a grab failure means kanata
             // is up but not remapping. Drive bounded auto-recovery off this signal.
-            notificationObserverTokens.append(NotificationCenter.default.addObserver(
-                forName: .kanataGrabStatusChanged,
-                object: nil,
-                queue: NotificationObserverManager.mainOperationQueue
-            ) { @Sendable [weak self] note in
-                guard let self else { return }
-                let active = note.userInfo?["active"] as? Bool ?? true
-                let reason = note.userInfo?["reason"] as? String
-                Task { @MainActor in
-                    await self.handleGrabStatusChanged(active: active, reason: reason)
+            grabStatusObserver = NotificationCenter.default.addObserver(for: KanataGrabStatus.self) { [weak self] status in
+                Task { @MainActor [weak self] in
+                    await self?.handleGrabStatusChanged(active: status.active, reason: status.reason)
                 }
-            })
+            }
         }
 
         AppLogger.shared.log("🏗️ [RuntimeCoordinator] init() completed")
-    }
-
-    deinit {
-        notificationObserverTokens.removeAll()
     }
 
     // Note: RuleCollectionsManager handles its own cleanup in deinit

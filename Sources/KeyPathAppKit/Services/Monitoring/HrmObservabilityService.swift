@@ -70,16 +70,6 @@ final class HrmObservabilityService {
         }
     }
 
-    private struct TraceNotificationPayload: Sendable {
-        let schemaVersion: Int
-        let key: String
-        let decision: KanataHrmDecision
-        let reason: KanataHrmDecisionReason
-        let decideLatencyMs: Int?
-        let nextKey: String?
-        let nextKeyHand: KanataHrmKeyHand?
-    }
-
     private(set) var availability: AvailabilityState = .unknown
     private(set) var advertisedCapabilities: Set<String> = []
     private(set) var latestStats: KanataHrmStatsSnapshot?
@@ -100,7 +90,8 @@ final class HrmObservabilityService {
         advertisedCapabilities.contains("hrm-trace")
     }
 
-    @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var capabilitiesObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var traceObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var holdObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var tapObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private let notificationCenter: NotificationCenter
@@ -270,21 +261,15 @@ final class HrmObservabilityService {
     }
 
     private func setupObservers() {
-        observers.observe(.kanataCapabilitiesUpdated, center: notificationCenter) { [weak self] note in
-            guard let self else { return }
-            let raw = note.userInfo?["capabilities"] as? [String] ?? []
+        capabilitiesObserver = notificationCenter.addObserver(for: KanataCapabilitiesUpdate.self) { [weak self] update in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                handleCapabilities(raw)
+                self?.handleCapabilities(update.capabilities)
             }
         }
 
-        observers.observe(.kanataHrmTrace, center: notificationCenter) { [weak self] note in
-            guard let self else { return }
-            guard let payload = Self.makeTraceNotificationPayload(userInfo: note.userInfo) else { return }
+        traceObserver = notificationCenter.addObserver(for: KanataHrmTraceEvent.self) { [weak self] trace in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                ingestTrace(payload)
+                self?.ingestTrace(trace)
             }
         }
 
@@ -368,27 +353,18 @@ final class HrmObservabilityService {
     }
 
     private func ingestActivationEvent(key: String, decision: KanataHrmDecision, reason: KanataHrmDecisionReason) {
-        let payload = TraceNotificationPayload(
-            schemaVersion: 1,
-            key: key,
-            decision: decision,
-            reason: reason,
-            decideLatencyMs: nil,
-            nextKey: nil,
-            nextKeyHand: nil
-        )
-        ingestTrace(payload)
+        ingestTrace(KanataHrmTraceEvent(key: key, decision: decision, reason: reason))
     }
 
-    private func ingestTrace(_ payload: TraceNotificationPayload) {
+    private func ingestTrace(_ trace: KanataHrmTraceEvent) {
         let event = KanataHrmTraceEvent(
-            schemaVersion: payload.schemaVersion,
-            key: payload.key.lowercased(),
-            decision: payload.decision,
-            reason: payload.reason,
-            decideLatencyMs: payload.decideLatencyMs,
-            nextKey: payload.nextKey,
-            nextKeyHand: payload.nextKeyHand,
+            schemaVersion: trace.schemaVersion,
+            key: trace.key.lowercased(),
+            decision: trace.decision,
+            reason: trace.reason,
+            decideLatencyMs: trace.decideLatencyMs,
+            nextKey: trace.nextKey,
+            nextKeyHand: trace.nextKeyHand,
             timestamp: now()
         )
         recentTraceEvents.append(event)
@@ -423,33 +399,6 @@ final class HrmObservabilityService {
                 topReasons = buildTopReasonsFromTraces(recentTraceEvents)
             }
         }
-    }
-
-    private nonisolated static func makeTraceNotificationPayload(userInfo: [AnyHashable: Any]?) -> TraceNotificationPayload? {
-        guard let userInfo else { return nil }
-        guard let schemaVersion = userInfo["schemaVersion"] as? Int,
-              let key = userInfo["key"] as? String,
-              let decisionRaw = userInfo["decision"] as? String,
-              let decision = KanataHrmDecision(rawValue: decisionRaw),
-              let reasonRaw = userInfo["reason"] as? String,
-              let reason = KanataHrmDecisionReason(rawValue: reasonRaw)
-        else {
-            return nil
-        }
-
-        let decideLatencyMs = userInfo["decideLatencyMs"] as? Int
-        let nextKey = userInfo["nextKey"] as? String
-        let nextKeyHand = (userInfo["nextKeyHand"] as? String).flatMap(KanataHrmKeyHand.init(rawValue:))
-
-        return TraceNotificationPayload(
-            schemaVersion: schemaVersion,
-            key: key,
-            decision: decision,
-            reason: reason,
-            decideLatencyMs: decideLatencyMs,
-            nextKey: nextKey,
-            nextKeyHand: nextKeyHand
-        )
     }
 
     private func refreshStats(using existingClient: KanataTCPClient?) async {

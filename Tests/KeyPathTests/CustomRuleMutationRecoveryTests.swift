@@ -448,24 +448,14 @@ final class CustomRuleMutationRecoveryTests: KeyPathTestCase {
     }
 
     func testLocalLayerRefreshDoesNotEmitRuntimeHeartbeat() {
-        let counter = HeartbeatCounter()
-        let token = NotificationCenter.default.addObserver(forName: .kanataTcpHeartbeat, object: nil, queue: nil) { _ in counter.increment() }
+        var heartbeats = 0
+        let token = NotificationCenter.default.addObserver(for: KanataHeartbeat.self) { _ in
+            heartbeats += 1
+        }
         defer { NotificationCenter.default.removeObserver(token) }
         manager.refreshLayerIndicatorState()
-        XCTAssertEqual(counter.value, 0)
+        XCTAssertEqual(heartbeats, 0)
         manager.updateActiveLayerName("base")
-        XCTAssertEqual(counter.value, 1, "Even an unchanged observed layer is real heartbeat evidence")
-    }
-}
-
-private final class HeartbeatCounter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var count = 0
-    func increment() {
-        lock.withLock { count += 1 }
-    }
-
-    var value: Int {
-        lock.withLock { count }
+        XCTAssertEqual(heartbeats, 1, "Even an unchanged observed layer is real heartbeat evidence")
     }
 }

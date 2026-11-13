@@ -174,13 +174,13 @@ class KeyboardVisualizationViewModel {
     /// Key input notification observer
     @ObservationIgnored var keyInputObserver: NotificationCenter.ObservationToken?
     /// TCP heartbeat notification observer (layer polling)
-    @ObservationIgnored var tcpHeartbeatObserver: Any?
+    @ObservationIgnored var tcpHeartbeatObserver: NotificationCenter.ObservationToken?
     /// Hold activated notification observer
     @ObservationIgnored var holdActivatedObserver: NotificationCenter.ObservationToken?
     /// Tap activated notification observer
     @ObservationIgnored var tapActivatedObserver: NotificationCenter.ObservationToken?
     /// Push message notification observer (for icon/emphasis messages)
-    @ObservationIgnored var messagePushObserver: Any?
+    @ObservationIgnored var messagePushObserver: NotificationCenter.ObservationToken?
     /// Rule collections changed notification observer (for feature toggle updates)
     @ObservationIgnored var ruleCollectionsObserver: Any?
     /// One-shot activated notification observer

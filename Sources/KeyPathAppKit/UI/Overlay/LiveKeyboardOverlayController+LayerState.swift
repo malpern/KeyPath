@@ -4,12 +4,6 @@ import KeyPathCore
 extension LiveKeyboardOverlayController {
     // MARK: - Layer State
 
-    enum LayerChangeSource: String {
-        case push
-        case kanata
-        case unknown
-    }
-
     func updateLayerName(_ layerName: String) {
         viewModel.updateLayer(layerName)
     }
@@ -30,17 +24,9 @@ extension LiveKeyboardOverlayController {
     }
 
     func setupLayerChangeObserver() {
-        Foundation.NotificationCenter.default.addObserver(
-            forName: Foundation.Notification.Name.kanataLayerChanged,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] (notification: Foundation.Notification) in
-            guard let layerName = notification.userInfo?["layerName"] as? String else { return }
-            let sourceRaw = notification.userInfo?["source"] as? String
-            Task { @MainActor in
-                guard let self else { return }
-                let source = LayerChangeSource(rawValue: sourceRaw ?? "") ?? .unknown
-                self.handleLayerChange(layerName, source: source)
+        layerObserver = NotificationCenter.default.addObserver(for: KanataLayerChange.self) { [weak self] change in
+            Task { @MainActor [weak self] in
+                self?.handleLayerChange(change.layerName, source: change.source)
             }
         }
 
@@ -93,7 +79,7 @@ extension LiveKeyboardOverlayController {
         }
     }
 
-    func handleLayerChange(_ layerName: String, source: LayerChangeSource) {
+    func handleLayerChange(_ layerName: String, source: KanataLayerChange.Source) {
         let normalized = layerName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         handleLauncherLayerTransition(normalizedLayer: normalized)
@@ -118,8 +104,6 @@ extension LiveKeyboardOverlayController {
                 )
                 return
             }
-            updateLayerName(layerName)
-        case .unknown:
             updateLayerName(layerName)
         }
     }

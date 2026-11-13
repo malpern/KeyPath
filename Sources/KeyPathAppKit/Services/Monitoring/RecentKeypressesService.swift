@@ -65,7 +65,7 @@ final class RecentKeypressesService {
     @ObservationIgnored private var sawReleaseBetweenPresses: Bool = false
     @ObservationIgnored private var lastKeyAction: String?
 
-    @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var layerObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private let notificationCenter: NotificationCenter
     #if DEBUG
@@ -93,14 +93,9 @@ final class RecentKeypressesService {
             }
         }
 
-        // Listen for layer changes
-        observers.observe(.kanataLayerChanged, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            let layerName = userInfo?["layerName"] as? String
+        layerObserver = notificationCenter.addObserver(for: KanataLayerChange.self) { [weak self] change in
             Task { @MainActor [weak self] in
-                guard let self, let layerName else { return }
-                currentLayer = layerName
+                self?.currentLayer = change.layerName
             }
         }
     }

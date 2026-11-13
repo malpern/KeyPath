@@ -10,34 +10,13 @@ enum DistributedNotificationBridge {
 
     private(set) static var currentLayer: String = "base"
     private static var previousLayer: String = "base"
-    private static var observer: NSObjectProtocol?
+    private static var observer: NotificationCenter.ObservationToken?
 
     static func start() {
         guard observer == nil else { return }
 
-        observer = NotificationCenter.default.addObserver(
-            forName: .kanataLayerChanged,
-            object: nil,
-            queue: .main
-        ) { notification in
-            guard let layerName = notification.userInfo?["layerName"] as? String else { return }
-            MainActor.assumeIsolated {
-                guard layerName != previousLayer else { return }
-
-                let previous = previousLayer
-                previousLayer = layerName
-                currentLayer = layerName
-
-                DistributedNotificationCenter.default().postNotificationName(
-                    layerChangedName,
-                    object: "com.keypath.app",
-                    userInfo: [
-                        "layer": layerName,
-                        "previous": previous,
-                    ],
-                    deliverImmediately: true
-                )
-            }
+        observer = NotificationCenter.default.addObserver(for: KanataLayerChange.self) { change in
+            postLayerChanged(change.layerName)
         }
     }
 
@@ -69,9 +48,6 @@ enum DistributedNotificationBridge {
     }
 
     static func stop() {
-        if let observer {
-            NotificationCenter.default.removeObserver(observer)
-        }
         observer = nil
     }
 }

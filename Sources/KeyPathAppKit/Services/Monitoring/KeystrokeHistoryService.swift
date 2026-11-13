@@ -21,6 +21,9 @@ final class KeystrokeHistoryService {
     @ObservationIgnored private var pendingEvents: [KeystrokeTimelineEvent] = []
     @ObservationIgnored private var batchTimer: Timer?
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var layerObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var hrmTraceObserver: NotificationCenter.ObservationToken?
+    @ObservationIgnored private var actionObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var holdActivatedObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var tapActivatedObserver: NotificationCenter.ObservationToken?
@@ -73,13 +76,11 @@ final class KeystrokeHistoryService {
             }
         }
 
-        observers.observe(.kanataLayerChanged, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            guard let layerName = notification.userInfo?["layerName"] as? String else { return }
+        layerObserver = notificationCenter.addObserver(for: KanataLayerChange.self) { [weak self] change in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let normalized = layerName.lowercased()
-                if normalized == currentLayer.lowercased() { return }
+                let layerName = change.layerName
+                guard layerName.lowercased() != currentLayer.lowercased() else { return }
                 currentLayer = layerName
                 let event = KeystrokeTimelineEvent(
                     id: UUID(),
@@ -118,37 +119,24 @@ final class KeystrokeHistoryService {
             }
         }
 
-        observers.observe(.kanataHrmTrace, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let key = userInfo?["key"] as? String,
-                  let decisionStr = userInfo?["decision"] as? String,
-                  let decision = KanataHrmDecision(rawValue: decisionStr),
-                  let reasonStr = userInfo?["reason"] as? String,
-                  let reason = KanataHrmDecisionReason(rawValue: reasonStr)
-            else { return }
-            let latencyMs = userInfo?["decideLatencyMs"] as? Int
-            let nextKey = userInfo?["nextKey"] as? String
-            let nextKeyHandStr = userInfo?["nextKeyHand"] as? String
-            let nextKeyHand = nextKeyHandStr.flatMap { KanataHrmKeyHand(rawValue: $0) }
-
+        hrmTraceObserver = notificationCenter.addObserver(for: KanataHrmTraceEvent.self) { [weak self] trace in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let threshold = lookupThreshold(for: key)
+                let threshold = lookupThreshold(for: trace.key)
                 let isNear = Self.computeNearThreshold(
-                    latencyMs: latencyMs,
+                    latencyMs: trace.decideLatencyMs,
                     thresholdMs: threshold
                 )
                 let event = KeystrokeTimelineEvent(
                     id: UUID(),
                     timestamp: Date(),
                     kind: .hrmDecision(HrmDecisionPayload(
-                        key: key,
-                        decision: decision,
-                        reason: reason,
-                        decideLatencyMs: latencyMs,
-                        nextKey: nextKey,
-                        nextKeyHand: nextKeyHand,
+                        key: trace.key,
+                        decision: trace.decision,
+                        reason: trace.reason,
+                        decideLatencyMs: trace.decideLatencyMs,
+                        nextKey: trace.nextKey,
+                        nextKeyHand: trace.nextKeyHand,
                         configuredThresholdMs: threshold,
                         isNearThreshold: isNear
                     ))
@@ -206,20 +194,14 @@ final class KeystrokeHistoryService {
             }
         }
 
-        observers.observe(.kanataActionDispatched, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let action = userInfo?["action"] as? String,
-                  let uri = userInfo?["uri"] as? String
-            else { return }
-            let target = userInfo?["target"] as? String
+        actionObserver = notificationCenter.addObserver(for: KanataActionDispatched.self) { [weak self] action in
             let event = KeystrokeTimelineEvent(
                 id: UUID(),
                 timestamp: Date(),
                 kind: .actionDispatched(ActionDispatchedPayload(
-                    action: action,
-                    target: target,
-                    uri: uri
+                    action: action.uri.action,
+                    target: action.uri.target ?? "",
+                    uri: action.uri.url.absoluteString
                 ))
             )
             Task { @MainActor [weak self] in

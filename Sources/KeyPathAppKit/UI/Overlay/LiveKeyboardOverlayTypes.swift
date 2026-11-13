@@ -273,23 +273,8 @@ final class OneShotLayerOverrideState {
 extension Notification.Name {
     /// Posted when accessibility test mode preference changes (overlay must recreate its window)
     static let accessibilityTestModeChanged = Notification.Name("KeyPath.AccessibilityTestModeChanged")
-    /// Posted when the Kanata layer changes (userInfo["layerName"] = String)
-    static let kanataLayerChanged = Notification.Name("KeyPath.KanataLayerChanged")
     /// Posted when the Kanata config changes (rules saved, etc.)
     static let kanataConfigChanged = Notification.Name("KeyPath.KanataConfigChanged")
-    /// Posted when a TCP message is received from Kanata (heartbeat for connection state)
-    static let kanataTcpHeartbeat = Notification.Name("KeyPath.KanataTcpHeartbeat")
-    /// Posted when a generic push-msg is received (userInfo["message"] = String) - e.g., "icon:arrow-left", "emphasis:h,j,k,l"
-    static let kanataMessagePush = Notification.Name("KeyPath.KanataMessagePush")
-    /// Posted when HRM per-decision trace events are received.
-    static let kanataHrmTrace = Notification.Name("KeyPath.KanataHrmTrace")
     /// Posted when latest HRM aggregate stats have been refreshed.
     static let kanataHrmStatsUpdated = Notification.Name("KeyPath.KanataHrmStatsUpdated")
-    /// Posted when a keypath:// action URI is dispatched (userInfo["action"], ["target"], ["uri"])
-    static let kanataActionDispatched = Notification.Name("KeyPath.KanataActionDispatched")
-    /// Posted when HelloOk capability list changes.
-    static let kanataCapabilitiesUpdated = Notification.Name("KeyPath.KanataCapabilitiesUpdated")
-    /// Posted when an authoritative kanata `InputGrab` status is received (#625).
-    /// userInfo["active"]: Bool, userInfo["reason"]: String? (present on failure).
-    static let kanataGrabStatusChanged = Notification.Name("KeyPath.KanataGrabStatusChanged")
 }
