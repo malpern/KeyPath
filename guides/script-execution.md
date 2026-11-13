@@ -52,7 +52,7 @@ Now trigger it from KeyPath using an action URI in your Kanata config:
 
 The first time a script runs, KeyPath asks before running it and shows the script's path. Choose **Run Once**, or **Always Allow** to stop asking for that script. If you edit the script later, KeyPath asks again.
 
-A `keypath://script/…` link opened from another app, Terminal included, does not run the script. Links can come from web pages and documents, so scripts start only from your own key bindings or from the Send KeyPath Action shortcut.
+A `keypath://script/…` link opened from another app, Terminal included, does not start the script. Links can come from web pages and documents, so scripts start from your own key bindings or from the Send KeyPath Action shortcut. A link that presses a virtual key runs whatever that key does, which can be a script, so KeyPath asks before a link presses a virtual key.
 
 ---
 
@@ -199,7 +199,7 @@ The first time each script runs, KeyPath asks:
 
 **Always Allow** remembers that one script, with its current contents, in your Keychain. If the script changes, KeyPath asks again. To make every script ask again, use **Settings > Script Execution > Forget Approved Scripts**.
 
-Scripts never start from a `keypath://` link opened by another app.
+A `keypath://script/…` link opened by another app does not start a script.
 
 ### 3. Execution log
 

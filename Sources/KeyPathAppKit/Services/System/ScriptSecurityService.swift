@@ -10,7 +10,8 @@ import Observation
 @MainActor
 public protocol ScriptApprovalStore: AnyObject {
     func isApproved(path: String, digest: String) -> Bool
-    func approve(path: String, digest: String)
+    /// Returns false when the approval could not be saved.
+    func approve(path: String, digest: String) -> Bool
     func removeAll()
     var count: Int { get }
 }
@@ -26,8 +27,9 @@ public final class InMemoryScriptApprovalStore: ScriptApprovalStore {
         approvals.contains(ScriptApproval.key(path: path, digest: digest))
     }
 
-    public func approve(path: String, digest: String) {
+    public func approve(path: String, digest: String) -> Bool {
         approvals.insert(ScriptApproval.key(path: path, digest: digest))
+        return true
     }
 
     public func removeAll() {
@@ -39,83 +41,33 @@ public final class InMemoryScriptApprovalStore: ScriptApprovalStore {
     }
 }
 
-/// Keeps approvals in the login Keychain, in an item only KeyPath can read
-/// without asking the user. Unlike UserDefaults, another process cannot add
-/// an approval silently.
+/// Keeps approvals in the login Keychain, where another process cannot add one silently.
 @MainActor
 public final class KeychainScriptApprovalStore: ScriptApprovalStore {
-    private let service = "com.keypath.app"
-    private let account = "script-approvals"
-    private var cache: Set<String>?
+    private let items: KeychainStringSet
 
-    public init() {}
-
-    public func isApproved(path: String, digest: String) -> Bool {
-        load().contains(ScriptApproval.key(path: path, digest: digest))
+    public init() {
+        items = KeychainStringSet(account: "script-approvals")
     }
 
-    public func approve(path: String, digest: String) {
-        var approvals = load()
-        approvals.insert(ScriptApproval.key(path: path, digest: digest))
-        save(approvals)
+    init(items: KeychainStringSet) {
+        self.items = items
+    }
+
+    public func isApproved(path: String, digest: String) -> Bool {
+        items.members.contains(ScriptApproval.key(path: path, digest: digest))
+    }
+
+    public func approve(path: String, digest: String) -> Bool {
+        items.insert(ScriptApproval.key(path: path, digest: digest))
     }
 
     public func removeAll() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        SecItemDelete(query as CFDictionary)
-        cache = []
+        items.removeAll()
     }
 
     public var count: Int {
-        load().count
-    }
-
-    private func load() -> Set<String> {
-        if let cache { return cache }
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        var approvals: Set<String> = []
-        if status == errSecSuccess, let data = result as? Data,
-           let list = try? JSONDecoder().decode([String].self, from: data)
-        {
-            approvals = Set(list)
-        } else if status != errSecItemNotFound {
-            AppLogger.shared.log("⚠️ [ScriptSecurity] Could not read script approvals (status \(status))")
-        }
-        cache = approvals
-        return approvals
-    }
-
-    private func save(_ approvals: Set<String>) {
-        cache = approvals
-        guard let data = try? JSONEncoder().encode(approvals.sorted()) else { return }
-        let match: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        let update: [String: Any] = [kSecValueData as String: data]
-        var status = SecItemUpdate(match as CFDictionary, update as CFDictionary)
-        if status == errSecItemNotFound {
-            var add = match
-            add[kSecValueData as String] = data
-            add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            status = SecItemAdd(add as CFDictionary, nil)
-        }
-        if status != errSecSuccess {
-            AppLogger.shared.log("⚠️ [ScriptSecurity] Could not save script approvals (status \(status))")
-        }
+        items.members.count
     }
 }
 
@@ -166,8 +118,9 @@ public final class ScriptSecurityService {
         }
     }
 
-    /// Number of scripts the user has chosen to always allow.
-    public private(set) var approvedScriptCount: Int
+    /// Number of scripts the user has chosen to always allow. Read from the
+    /// Keychain only when Settings asks (`refreshApprovedScriptCount`), never at launch.
+    public private(set) var approvedScriptCount = 0
 
     // MARK: - Initialization
 
@@ -177,7 +130,11 @@ public final class ScriptSecurityService {
         self.approvals = approvals ?? InMemoryScriptApprovalStore()
         isScriptExecutionEnabled = self.defaults.bool(forKey: Keys.scriptExecutionEnabled)
         self.defaults.removeObject(forKey: Keys.retiredBypassFirstRunDialog)
-        approvedScriptCount = self.approvals.count
+    }
+
+    /// Re-reads how many scripts are always allowed, for Settings.
+    public func refreshApprovedScriptCount() {
+        approvedScriptCount = approvals.count
     }
 
     // MARK: - Security Checks
@@ -221,10 +178,13 @@ public final class ScriptSecurityService {
     }
 
     /// Remember that the user always allows this script with these contents.
-    public func alwaysAllow(path: String, digest: String) {
-        approvals.approve(path: path, digest: digest)
+    /// Returns false when the choice could not be saved; the script then asks again next time.
+    @discardableResult
+    public func alwaysAllow(path: String, digest: String) -> Bool {
+        let saved = approvals.approve(path: path, digest: digest)
         approvedScriptCount = approvals.count
-        AppLogger.shared.log("🔐 [ScriptSecurity] Always allowed: \(path)")
+        AppLogger.shared.log("🔐 [ScriptSecurity] Always allow \(saved ? "saved" : "NOT saved"): \(path)")
+        return saved
     }
 
     /// Forget every "Always Allow" choice, so each script asks again.

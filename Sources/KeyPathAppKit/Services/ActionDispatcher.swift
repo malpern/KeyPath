@@ -34,12 +34,12 @@ public enum ActionOrigin: Sendable {
     case externalURL
 }
 
-/// Asks the user whether a link from another app may run an action.
+/// Asks the user whether a link from another app may press a virtual key.
 public struct ExternalActionConfirmation {
-    /// What the action will do, in the user's words.
-    public let summary: String
+    /// The virtual key's name.
+    public let virtualKey: String
     public let allow: () -> Void
-    /// Allow this kind of action from other apps from now on.
+    /// Let links from other apps press virtual keys without asking from now on.
     public let alwaysAllow: () -> Void
     public let deny: () -> Void
 }
@@ -122,29 +122,33 @@ public final class ActionDispatcher {
     private(set) var scriptTask: Task<Void, Never>?
     private let scriptSecurityService: ScriptSecurityService
     private let scriptExecutor: (@MainActor (String) async throws -> Void)?
-    private let defaults: UserDefaults
+    private let linkGrants: LinkGrantStore
 
     // MARK: - Initialization
 
     init(
         scriptSecurityService: ScriptSecurityService = .shared,
         scriptExecutor: (@MainActor (String) async throws -> Void)? = nil,
-        defaults: UserDefaults = .standard
+        linkGrants: LinkGrantStore = KeychainLinkGrantStore.shared
     ) {
         self.scriptSecurityService = scriptSecurityService
         self.scriptExecutor = scriptExecutor
-        self.defaults = defaults
+        self.linkGrants = linkGrants
     }
 
     // MARK: - Dispatch
 
-    /// Dispatch a KeyPath action URI
+    /// Dispatch a KeyPath action URI.
+    ///
+    /// Returns `.success` once the action is accepted. When KeyPath must ask the
+    /// user first (an unapproved script, a virtual key from another app), the
+    /// prompt appears after this returns, and the action runs only if allowed.
     @discardableResult
     public func dispatch(_ uri: KeyPathActionURI, origin: ActionOrigin = .app) -> ActionDispatchResult {
         AppLogger.shared.log("🎬 [ActionDispatcher] Dispatching \(uri.action) from \(origin)")
 
         if origin == .externalURL {
-            switch ExternalActionPolicy.decision(for: uri, defaults: defaults) {
+            switch ExternalActionPolicy.decision(for: uri, allowsVirtualKeys: linkGrants.allowsVirtualKeys) {
             case .allow:
                 break
             case let .refuse(message):
@@ -153,21 +157,23 @@ public final class ActionDispatcher {
                 return .failed(uri.action, NSError(domain: "ActionDispatcher", code: 12, userInfo: [
                     NSLocalizedDescriptionKey: message
                 ]))
-            case let .confirm(summary, alwaysAllowKey):
+            case let .confirmVirtualKey(name):
                 guard let ask = onExternalActionConfirmationNeeded else {
-                    let message = String(localized: "Another app asked KeyPath to \(summary), but KeyPath could not ask you first.")
+                    let message = String(localized: "Another app asked KeyPath to press the virtual key “\(name)”, but KeyPath could not ask you first.")
                     onError?(message)
                     return .failed(uri.action, NSError(domain: "ActionDispatcher", code: 13, userInfo: [
                         NSLocalizedDescriptionKey: message
                     ]))
                 }
-                let defaults = defaults
                 ask(ExternalActionConfirmation(
-                    summary: summary,
+                    virtualKey: name,
                     allow: { [weak self] in _ = self?.route(uri) },
                     alwaysAllow: { [weak self] in
-                        defaults.set(true, forKey: alwaysAllowKey)
-                        _ = self?.route(uri)
+                        guard let self else { return }
+                        if !linkGrants.setAllowsVirtualKeys(true) {
+                            onError?(String(localized: "KeyPath couldn't save “Always Allow”. It will ask again next time."))
+                        }
+                        _ = route(uri)
                     },
                     deny: { AppLogger.shared.log("🛡️ [ActionDispatcher] User denied \(uri.action) from another app") }
                 ))
@@ -858,7 +864,9 @@ public final class ActionDispatcher {
                             onError?(String(localized: "The script changed while KeyPath was asking. Run it again to review it."))
                             return
                         }
-                        scriptSecurityService.alwaysAllow(path: path, digest: digest)
+                        if !scriptSecurityService.alwaysAllow(path: path, digest: digest) {
+                            onError?(String(localized: "KeyPath couldn't save “Always Allow” for this script. It will ask again next time."))
+                        }
                         executeScript(at: path, expectedDigest: digest)
                     },
                     cancel: {

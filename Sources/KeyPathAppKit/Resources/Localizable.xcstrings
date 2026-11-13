@@ -3580,12 +3580,12 @@
         }
       }
     },
-    "A keypath:// link from another app asked for this. Links can come from web pages and documents, so allow it only if you started it, for example from Raycast or Hammerspoon. \"Always Allow\" lets links from other apps press virtual keys without asking." : {
+    "A keypath:// link from another app asked for this. A virtual key does whatever your config binds to it, which can include running a script. Links can come from web pages and documents, so allow this only if you started it, for example from Raycast or Hammerspoon. \"Always Allow\" lets links from other apps press virtual keys without asking; you can turn that off in Settings." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "別のアプリからのkeypath://リンクがこの操作を要求しました。リンクはWebページや書類から開かれることもあるため、RaycastやHammerspoonなど自分で実行した場合にのみ許可してください。「常に許可」を選ぶと、他のアプリからのリンクが確認なしで仮想キーを押せるようになります。"
+            "value" : "別のアプリからのkeypath://リンクがこの操作を要求しました。仮想キーは設定で割り当てた操作を実行し、スクリプトの実行も含まれることがあります。リンクはWebページや書類から開かれることもあるため、RaycastやHammerspoonなど自分で実行した場合にのみ許可してください。「常に許可」を選ぶと、他のアプリからのリンクが確認なしで仮想キーを押せるようになります。これは設定でオフにできます。"
           }
         }
       }
@@ -5066,12 +5066,12 @@
         }
       }
     },
-    "Allow another app to %@?" : {
+    "Allow another app to press the virtual key “%@”?" : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "別のアプリに次の操作を許可しますか: %@"
+            "value" : "別のアプリに仮想キー「%@」を押すことを許可しますか？"
           }
         }
       }
@@ -5206,12 +5206,12 @@
         }
       }
     },
-    "Another app asked KeyPath to %@, but KeyPath could not ask you first." : {
+    "Another app asked KeyPath to press the virtual key “%@”, but KeyPath could not ask you first." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "別のアプリがKeyPathに次の操作を要求しましたが、確認できませんでした: %@"
+            "value" : "別のアプリがKeyPathに仮想キー「%@」を押すよう要求しましたが、確認できませんでした。"
           }
         }
       }
@@ -5787,6 +5787,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ホームロウに\n矢印キー"
+          }
+        }
+      }
+    },
+    "Ask Again" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "再度確認する"
           }
         }
       }
@@ -18891,6 +18901,36 @@
         }
       }
     },
+    "KeyPath couldn't read the web address in a link from another app." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別のアプリからのリンクのWebアドレスを読み取れませんでした。"
+          }
+        }
+      }
+    },
+    "KeyPath couldn't save “Always Allow” for this script. It will ask again next time." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このスクリプトの「常に許可」を保存できませんでした。次回も確認します。"
+          }
+        }
+      }
+    },
+    "KeyPath couldn't save “Always Allow”. It will ask again next time." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「常に許可」を保存できませんでした。次回も確認します。"
+          }
+        }
+      }
+    },
     "KeyPath deactivated" : {
       "localizations" : {
         "ja" : {
@@ -20540,6 +20580,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "他のアプリからのリンクで開けるのはWebページのみです。"
+          }
+        }
+      }
+    },
+    "Links from other apps can press virtual keys without asking." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "他のアプリからのリンクは確認なしで仮想キーを押せます。"
           }
         }
       }
@@ -29041,6 +29091,7 @@
       }
     },
     "Scripts Are Turned Off" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -34154,6 +34205,7 @@
       }
     },
     "This shortcut runs a script, but script execution is currently off.\n\nAllow scripts to use this shortcut." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -39690,16 +39742,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "押す"
-          }
-        }
-      }
-    },
-    "press the virtual key “%@”" : {
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "仮想キー「%@」を押す"
           }
         }
       }

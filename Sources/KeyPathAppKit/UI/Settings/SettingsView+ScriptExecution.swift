@@ -8,6 +8,7 @@ struct ScriptExecutionSettingsSection: View {
     @Bindable private var securityService = ScriptSecurityService.shared
     @State private var showingExecutionLog = false
     @State private var showingEnableConfirmation = false
+    @State private var linksPressVirtualKeys = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -63,6 +64,28 @@ struct ScriptExecutionSettingsSection: View {
         }
         .sheet(isPresented: $showingExecutionLog) {
             ScriptExecutionLogView()
+        }
+        .onAppear {
+            if securityService.isScriptExecutionEnabled { securityService.refreshApprovedScriptCount() }
+            linksPressVirtualKeys = KeychainLinkGrantStore.shared.allowsVirtualKeys
+        }
+        .onChange(of: securityService.isScriptExecutionEnabled) { _, enabled in
+            if enabled { securityService.refreshApprovedScriptCount() }
+        }
+
+        if linksPressVirtualKeys {
+            HStack {
+                Text("Links from other apps can press virtual keys without asking.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button(String(localized: "Ask Again")) {
+                    if KeychainLinkGrantStore.shared.setAllowsVirtualKeys(false) {
+                        linksPressVirtualKeys = false
+                    }
+                }
+                .accessibilityIdentifier("settings-links-virtual-keys-ask-again-button")
+            }
         }
     }
 }

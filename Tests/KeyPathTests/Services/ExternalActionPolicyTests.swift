@@ -6,20 +6,12 @@ import XCTest
 /// no scripts, web pages only for `open`, and virtual keys ask first.
 @MainActor
 final class ExternalActionPolicyTests: XCTestCase {
-    private var defaults: UserDefaults!
-    private var suite: String!
-
-    override func setUp() async throws {
-        suite = "ExternalActionPolicyTests.\(UUID().uuidString)"
-        defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    private func decision(_ string: String, allowsVirtualKeys: Bool = false) throws -> ExternalActionPolicy.Decision {
+        try ExternalActionPolicy.decision(for: XCTUnwrap(KeyPathActionURI(string: string)), allowsVirtualKeys: allowsVirtualKeys)
     }
 
-    override func tearDown() async throws {
-        defaults.removePersistentDomain(forName: suite)
-    }
-
-    private func decision(_ string: String) throws -> ExternalActionPolicy.Decision {
-        try ExternalActionPolicy.decision(for: XCTUnwrap(KeyPathActionURI(string: string)), defaults: defaults)
+    private func uri(_ string: String) throws -> KeyPathActionURI {
+        try XCTUnwrap(KeyPathActionURI(string: string))
     }
 
     func testScriptsNeverRunFromLinks() throws {
@@ -39,18 +31,16 @@ final class ExternalActionPolicyTests: XCTestCase {
         }
     }
 
-    func testVirtualKeysAskUntilAlwaysAllowed() throws {
-        guard case let .confirm(summary, key) = try decision("keypath://fakekey/nav-mode/tap") else {
-            return XCTFail("Expected a prompt")
-        }
-        XCTAssertTrue(summary.contains("nav-mode"))
-        defaults.set(true, forKey: key)
-        XCTAssertEqual(try decision("keypath://fakekey/nav-mode/tap"), .allow)
+    func testVirtualKeysAskUnlessAlwaysAllowed() throws {
+        XCTAssertEqual(try decision("keypath://fakekey/nav-mode/tap"), .confirmVirtualKey(name: "nav-mode"))
+        XCTAssertEqual(try decision("keypath://vkey/nav-mode/tap"), .confirmVirtualKey(name: "nav-mode"))
+        XCTAssertEqual(try decision("keypath://fakekey/nav-mode/tap", allowsVirtualKeys: true), .allow)
     }
 
     func testEverydayActionsStayAvailable() throws {
         for uri in ["keypath://launch/Safari", "keypath://window/left", "keypath://layer/nav",
-                    "keypath://settings/rules", "keypath://overlay/toggle", "keypath://notify?title=Hi"]
+                    "keypath://settings/rules", "keypath://overlay/toggle", "keypath://notify?title=Hi",
+                    "keypath://folder/~/Downloads", "keypath://runtime/stop", "keypath://system/mission-control"]
         {
             XCTAssertEqual(try decision(uri), .allow, uri)
         }
@@ -63,30 +53,74 @@ final class ExternalActionPolicyTests: XCTestCase {
         XCTAssertFalse(ExternalActionPolicy.isPlainAppName("Utilities/Terminal"))
     }
 
-    func testDispatcherRefusesScriptLinkWithoutCheckingTheScript() throws {
+    // MARK: - Dispatcher
+
+    private func makeFixture() throws -> (ActionDispatcher, ScriptSecurityService, InMemoryLinkGrantStore, () -> Void) {
+        let suite = "ExternalActionPolicyTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         let security = ScriptSecurityService(defaults: defaults, approvals: InMemoryScriptApprovalStore())
         security.isScriptExecutionEnabled = true
-        let dispatcher = ActionDispatcher(scriptSecurityService: security, defaults: defaults)
+        let grants = InMemoryLinkGrantStore()
+        let dispatcher = ActionDispatcher(scriptSecurityService: security, scriptExecutor: { _ in }, linkGrants: grants)
+        return (dispatcher, security, grants, { defaults.removePersistentDomain(forName: suite) })
+    }
+
+    func testDispatcherRefusesScriptLinkWithoutAsking() throws {
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
         var prompted = false
         dispatcher.onScriptConfirmationNeeded = { _ in prompted = true }
-        let result = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "keypath://script//bin/bash")), origin: .externalURL)
-        guard case .failed = result else { return XCTFail("Expected a refusal") }
+        guard case .failed = try dispatcher.dispatch(uri("keypath://script//bin/bash"), origin: .externalURL) else {
+            return XCTFail("Expected a refusal")
+        }
         XCTAssertFalse(prompted)
     }
 
+    func testDispatcherRefusesNonWebOpenFromLink() throws {
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
+        guard case .failed = try dispatcher.dispatch(uri("keypath://open/file:%2F%2F%2Fetc%2Fhosts"), origin: .externalURL) else {
+            return XCTFail("Expected a refusal")
+        }
+    }
+
+    func testScriptsFromConfigUIAndShortcutsStillAsk() throws {
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
+        var prompts = 0
+        dispatcher.onScriptConfirmationNeeded = { prompts += 1; $0.cancel() }
+        for origin in [ActionOrigin.engine, .app, .shortcut] {
+            _ = try dispatcher.dispatch(uri("script:/bin/bash"), origin: origin)
+        }
+        XCTAssertEqual(prompts, 3, "Only links from other apps are refused; other origins reach the script prompt")
+    }
+
     func testDispatcherAsksBeforeVirtualKeyFromLink() throws {
-        let dispatcher = ActionDispatcher(defaults: defaults)
+        let (dispatcher, _, grants, cleanup) = try makeFixture()
+        defer { cleanup() }
         var asked: ExternalActionConfirmation?
         dispatcher.onExternalActionConfirmationNeeded = { asked = $0 }
-        _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "keypath://fakekey/nav/tap")), origin: .externalURL)
+        _ = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .externalURL)
         let request = try XCTUnwrap(asked)
+        XCTAssertEqual(request.virtualKey, "nav")
         request.deny()
-        XCTAssertFalse(defaults.bool(forKey: ExternalActionPolicy.allowLinkedVirtualKeysKey))
+        XCTAssertFalse(grants.allowsVirtualKeys)
+    }
+
+    func testVirtualKeyFromConfigDoesNotAsk() throws {
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
+        var asked = false
+        dispatcher.onExternalActionConfirmationNeeded = { _ in asked = true }
+        _ = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .engine)
+        XCTAssertFalse(asked)
     }
 
     func testDispatcherRefusesVirtualKeyLinkWhenItCannotAsk() throws {
-        let dispatcher = ActionDispatcher(defaults: defaults)
-        let result = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "keypath://fakekey/nav/tap")), origin: .externalURL)
-        guard case .failed = result else { return XCTFail("Expected a refusal without a prompt") }
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
+        guard case .failed = try dispatcher.dispatch(uri("keypath://fakekey/nav/tap"), origin: .externalURL) else {
+            return XCTFail("Expected a refusal without a prompt")
+        }
     }
 }

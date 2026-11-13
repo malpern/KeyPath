@@ -1,59 +1,5 @@
 import SwiftUI
 
-/// View shown when script execution is disabled and user tries to run a script.
-/// Offers to enable scripts directly rather than redirecting to Settings.
-struct ScriptExecutionDisabledView: View {
-    let onAllow: () -> Void
-    let onCancel: () -> Void
-
-    @State private var showEnableConfirmation = false
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "lock.shield.fill")
-                .font(.largeTitle)
-                .foregroundColor(.secondary)
-
-            Text("Scripts Are Turned Off")
-                .font(.title2.weight(.bold))
-
-            Text("This shortcut runs a script, but script execution is currently off.\n\nAllow scripts to use this shortcut.")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Divider()
-
-            HStack(spacing: 16) {
-                Button("Cancel") {
-                    onCancel()
-                }
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("script-disabled-cancel-button")
-
-                Button("Allow Scripts") {
-                    showEnableConfirmation = true
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("script-disabled-allow-button")
-            }
-        }
-        .padding(24)
-        .frame(width: 380)
-        .sheet(isPresented: $showEnableConfirmation) {
-            ScriptEnableConfirmationView(
-                onAllow: {
-                    showEnableConfirmation = false
-                    onAllow()
-                },
-                onCancel: {
-                    showEnableConfirmation = false
-                }
-            )
-        }
-    }
-}
-
 /// Confirmation dialog for globally enabling script execution.
 /// Shown when the user first toggles scripts on in Settings or saves a script mapping.
 struct ScriptEnableConfirmationView: View {
@@ -131,13 +77,6 @@ struct ScriptEnableConfirmationView: View {
 
 #Preview("Enable Confirmation") {
     ScriptEnableConfirmationView(
-        onAllow: {},
-        onCancel: {}
-    )
-}
-
-#Preview("Disabled Dialog") {
-    ScriptExecutionDisabledView(
         onAllow: {},
         onCancel: {}
     )

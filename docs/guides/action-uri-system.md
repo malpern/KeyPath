@@ -357,8 +357,14 @@ another app opened, which may come from a web page or a document).
 - `open` accepts only `http` and `https`. The handler and the policy share one
   normalisation (`ExternalActionPolicy.openTarget`).
 - `fakekey` / `vkey` ask through `onExternalActionConfirmationNeeded`, unless
-  the user chose "Always Allow" (`KeyPath.Security.AllowLinkedVirtualKeys`).
-  With no prompt registered, the action is refused.
+  the user chose "Always Allow" (`KeychainLinkGrantStore`, a Keychain item, so
+  another process cannot set it silently). With no prompt registered, the
+  action is refused. A virtual key bound to `push-msg "script:…"` comes back
+  with origin `.engine`, so a link the user allows can reach a script; the
+  prompt says so.
+- Prompts (`ActionConfirmationPrompts`) never block the caller: the engine's
+  event reader dispatches actions and must keep reading. One prompt shows at a
+  time; a request that arrives while one is open is declined.
 
 For every origin:
 

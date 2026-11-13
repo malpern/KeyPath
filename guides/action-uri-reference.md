@@ -118,7 +118,7 @@ Trigger a virtual key press.
 
 Subpaths: `/press`, `/release`, `/tap`
 
-A virtual key can run a macro, so a link from another app asks before pressing it. Choose **Always Allow** in that prompt if you use these links from Raycast, Hammerspoon or your own scripts.
+A virtual key does whatever your config binds to it, which can include a macro or a script, so a link from another app asks before pressing it. Choose **Always Allow** in that prompt if you use these links from Raycast, Hammerspoon or your own scripts. To be asked again, use **Ask Again** in **Settings > Script Execution**.
 
 ```bash
 open "keypath://fakekey/vk1/tap"
@@ -179,9 +179,9 @@ open "keypath://window/snap/right"
 
 Any app can open a `keypath://` link, and so can a web page or a document. KeyPath therefore limits what a link from another app can do:
 
-- `script` never runs from a link. Bind the script to a key, or use the Send KeyPath Action shortcut.
+- `script` does not start from a link. Bind the script to a key, or use the Send KeyPath Action shortcut.
 - `open` opens only web pages (`http` and `https`).
-- `fakekey` asks first, unless you chose **Always Allow**.
+- `fakekey` asks first, unless you chose **Always Allow**. A virtual key runs whatever it is bound to, scripts included.
 - `launch` takes an app name or bundle ID, never a path.
 
 Actions from your own key bindings and from Shortcuts are not limited. No network access is required or used, and actions run with your normal user permissions.
