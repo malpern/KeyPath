@@ -245,6 +245,16 @@
         }
       }
     },
+    "%@\n\nScripts can run any command, and read or change your files. Run it only if you trust it. \"Always Allow\" remembers this script; if it changes, KeyPath asks again." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@\n\nスクリプトは任意のコマンドを実行し、ファイルを読み取ったり変更したりできます。信頼できる場合にのみ実行してください。「常に許可」を選ぶとこのスクリプトを記憶します。スクリプトが変更されると、KeyPathは再度確認します。"
+          }
+        }
+      }
+    },
     "%@ %@" : {
       "localizations" : {
         "en" : {
@@ -3570,6 +3580,16 @@
         }
       }
     },
+    "A keypath:// link from another app asked for this. Links can come from web pages and documents, so allow it only if you started it, for example from Raycast or Hammerspoon. \"Always Allow\" lets links from other apps press virtual keys without asking." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別のアプリからのkeypath://リンクがこの操作を要求しました。リンクはWebページや書類から開かれることもあるため、RaycastやHammerspoonなど自分で実行した場合にのみ許可してください。「常に許可」を選ぶと、他のアプリからのリンクが確認なしで仮想キーを押せるようになります。"
+          }
+        }
+      }
+    },
     "A layer with this name already exists" : {
       "localizations" : {
         "ja" : {
@@ -3601,6 +3621,7 @@
       }
     },
     "A mistaken or malicious script runs unchecked" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -5045,6 +5066,16 @@
         }
       }
     },
+    "Allow another app to %@?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別のアプリに次の操作を許可しますか: %@"
+          }
+        }
+      }
+    },
     "Allow script execution in Quick Launcher" : {
       "localizations" : {
         "ja" : {
@@ -5091,6 +5122,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "代替レイアウト"
+          }
+        }
+      }
+    },
+    "Always Allow" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常に許可"
           }
         }
       }
@@ -5161,6 +5202,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "別のアプリ"
+          }
+        }
+      }
+    },
+    "Another app asked KeyPath to %@, but KeyPath could not ask you first." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別のアプリがKeyPathに次の操作を要求しましたが、確認できませんでした: %@"
           }
         }
       }
@@ -5343,6 +5394,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "アプリ名は必須です"
+          }
+        }
+      }
+    },
+    "App names can't contain \"/\" or \"..\": %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アプリ名に「/」や「..」は使えません: %@"
           }
         }
       }
@@ -9206,6 +9267,7 @@
       }
     },
     "Configuration File Invalid" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -11858,7 +11920,18 @@
         }
       }
     },
+    "Don't Allow" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "許可しない"
+          }
+        }
+      }
+    },
     "Don't show this warning again" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -12123,6 +12196,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "E+R → 取り消す"
+          }
+        }
+      }
+    },
+    "Each script asks before its first run. \"Always Allow\" remembers it until the script changes." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "各スクリプトは初回実行の前に確認します。「常に許可」はスクリプトが変更されるまで有効です。"
           }
         }
       }
@@ -14340,6 +14423,16 @@
         }
       }
     },
+    "Forget Approved Scripts (%lld)" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "許可したスクリプトを消去（%lld）"
+          }
+        }
+      }
+    },
     "Forget This Keyboard" : {
       "localizations" : {
         "ja" : {
@@ -16229,6 +16322,7 @@
       }
     },
     "I Understand, Run Script" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -17289,6 +17383,7 @@
       }
     },
     "Invalid keypath:// URL: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -18786,6 +18881,16 @@
         }
       }
     },
+    "KeyPath couldn't read a keypath:// link from another app." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "別のアプリからのkeypath://リンクを読み取れませんでした。"
+          }
+        }
+      }
+    },
     "KeyPath deactivated" : {
       "localizations" : {
         "ja" : {
@@ -18797,6 +18902,7 @@
       }
     },
     "KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.\n\nErrors found:\n%@\n\nYour original configuration has been backed up to:\n%@\n\nKeyPath is now using a default configuration (Caps Lock → Escape)." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -18829,6 +18935,7 @@
       }
     },
     "KeyPath found errors in the configuration:\n\n%@\n\nWhat would you like to do?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -20427,6 +20534,16 @@
         }
       }
     },
+    "Links from other apps can only open web pages." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "他のアプリからのリンクで開けるのはWebページのみです。"
+          }
+        }
+      }
+    },
     "List" : {
       "comment" : "Layer display option: show a compact list",
       "localizations" : {
@@ -20935,6 +21052,7 @@
       }
     },
     "Malicious scripts could harm your system" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -23510,6 +23628,7 @@
       }
     },
     "Only run scripts from sources you trust." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -23577,6 +23696,7 @@
       }
     },
     "Open Backup Location" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -28238,6 +28358,16 @@
         }
       }
     },
+    "Run Once" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今回のみ実行"
+          }
+        }
+      }
+    },
     "Run Script" : {
       "localizations" : {
         "ja" : {
@@ -28324,6 +28454,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通常の入力以外でKanataの動作をトリガーしたいときは、ショートカット、Raycast、スクリプト、または`keypath://` URLからこれらのアクションを実行できます。"
+          }
+        }
+      }
+    },
+    "Run this script?" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このスクリプトを実行しますか？"
           }
         }
       }
@@ -28764,6 +28904,7 @@
       }
     },
     "Script Execution Warning" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -28920,6 +29061,7 @@
       }
     },
     "Scripts can execute any command on your system" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -28930,6 +29072,7 @@
       }
     },
     "Scripts can make network connections" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -28950,6 +29093,7 @@
       }
     },
     "Scripts can read, modify, or delete your files" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -28979,7 +29123,18 @@
         }
       }
     },
+    "Scripts can't be started by a link from another app. Bind the script to a key, or run it with the Send KeyPath Action shortcut." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "他のアプリからのリンクではスクリプトを開始できません。スクリプトをキーに割り当てるか、「KeyPathアクションを送信」ショートカットで実行してください。"
+          }
+        }
+      }
+    },
     "Scripts run immediately, with no confirmation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -30785,6 +30940,7 @@
       }
     },
     "Skip Warnings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -30795,6 +30951,7 @@
       }
     },
     "Skip confirmation dialog" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -30815,6 +30972,7 @@
       }
     },
     "Skip the Per-Script Warning?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -33522,6 +33680,26 @@
         }
       }
     },
+    "The script changed after it was approved. Run it again to review it." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "許可した後にスクリプトが変更されました。もう一度実行して内容を確認してください。"
+          }
+        }
+      }
+    },
+    "The script changed while KeyPath was asking. Run it again to review it." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "確認中にスクリプトが変更されました。もう一度実行して内容を確認してください。"
+          }
+        }
+      }
+    },
     "The session did not restart in the required Caps runtime mode" : {
       "localizations" : {
         "ja" : {
@@ -35992,6 +36170,7 @@
       }
     },
     "Use Default Config" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -37259,6 +37438,7 @@
       }
     },
     "With this on, scripts run the moment you press their shortcut — KeyPath will no longer show a warning before each one. Only do this if you fully trust every script you've added." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -37395,6 +37575,7 @@
       }
     },
     "You are about to run:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -37425,6 +37606,7 @@
       }
     },
     "You can turn this back on anytime in Settings." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -39512,6 +39694,16 @@
         }
       }
     },
+    "press the virtual key “%@”" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仮想キー「%@」を押す"
+          }
+        }
+      }
+    },
     "pressed" : {
       "comment" : "Keycap accessibility state",
       "localizations" : {
@@ -40666,6 +40858,7 @@
       }
     },
     "⚠️ Scripts will run immediately without warning" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {

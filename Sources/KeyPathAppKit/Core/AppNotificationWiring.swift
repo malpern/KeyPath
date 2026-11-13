@@ -136,6 +136,16 @@ enum AppNotificationWiring {
             UserNotificationService.shared.notifyActionError(message)
         }
 
+        // Scripts that have not been approved yet ask before they run.
+        ActionDispatcher.shared.onScriptConfirmationNeeded = { request in
+            ActionConfirmationPrompts.confirmScript(request)
+        }
+
+        // Links from other apps ask before pressing virtual keys.
+        ActionDispatcher.shared.onExternalActionConfirmationNeeded = { request in
+            ActionConfirmationPrompts.confirmExternalAction(request)
+        }
+
         // Wire overlay actions (keypath://overlay/..., push-msg "overlay:toggle") to the overlay
         ActionDispatcher.shared.onOverlayAction = { command in
             let overlay = LiveKeyboardOverlayController.shared

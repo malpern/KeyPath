@@ -12,18 +12,13 @@ final class ScriptSecurityServiceTests: XCTestCase {
         suiteName = "KeyPath.ScriptSecurityServiceTests.\(UUID().uuidString)"
         testDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         testDefaults.removePersistentDomain(forName: suiteName)
-        service = ScriptSecurityService(defaults: testDefaults)
-
-        // Reset to default state
-        service.isScriptExecutionEnabled = false
-        service.bypassFirstRunDialog = false
+        service = ScriptSecurityService(defaults: testDefaults, approvals: InMemoryScriptApprovalStore())
         service.resetAllSettings()
     }
 
     override func tearDown() async throws {
         // Reset after each test
         service?.isScriptExecutionEnabled = false
-        service?.bypassFirstRunDialog = false
         if let suiteName {
             testDefaults?.removePersistentDomain(forName: suiteName)
         }
@@ -59,37 +54,48 @@ final class ScriptSecurityServiceTests: XCTestCase {
         }
     }
 
-    func testCheckExecutionNeedsConfirmationWhenNotBypassed() {
+    func testCheckExecutionNeedsConfirmationUntilApproved() {
         service.isScriptExecutionEnabled = true
-        service.bypassFirstRunDialog = false
 
-        // Use /bin/bash which is an executable that always exists
-        let result = service.checkExecution(at: "/bin/bash")
+        // /bin/bash is an executable that always exists
+        guard case let .needsConfirmation(path, digest) = service.checkExecution(at: "/bin/bash") else {
+            return XCTFail("An unapproved script must ask first")
+        }
+        XCTAssertEqual(path, "/bin/bash")
 
-        if case let .needsConfirmation(path) = result {
-            XCTAssertEqual(path, "/bin/bash")
-        } else {
-            XCTFail("Expected .needsConfirmation result when dialog not bypassed, got \(result)")
+        service.alwaysAllow(path: path, digest: digest)
+        XCTAssertEqual(service.approvedScriptCount, 1)
+        guard case let .allowed(allowedDigest) = service.checkExecution(at: "/bin/bash") else {
+            return XCTFail("An approved script with unchanged contents runs without asking")
+        }
+        XCTAssertEqual(allowedDigest, digest)
+    }
+
+    func testEditedScriptAsksAgain() throws {
+        service.isScriptExecutionEnabled = true
+        let script = FileManager.default.temporaryDirectory.appendingPathComponent("approval-\(UUID().uuidString).sh")
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: script)
+        defer { try? FileManager.default.removeItem(at: script) }
+
+        guard case let .needsConfirmation(path, digest) = service.checkExecution(at: script.path) else {
+            return XCTFail("Expected a prompt")
+        }
+        service.alwaysAllow(path: path, digest: digest)
+        try Data("#!/bin/sh\necho changed\n".utf8).write(to: script)
+
+        guard case .needsConfirmation = service.checkExecution(at: script.path) else {
+            return XCTFail("A changed script must ask again")
         }
     }
 
-    func testCheckExecutionAllowedWhenBypassed() {
-        service.isScriptExecutionEnabled = true
-        service.bypassFirstRunDialog = true
-
-        // Use /bin/bash which is an executable that always exists
-        let result = service.checkExecution(at: "/bin/bash")
-
-        if case .allowed = result {
-            // Expected
-        } else {
-            XCTFail("Expected .allowed result when dialog is bypassed, got \(result)")
-        }
+    func testRetiredBypassSettingIsRemoved() {
+        testDefaults.set(true, forKey: "KeyPath.Security.BypassFirstRunDialog")
+        _ = ScriptSecurityService(defaults: testDefaults, approvals: InMemoryScriptApprovalStore())
+        XCTAssertNil(testDefaults.object(forKey: "KeyPath.Security.BypassFirstRunDialog"))
     }
 
     func testTildeExpansionInPath() {
         service.isScriptExecutionEnabled = true
-        service.bypassFirstRunDialog = true
 
         // This should expand ~ to home directory
         let result = service.checkExecution(at: "~/nonexistent_file_12345.sh")
@@ -130,20 +136,10 @@ final class ScriptSecurityServiceTests: XCTestCase {
     // MARK: - Settings Persistence Tests
 
     func testSettingsPersistence() {
-        // This tests that settings are saved to UserDefaults
         service.isScriptExecutionEnabled = true
-        service.bypassFirstRunDialog = true
-
-        // Values should be stored
-        XCTAssertTrue(service.isScriptExecutionEnabled)
-        XCTAssertTrue(service.bypassFirstRunDialog)
-
-        // Reset
+        XCTAssertTrue(testDefaults.bool(forKey: "KeyPath.Security.ScriptExecutionEnabled"))
         service.isScriptExecutionEnabled = false
-        service.bypassFirstRunDialog = false
-
-        XCTAssertFalse(service.isScriptExecutionEnabled)
-        XCTAssertFalse(service.bypassFirstRunDialog)
+        XCTAssertFalse(testDefaults.bool(forKey: "KeyPath.Security.ScriptExecutionEnabled"))
     }
 
     // MARK: - Execution Logging Tests
@@ -203,13 +199,13 @@ final class ScriptSecurityServiceTests: XCTestCase {
 
     func testResetAllSettings() {
         service.isScriptExecutionEnabled = true
-        service.bypassFirstRunDialog = true
+        service.alwaysAllow(path: "/test.sh", digest: "abc")
         service.logExecution(path: "/test.sh", success: true, error: nil)
 
         service.resetAllSettings()
 
         XCTAssertFalse(service.isScriptExecutionEnabled)
-        XCTAssertFalse(service.bypassFirstRunDialog)
+        XCTAssertEqual(service.approvedScriptCount, 0)
         XCTAssertTrue(service.executionLog.isEmpty)
     }
 }

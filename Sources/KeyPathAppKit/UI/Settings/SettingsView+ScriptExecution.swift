@@ -8,7 +8,6 @@ struct ScriptExecutionSettingsSection: View {
     @Bindable private var securityService = ScriptSecurityService.shared
     @State private var showingExecutionLog = false
     @State private var showingEnableConfirmation = false
-    @State private var showingBypassConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -33,21 +32,18 @@ struct ScriptExecutionSettingsSection: View {
             }
 
             if securityService.isScriptExecutionEnabled {
-                SettingsToggleRow(
-                    title: String(localized: "Skip confirmation dialog"),
-                    subtitle: String(localized: "⚠️ Scripts will run immediately without warning"), subtitleColor: .orange,
-                    isOn: Binding(get: { securityService.bypassFirstRunDialog }, set: { newValue in
-                        if newValue { showingBypassConfirmation = true }
-                        else { securityService.bypassFirstRunDialog = false }
-                    }), identifier: "settings-script-bypass-dialog-toggle"
-                )
-                .padding(.leading, SettingsDesign.sectionGap)
-                .sheet(isPresented: $showingBypassConfirmation) {
-                    ScriptBypassConfirmationView(
-                        onAllow: { showingBypassConfirmation = false },
-                        onCancel: { showingBypassConfirmation = false }
-                    )
+                HStack {
+                    Text("Each script asks before its first run. \"Always Allow\" remembers it until the script changes.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button(String(localized: "Forget Approved Scripts (\(securityService.approvedScriptCount))")) {
+                        securityService.forgetApprovedScripts()
+                    }
+                    .disabled(securityService.approvedScriptCount == 0)
+                    .accessibilityIdentifier("settings-script-forget-approvals-button")
                 }
+                .padding(.leading, 24)
 
                 // Execution log button
                 HStack {

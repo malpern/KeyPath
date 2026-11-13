@@ -1,28 +1,160 @@
+import CryptoKit
 import Foundation
 import KeyPathCore
 import Observation
 
+/// Remembers which scripts the user has chosen to always allow.
+///
+/// An approval names one script file and the exact contents the user approved,
+/// so an edited script asks again.
+@MainActor
+public protocol ScriptApprovalStore: AnyObject {
+    func isApproved(path: String, digest: String) -> Bool
+    func approve(path: String, digest: String)
+    func removeAll()
+    var count: Int { get }
+}
+
+/// Keeps approvals in an in-memory set. Used by tests and previews.
+@MainActor
+public final class InMemoryScriptApprovalStore: ScriptApprovalStore {
+    private var approvals: Set<String> = []
+
+    public init() {}
+
+    public func isApproved(path: String, digest: String) -> Bool {
+        approvals.contains(ScriptApproval.key(path: path, digest: digest))
+    }
+
+    public func approve(path: String, digest: String) {
+        approvals.insert(ScriptApproval.key(path: path, digest: digest))
+    }
+
+    public func removeAll() {
+        approvals.removeAll()
+    }
+
+    public var count: Int {
+        approvals.count
+    }
+}
+
+/// Keeps approvals in the login Keychain, in an item only KeyPath can read
+/// without asking the user. Unlike UserDefaults, another process cannot add
+/// an approval silently.
+@MainActor
+public final class KeychainScriptApprovalStore: ScriptApprovalStore {
+    private let service = "com.keypath.app"
+    private let account = "script-approvals"
+    private var cache: Set<String>?
+
+    public init() {}
+
+    public func isApproved(path: String, digest: String) -> Bool {
+        load().contains(ScriptApproval.key(path: path, digest: digest))
+    }
+
+    public func approve(path: String, digest: String) {
+        var approvals = load()
+        approvals.insert(ScriptApproval.key(path: path, digest: digest))
+        save(approvals)
+    }
+
+    public func removeAll() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
+        cache = []
+    }
+
+    public var count: Int {
+        load().count
+    }
+
+    private func load() -> Set<String> {
+        if let cache { return cache }
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        var approvals: Set<String> = []
+        if status == errSecSuccess, let data = result as? Data,
+           let list = try? JSONDecoder().decode([String].self, from: data)
+        {
+            approvals = Set(list)
+        } else if status != errSecItemNotFound {
+            AppLogger.shared.log("⚠️ [ScriptSecurity] Could not read script approvals (status \(status))")
+        }
+        cache = approvals
+        return approvals
+    }
+
+    private func save(_ approvals: Set<String>) {
+        cache = approvals
+        guard let data = try? JSONEncoder().encode(approvals.sorted()) else { return }
+        let match: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        let update: [String: Any] = [kSecValueData as String: data]
+        var status = SecItemUpdate(match as CFDictionary, update as CFDictionary)
+        if status == errSecItemNotFound {
+            var add = match
+            add[kSecValueData as String] = data
+            add[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            status = SecItemAdd(add as CFDictionary, nil)
+        }
+        if status != errSecSuccess {
+            AppLogger.shared.log("⚠️ [ScriptSecurity] Could not save script approvals (status \(status))")
+        }
+    }
+}
+
+enum ScriptApproval {
+    static func key(path: String, digest: String) -> String {
+        "\(digest) \(path)"
+    }
+
+    /// SHA-256 of the file's contents, or nil when it cannot be read.
+    static func digest(ofFileAt path: String) -> String? {
+        guard let data = Foundation.FileManager().contents(atPath: path) else { return nil }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
 /// Manages security settings and approvals for script execution in Quick Launcher.
 ///
-/// Security Model:
-/// 1. Script execution is globally disabled by default
-/// 2. User must explicitly enable via Settings
-/// 3. First run shows warning dialog (can be bypassed via setting)
-/// 4. All executions are logged for audit trail
+/// Security model:
+/// 1. Script execution is off by default and turned on in Settings.
+/// 2. Each script asks before it first runs. "Always Allow" remembers that
+///    script, with its exact contents, in the Keychain. Editing the script
+///    makes it ask again.
+/// 3. Every run is logged.
 @Observable
 @MainActor
 public final class ScriptSecurityService {
-    public static let shared = ScriptSecurityService()
+    public static let shared = ScriptSecurityService(approvals: KeychainScriptApprovalStore())
 
     // MARK: - UserDefaults Keys
 
     private enum Keys {
         static let scriptExecutionEnabled = "KeyPath.Security.ScriptExecutionEnabled"
-        static let bypassFirstRunDialog = "KeyPath.Security.BypassFirstRunDialog"
+        /// Retired: a global "skip the warning" switch that any process could set.
+        static let retiredBypassFirstRunDialog = "KeyPath.Security.BypassFirstRunDialog"
         static let scriptExecutionLog = "KeyPath.Security.ScriptExecutionLog"
     }
 
     private let defaults: UserDefaults
+    private let approvals: ScriptApprovalStore
 
     // MARK: - Published Properties
 
@@ -34,29 +166,27 @@ public final class ScriptSecurityService {
         }
     }
 
-    /// Whether to skip the first-run confirmation dialog
-    public var bypassFirstRunDialog: Bool {
-        didSet {
-            defaults.set(bypassFirstRunDialog, forKey: Keys.bypassFirstRunDialog)
-            AppLogger.shared.log("🔐 [ScriptSecurity] Bypass dialog: \(bypassFirstRunDialog)")
-        }
-    }
+    /// Number of scripts the user has chosen to always allow.
+    public private(set) var approvedScriptCount: Int
 
     // MARK: - Initialization
 
-    init(defaults: UserDefaults? = nil) {
+    /// Approvals default to memory, so only `shared` touches the Keychain.
+    init(defaults: UserDefaults? = nil, approvals: ScriptApprovalStore? = nil) {
         self.defaults = defaults ?? .standard
+        self.approvals = approvals ?? InMemoryScriptApprovalStore()
         isScriptExecutionEnabled = self.defaults.bool(forKey: Keys.scriptExecutionEnabled)
-        bypassFirstRunDialog = self.defaults.bool(forKey: Keys.bypassFirstRunDialog)
+        self.defaults.removeObject(forKey: Keys.retiredBypassFirstRunDialog)
+        approvedScriptCount = self.approvals.count
     }
 
     // MARK: - Security Checks
 
     /// Result of a script execution check
     public enum ExecutionCheckResult {
-        case allowed
+        case allowed(digest: String)
         case disabled
-        case needsConfirmation(path: String)
+        case needsConfirmation(path: String, digest: String)
         case fileNotFound(path: String)
         case notExecutable(path: String)
     }
@@ -65,33 +195,43 @@ public final class ScriptSecurityService {
     /// - Parameter path: The path to the script file
     /// - Returns: The result of the check
     public func checkExecution(at path: String) -> ExecutionCheckResult {
-        // First check: is script execution enabled?
         guard isScriptExecutionEnabled else {
             return .disabled
         }
 
-        // Expand tilde in path
         let expandedPath = (path as NSString).expandingTildeInPath
 
-        // Check file exists
         guard Foundation.FileManager().fileExists(atPath: expandedPath) else {
             return .fileNotFound(path: expandedPath)
         }
 
-        // Check file is executable (or is a script type we can run)
         let isExecutable = Foundation.FileManager().isExecutableFile(atPath: expandedPath)
-        let isScriptType = isRecognizedScript(expandedPath)
-
-        guard isExecutable || isScriptType else {
+        guard isExecutable || isRecognizedScript(expandedPath) else {
             return .notExecutable(path: expandedPath)
         }
 
-        // Check if we need confirmation
-        if !bypassFirstRunDialog {
-            return .needsConfirmation(path: expandedPath)
+        guard let digest = ScriptApproval.digest(ofFileAt: expandedPath) else {
+            return .notExecutable(path: expandedPath)
         }
 
-        return .allowed
+        if approvals.isApproved(path: expandedPath, digest: digest) {
+            return .allowed(digest: digest)
+        }
+        return .needsConfirmation(path: expandedPath, digest: digest)
+    }
+
+    /// Remember that the user always allows this script with these contents.
+    public func alwaysAllow(path: String, digest: String) {
+        approvals.approve(path: path, digest: digest)
+        approvedScriptCount = approvals.count
+        AppLogger.shared.log("🔐 [ScriptSecurity] Always allowed: \(path)")
+    }
+
+    /// Forget every "Always Allow" choice, so each script asks again.
+    public func forgetApprovedScripts() {
+        approvals.removeAll()
+        approvedScriptCount = 0
+        AppLogger.shared.log("🔐 [ScriptSecurity] Forgot all approved scripts")
     }
 
     /// Log a script execution for audit
@@ -153,7 +293,7 @@ public final class ScriptSecurityService {
     /// Reset all security settings (for uninstall/reset)
     public func resetAllSettings() {
         isScriptExecutionEnabled = false
-        bypassFirstRunDialog = false
+        forgetApprovedScripts()
         defaults.removeObject(forKey: Keys.scriptExecutionLog)
         AppLogger.shared.log("🔐 [ScriptSecurity] All settings reset")
     }

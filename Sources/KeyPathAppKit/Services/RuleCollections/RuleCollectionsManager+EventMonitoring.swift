@@ -97,7 +97,7 @@ extension RuleCollectionsManager {
         AppLogger.shared.log("🎯 [RuleCollectionsManager] Action URI: \(actionURI.url.absoluteString)")
 
         // Dispatch to ActionDispatcher
-        ActionDispatcher.shared.dispatch(actionURI)
+        ActionDispatcher.shared.dispatch(actionURI, origin: .engine)
 
         // Post to keystroke history (skip layer: URIs — already shown as layer dividers)
         if actionURI.action != "layer" {
@@ -117,7 +117,7 @@ extension RuleCollectionsManager {
             let decoded = URLMappingFormatter.decodeFromPushMessage(urlPayload)
             let encoded = URLMappingFormatter.encodeForPushMessage(decoded)
             if let actionURI = KeyPathActionURI(string: "open:\(encoded)") {
-                _ = ActionDispatcher.shared.dispatch(actionURI)
+                _ = ActionDispatcher.shared.dispatch(actionURI, origin: .engine)
             }
         }
 

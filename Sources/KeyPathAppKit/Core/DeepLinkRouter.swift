@@ -12,8 +12,6 @@ enum DeepLinkRouter {
         AppLogger.shared.log("🔗 [DeepLinkRouter] Received \(urls.count) URL(s) to open")
 
         for url in urls {
-            AppLogger.shared.log("🔗 [DeepLinkRouter] Processing URL: \(url.absoluteString)")
-
             // Only handle keypath:// URLs
             guard url.scheme == KeyPathActionURI.scheme else {
                 AppLogger.shared.log("⚠️ [DeepLinkRouter] Ignoring non-keypath URL: \(url.scheme ?? "nil")")
@@ -23,10 +21,11 @@ enum DeepLinkRouter {
             // Parse and dispatch
             if let actionURI = KeyPathActionURI(string: url.absoluteString) {
                 AppLogger.shared.log("🎬 [DeepLinkRouter] Dispatching action: \(actionURI.action)")
-                ActionDispatcher.shared.dispatch(actionURI)
+                // Another app opened this link; it may come from a web page or a document.
+                ActionDispatcher.shared.dispatch(actionURI, origin: .externalURL)
             } else {
                 AppLogger.shared.log("⚠️ [DeepLinkRouter] Failed to parse URL as KeyPathActionURI")
-                ActionDispatcher.shared.onError?(String(localized: "Invalid keypath:// URL: \(url.absoluteString)"))
+                ActionDispatcher.shared.onError?(String(localized: "KeyPath couldn't read a keypath:// link from another app."))
             }
         }
     }
