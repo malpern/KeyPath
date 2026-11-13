@@ -233,7 +233,7 @@ public final class InstallerEngine {
         guard plan.recipes.allSatisfy(isSupportedSessionRecipe) else {
             let failure = "Recipes unavailable in the driverless build: "
                 + plan.recipes.filter { !isSupportedSessionRecipe($0) }.map(\.id).joined(separator: ", ")
-            let finalContext = await captureFreshContext()
+            let finalContext = await inspectSystem(freshness: .fresh)
             let telemetry = InstallerRepairTelemetryEvent(
                 runID: runID, planID: plan.id, beforeSnapshotID: plan.sourceSnapshotID,
                 afterSnapshotID: finalContext.snapshotID, trigger: trigger,
@@ -335,13 +335,12 @@ public final class InstallerEngine {
             }
         }
 
-        // Own the final observation inside the transaction. A fresh capture
-        // invalidates validator/component/health caches before collecting the
-        // post-execution evidence, so clients do not race a second observer.
+        // Own the final observation inside the transaction. Refresh permissions
+        // and read live runtime evidence after the plan finishes.
         let finalContext: SystemContext? = if plan.intent == .inspectOnly {
             nil
         } else {
-            await captureFreshContext()
+            await inspectSystem(freshness: .fresh)
         }
 
         var seenPostconditions = Set<InstallerPostcondition>()
@@ -519,11 +518,6 @@ public final class InstallerEngine {
         case .ready:
             return nil
         }
-    }
-
-    private func captureFreshContext() async -> SystemContext {
-        systemValidator?.invalidateCaches()
-        return await inspectSystem(freshness: .fresh)
     }
 
     private func makeRepairTelemetryEvent(

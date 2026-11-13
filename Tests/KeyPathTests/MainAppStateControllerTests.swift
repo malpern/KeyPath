@@ -425,18 +425,26 @@ struct MainAppStateControllerBehaviorTests {
         #expect(ready == false)
     }
 
-    @Test("performInitialValidation after configure sets lastValidationDate")
-    func performInitialValidationSetsLastValidationDate() async {
-        let controller = MainAppStateController()
-        let manager = RuntimeCoordinator()
-        controller.configure(
-            serviceLifecycle: manager.serviceLifecycleCoordinator,
-            onSystemHealthy: {}
-        )
+    @Test("Consecutive startup validations publish changed permission evidence")
+    func consecutiveStartupValidationsPublishChangedPermissions() async {
+        let denied = SystemContextBuilder(
+            permissionsStatus: .denied, componentsInstalled: true
+        ).build()
+        let ready = SystemContextBuilder(
+            servicesHealthy: true, componentsInstalled: true
+        ).build()
+        let validator = StubSystemValidator(contexts: [denied, ready])
+        let controller = configuredController(validator: validator)
+        let lifecycle = ServiceLifecycleCoordinator()
+        controller.configure(serviceLifecycle: lifecycle, onSystemHealthy: {})
 
-        #expect(controller.lastValidationDate == nil)
         await controller.performInitialValidation()
-        #expect(controller.lastValidationDate != nil)
+        #expect(controller.lastValidatedSystemContext?.permissions.accessibility == .denied)
+
+        await controller.performInitialValidation()
+        #expect(controller.lastValidatedSystemContext?.permissions.accessibility == .granted)
+        #expect(controller.validationState == .success)
+        #expect(validator.freshnessRequests == [.fresh, .fresh])
     }
 
     @Test("multiple rapid revalidate calls don't corrupt state")
@@ -477,14 +485,13 @@ struct MainAppStateControllerBehaviorTests {
         let validator = GatedCountingValidator(context: context)
         let controller = configuredController(validator: validator)
 
-        async let first: Void = controller.refreshValidation()
-        await Task.yield()
-        async let second: Void = controller.refreshValidation()
-        await Task.yield()
+        let first = Task.immediate { await controller.refreshValidation() }
+        let second = Task.immediate { await controller.refreshValidation() }
         validator.open()
-        _ = await (first, second)
+        await first.value
+        await second.value
 
-        #expect(validator.checkCount == 1)
+        #expect(validator.freshnessRequests == [.cached])
         #expect(controller.validationState == .success)
     }
 
@@ -496,18 +503,16 @@ struct MainAppStateControllerBehaviorTests {
         ).build()
         let validator = GatedCountingValidator(context: context)
         let controller = configuredController(validator: validator)
-        let first = Task { await controller.refreshValidation() }
-        while validator.checkCount == 0 {
+        let first = Task.immediate { await controller.refreshValidation() }
+        while validator.freshnessRequests.isEmpty {
             await Task.yield()
         }
-        let refresh = Task { await controller.revalidate() }
-        while validator.invalidationCount == 0 {
-            await Task.yield()
-        }
+        let refresh = Task.immediate { await controller.revalidate() }
         validator.open()
         await first.value
         await refresh.value
-        #expect(validator.checkCount == 2)
+
+        #expect(validator.freshnessRequests == [.cached, .fresh])
         #expect(controller.validationState == .success)
     }
 
@@ -762,12 +767,7 @@ struct MainAppStateControllerBehaviorTests {
 private final class GatedCountingValidator: WizardSystemValidating {
     private let snapshot: SystemSnapshot
     private var isOpen = false
-    private(set) var checkCount = 0
-    private(set) var invalidationCount = 0
-
-    func invalidateCaches() {
-        invalidationCount += 1
-    }
+    private(set) var freshnessRequests: [WizardSystemSnapshotFreshness] = []
 
     init(context: SystemContext) {
         snapshot = SystemSnapshot(
@@ -785,7 +785,11 @@ private final class GatedCountingValidator: WizardSystemValidating {
     }
 
     func checkSystem() async -> SystemSnapshot {
-        checkCount += 1
+        await checkSystem(freshness: .cached)
+    }
+
+    func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
+        freshnessRequests.append(freshness)
         while !isOpen, !Task.isCancelled {
             await Task.yield()
         }

@@ -17,7 +17,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         let freshContext = await engine.inspectSystem()
 
         XCTAssertEqual(validator.freshnessRequests, [.cached, .fresh])
-        XCTAssertEqual(validator.cacheInvalidationCount, 0)
         XCTAssertEqual(cachedContext.system, context.system)
         XCTAssertEqual(freshContext.system, context.system)
     }
@@ -42,7 +41,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
 
         XCTAssertEqual(validator.freshnessRequests, [.fresh])
-        XCTAssertEqual(validator.cacheInvalidationCount, 1)
         XCTAssertEqual(report.finalContext?.timestamp, context.timestamp)
         XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
     }
@@ -146,7 +144,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
         )
 
         XCTAssertTrue(validator.freshnessRequests.isEmpty)
-        XCTAssertEqual(validator.cacheInvalidationCount, 0)
         XCTAssertNil(report.finalContext)
     }
 
@@ -170,7 +167,6 @@ final class InstallerEngineEndToEndTests: KeyPathAsyncTestCase {
 
         XCTAssertFalse(report.success)
         XCTAssertEqual(validator.freshnessRequests, [.fresh])
-        XCTAssertEqual(validator.cacheInvalidationCount, 1)
         XCTAssertEqual(report.finalContext?.timestamp, context.timestamp)
         XCTAssertEqual(report.finalContext?.captureStatus, context.captureStatus)
     }

@@ -32,16 +32,14 @@ final class SnapshotConsumerLintTests: XCTestCase {
         )
     }
 
-    func testFreshCaptureInvalidatesCaches() throws {
-        let validator = LintScanner.path(
-            "Sources/KeyPathAppKit/Services/System/SystemValidator.swift"
+    func testValidatorDelegatesPermissionFreshnessToProvider() throws {
+        let capture = try LintScanner.functionBody(
+            named: "captureSessionSnapshot",
+            in: LintScanner.path("Sources/KeyPathAppKit/Services/System/SystemValidator.swift")
         )
-        let source = try String(contentsOf: validator, encoding: .utf8)
 
-        XCTAssertTrue(
-            source.contains("if freshness == .fresh {") && source.contains("invalidateCaches()"),
-            "A canonical fresh capture must invalidate subordinate evidence caches."
-        )
+        XCTAssertTrue(capture.contains("case .cached: await systemStateProvider.currentPermissionSnapshot()"))
+        XCTAssertTrue(capture.contains("case .fresh: await systemStateProvider.refreshPermissionSnapshot()"))
     }
 
     func testRuntimeAndInstallerStateCachesStayInKnownOwners() throws {

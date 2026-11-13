@@ -723,7 +723,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     let started = await manager.startKanata(reason: "AppDelegate auto-launch")
                     if started {
                         AppLogger.shared.log("✅ [AppDelegate] Auto-launch sequence completed (simple)")
-                        MainAppStateController.shared.invalidateValidationCooldown()
                     } else {
                         // This is commonly the expected first-run/early-boot race (e.g.
                         // Accessibility not yet granted) rather than a genuine failure —

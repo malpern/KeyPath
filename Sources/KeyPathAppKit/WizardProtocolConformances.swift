@@ -19,15 +19,7 @@ extension RuntimeCoordinator: RuntimeCoordinating {
 
 // MARK: - SystemValidator + WizardSystemValidating
 
-extension SystemValidator: WizardSystemValidating {
-    public func checkSystem() async -> SystemSnapshot {
-        await checkSystem(progressCallback: { _ in })
-    }
-
-    public func checkSystem(freshness: WizardSystemSnapshotFreshness) async -> SystemSnapshot {
-        await checkSystem(freshness: freshness, progressCallback: { _ in })
-    }
-}
+extension SystemValidator: WizardSystemValidating {}
 
 // MARK: - PermissionRequestService + WizardPermissionRequesting
 
@@ -39,8 +31,7 @@ extension PermissionRequestService: WizardPermissionRequesting {}
 @MainActor
 public func configureInstallerServices(runtimeCoordinator: RuntimeCoordinator) {
     let sharedValidator = SystemValidator(kanataManager: runtimeCoordinator)
-    // Share the same validator with MainAppStateController so there's only one instance app-wide.
-    // This ensures inProgressValidation dedup spans all callers.
+    // Both the main app and wizard use the same capture path.
     MainAppStateController.shared.setValidator(sharedValidator)
 
     InstallerServices.current = InstallerServices(

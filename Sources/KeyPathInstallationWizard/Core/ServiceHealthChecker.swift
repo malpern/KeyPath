@@ -50,10 +50,6 @@ public final class ServiceHealthChecker: @unchecked Sendable {
         sessionReadinessProvider.withLock { $0 = provider }
     }
 
-    /// Kept for callers that refresh evidence after a state change. Readiness is
-    /// read live from the session runtime, so there is no cache to clear.
-    public nonisolated func invalidateHealthCache() {}
-
     // MARK: - Session runtime readiness
 
     /// Process + TCP + input-capture readiness of the session runtime.
