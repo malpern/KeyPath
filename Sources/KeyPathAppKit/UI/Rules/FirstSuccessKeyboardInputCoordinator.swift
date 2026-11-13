@@ -15,6 +15,7 @@ final class FirstSuccessKeyboardInputCoordinator {
     @ObservationIgnored private let staleStateTimeout: Duration
     @ObservationIgnored private let staleStateSleep: @Sendable (Duration) async -> Void
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private var isObserving = false
     @ObservationIgnored private var listenerSessionID: Int?
     @ObservationIgnored private var staleStateTask: Task<Void, Never>?
@@ -35,27 +36,13 @@ final class FirstSuccessKeyboardInputCoordinator {
         guard !isObserving else { return }
         isObserving = true
 
-        observers.observe(
-            .kanataKeyInput,
-            queue: .main,
-            center: notificationCenter
-        ) { [weak self] notification in
-            let key = notification.userInfo?["key"] as? String
-            let action = notification.userInfo?["action"] as? String
-            let sessionID = notification.userInfo?["listenerSessionID"] as? Int
-            MainActor.assumeIsolated {
-                guard let self, self.isObserving,
-                      let key,
-                      let action
-                else {
-                    return
-                }
-                self.receiveKeyInput(
-                    key: key,
-                    action: action,
-                    listenerSessionID: sessionID
-                )
-            }
+        keyInputObserver = notificationCenter.addObserver(for: KanataObservedKeyInput.self) { [weak self] observation in
+            guard let self, isObserving else { return }
+            receiveKeyInput(
+                key: observation.key,
+                action: observation.action,
+                listenerSessionID: observation.sessionID
+            )
         }
 
         observers.observe(
@@ -130,6 +117,7 @@ final class FirstSuccessKeyboardInputCoordinator {
 
     func stop() {
         isObserving = false
+        keyInputObserver = nil
         observers.removeAll()
         listenerSessionID = nil
         clearInteraction()
@@ -137,7 +125,7 @@ final class FirstSuccessKeyboardInputCoordinator {
 
     func receiveKeyInput(
         key: String,
-        action: String,
+        action: KanataKeyAction,
         listenerSessionID: Int? = nil
     ) {
         defer { noteTCPActivity() }
@@ -145,22 +133,19 @@ final class FirstSuccessKeyboardInputCoordinator {
         prepareSession(listenerSessionID)
         var next = interaction
 
-        switch action.lowercased() {
-        case "press":
+        switch action {
+        case .press:
             guard next.pressedKeyCodes.insert(keyCode).inserted else { return }
             next.phase = .press
 
-        case "repeat":
+        case .repeat:
             return
 
-        case "release":
+        case .release:
             let removedPress = next.pressedKeyCodes.remove(keyCode) != nil
             let removedHold = next.heldKeyCodes.remove(keyCode) != nil
             guard removedPress || removedHold else { return }
             next.phase = .release
-
-        default:
-            return
         }
 
         publish(next)

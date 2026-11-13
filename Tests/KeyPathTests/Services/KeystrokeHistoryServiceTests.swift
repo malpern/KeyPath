@@ -6,18 +6,12 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
     private func postKeyInput(
         _ center: NotificationCenter,
         key: String,
-        action: String = "press",
+        action: KanataKeyAction = .press,
         kanataTimestamp: UInt64? = nil
     ) {
-        var userInfo: [String: Any] = [
-            "key": key,
-            "action": action,
-            "observedAt": Date(),
-        ]
-        if let ts = kanataTimestamp {
-            userInfo["kanataTimestamp"] = ts
-        }
-        center.post(name: .kanataKeyInput, object: nil, userInfo: userInfo)
+        center.post(KanataObservedKeyInput(
+            key: key, action: action, kanataTimestamp: kanataTimestamp, sessionID: 1, observedAt: Date()
+        ))
     }
 
     private func flushNotificationsAndBatch(_ service: KeystrokeHistoryService) async {
@@ -71,8 +65,8 @@ final class KeystrokeHistoryServiceTests: XCTestCase {
     func testReleaseEventsAreFiltered() async {
         let center = NotificationCenter()
         let service = KeystrokeHistoryService.makeTestInstance(notificationCenter: center)
-        postKeyInput(center, key: "a", action: "press")
-        postKeyInput(center, key: "a", action: "release")
+        postKeyInput(center, key: "a", action: .press)
+        postKeyInput(center, key: "a", action: .release)
         await flushNotificationsAndBatch(service)
         XCTAssertEqual(service.eventCount, 2)
         // Release events are not shown in segments (filtered by grouper)

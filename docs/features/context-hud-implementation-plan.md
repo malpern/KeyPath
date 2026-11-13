@@ -21,7 +21,7 @@ MAL-56 (Overlay Context Integration) already delivered collection-aware color-co
 ## Architecture
 
 ```
-Notification Center (.kanataLayerChanged, .kanataOneShotActivated, .kanataKeyInput)
+Notification Center (.kanataLayerChanged, .kanataOneShotActivated, KanataObservedKeyInput)
          │
          ▼
 ContextHUDController (singleton, @MainActor)
@@ -107,9 +107,9 @@ Wire `ContextHUDController` to check `displayMode` before showing. If `overlayOn
 
 All four dismiss triggers, handled in `ContextHUDController`:
 
-1. **Mapped key press**: `.kanataKeyInput` observer checks if key is in current `layerKeyMap` -> dismiss
+1. **Mapped key press**: `KanataObservedKeyInput` observer checks if key is in current `layerKeyMap` -> dismiss
 2. **Timeout**: `Task.sleep` with cancellation token, configurable via `PreferencesService.contextHUDTimeout`
-3. **Escape**: `.kanataKeyInput` where key == `"esc"` -> dismiss
+3. **Escape**: `KanataObservedKeyInput` where key == `"esc"` -> dismiss
 4. **Context change**: `.kanataLayerChanged` -> show new content or dismiss if returning to base
 
 ### Phase 5: Edge Cases & Polish (1 day)

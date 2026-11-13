@@ -279,8 +279,6 @@ extension Notification.Name {
     static let kanataConfigChanged = Notification.Name("KeyPath.KanataConfigChanged")
     /// Posted when a TCP message is received from Kanata (heartbeat for connection state)
     static let kanataTcpHeartbeat = Notification.Name("KeyPath.KanataTcpHeartbeat")
-    /// Posted when a physical key is pressed/released (userInfo["key"] = String, ["action"] = "press"/"release")
-    static let kanataKeyInput = Notification.Name("KeyPath.KanataKeyInput")
     /// Posted when a tap-hold key transitions to hold state (userInfo["key"] = String, ["action"] = String)
     static let kanataHoldActivated = Notification.Name("KeyPath.KanataHoldActivated")
     /// Posted when a tap-hold key triggers its tap action (userInfo["key"] = String, ["action"] = String)

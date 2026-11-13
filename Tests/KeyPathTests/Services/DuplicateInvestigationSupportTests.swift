@@ -13,19 +13,6 @@ final class DuplicateInvestigationSupportTests: XCTestCase {
         XCTAssertEqual(DuplicateInvestigationSupport.sessionRelation(previous: nil, current: 5), "unknown-session")
     }
 
-    func testKeypressObservationMetadataParsesNotificationUserInfo() {
-        let observedAt = Date(timeIntervalSince1970: 123)
-        let metadata = KeypressObservationMetadata.from(userInfo: [
-            "listenerSessionID": 9,
-            "kanataTimestamp": UInt64(321),
-            "observedAt": observedAt
-        ])
-
-        XCTAssertEqual(metadata.listenerSessionID, 9)
-        XCTAssertEqual(metadata.kanataTimestamp, 321)
-        XCTAssertEqual(metadata.observedAt, observedAt)
-    }
-
     func testObservedKeyInputLogIncludesSessionAndTimestamp() {
         let event = KanataObservedKeyInput(
             key: "a",
@@ -326,13 +313,6 @@ final class DuplicateInvestigationSupportTests: XCTestCase {
             )
         )
         XCTAssertEqual(releaseA.heldKeyCount, 1)
-    }
-
-    func testKeypressObservationMetadataFromNilUserInfo() {
-        let metadata = KeypressObservationMetadata.from(userInfo: nil)
-        XCTAssertNil(metadata.listenerSessionID)
-        XCTAssertNil(metadata.kanataTimestamp)
-        XCTAssertNil(metadata.observedAt)
     }
 
     func testSystemAutorepeatMismatchFlagsWhenKanataDidNotRepeat() async {

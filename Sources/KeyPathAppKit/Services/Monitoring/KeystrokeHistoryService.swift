@@ -21,6 +21,7 @@ final class KeystrokeHistoryService {
     @ObservationIgnored private var pendingEvents: [KeystrokeTimelineEvent] = []
     @ObservationIgnored private var batchTimer: Timer?
     @ObservationIgnored private let observers = NotificationObserverManager()
+    @ObservationIgnored private var keyInputObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored private let workspaceObservers = NotificationObserverManager()
     @ObservationIgnored private var currentAppBundleId: String?
     @ObservationIgnored private var currentAppName: String?
@@ -51,22 +52,15 @@ final class KeystrokeHistoryService {
     // MARK: - Notification Observers
 
     private func setupObservers() {
-        observers.observe(.kanataKeyInput, center: notificationCenter) { [weak self] notification in
-            guard let self else { return }
-            let userInfo = notification.userInfo
-            guard let key = userInfo?["key"] as? String,
-                  let actionStr = userInfo?["action"] as? String,
-                  let action = KanataKeyAction(rawValue: actionStr.lowercased())
-            else { return }
-            let metadata = KeypressObservationMetadata.from(userInfo: userInfo)
+        keyInputObserver = notificationCenter.addObserver(for: KanataObservedKeyInput.self) { [weak self] observation in
             let event = KeystrokeTimelineEvent(
                 id: UUID(),
-                timestamp: metadata.observedAt ?? Date(),
+                timestamp: observation.observedAt,
                 kind: .keyInput(KeyInputPayload(
-                    key: key,
-                    action: action,
+                    key: observation.key,
+                    action: observation.action,
                     layer: nil,
-                    kanataTimestamp: metadata.kanataTimestamp
+                    kanataTimestamp: observation.kanataTimestamp
                 ))
             )
             Task { @MainActor [weak self] in

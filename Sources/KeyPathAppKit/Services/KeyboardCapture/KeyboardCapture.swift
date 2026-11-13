@@ -26,7 +26,7 @@ public class KeyboardCapture {
     @ObservationIgnored var anyEventSeen = false
 
     // TCP-based capture for when Kanata is running
-    @ObservationIgnored var tcpKeyInputObserver: NSObjectProtocol?
+    @ObservationIgnored var tcpKeyInputObserver: NotificationCenter.ObservationToken?
     @ObservationIgnored var isTcpCaptureMode = false
 
     // Enhanced sequence capture properties

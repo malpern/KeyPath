@@ -79,7 +79,7 @@ extension KeyboardVisualizationViewModel {
         isShowingLayerPreview = false
 
         // Remove notification observers
-        for observer in [keyInputObserver, tcpHeartbeatObserver, holdActivatedObserver,
+        for observer in [tcpHeartbeatObserver, holdActivatedObserver,
                          tapActivatedObserver, messagePushObserver, ruleCollectionsObserver,
                          oneShotObserver]
         {

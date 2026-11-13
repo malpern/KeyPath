@@ -10,37 +10,25 @@ extension KeyboardCapture {
     func setupTcpCapture() {
         isTcpCaptureMode = true
 
-        tcpKeyInputObserver = NotificationCenter.default.addObserver(
-            forName: .kanataKeyInput,
-            object: nil,
-            queue: NotificationObserverManager.mainOperationQueue
-        ) { [weak self] notification in
-            guard let self else { return }
-            // Extract values from notification before crossing actor boundary
-            guard let userInfo = notification.userInfo,
-                  let keyName = userInfo["key"] as? String,
-                  let action = userInfo["action"] as? String,
-                  action == "press"
-            else { return }
-            Task { @MainActor in
-                // Check isCapturing on MainActor to avoid concurrency warning
-                guard self.isCapturing else { return }
-                self.handleTcpKeyInputValues(keyName: keyName, action: action)
+        tcpKeyInputObserver = NotificationCenter.default.addObserver(for: KanataObservedKeyInput.self) { [weak self] observation in
+            guard observation.action == .press else { return }
+            Task { @MainActor [weak self] in
+                self?.handleTcpKeyInputValues(keyName: observation.key)
             }
         }
 
-        AppLogger.shared.info("✅ [KeyboardCapture] TCP-based capture started (subscribed to .kanataKeyInput)")
+        AppLogger.shared.info("✅ [KeyboardCapture] TCP-based capture started")
     }
 
     /// Handle extracted TCP KeyInput values and convert to a KeyPress
-    func handleTcpKeyInputValues(keyName: String, action: String) {
+    func handleTcpKeyInputValues(keyName: String) {
         guard isCapturing else { return }
 
         anyEventSeen = true
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
 
-        AppLogger.shared.log("🎹 [KeyboardCapture] TCP keyInput: \(keyName) action=\(action)")
+        AppLogger.shared.log("🎹 [KeyboardCapture] TCP keyInput: \(keyName) action=press")
 
         // Convert TCP key name to KeyPress
         let keyPress = KeyPress(

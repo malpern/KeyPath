@@ -6,15 +6,15 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
     func testPressRepeatAndReleaseTrackOnlyCurrentKeys() {
         let coordinator = FirstSuccessKeyboardInputCoordinator()
 
-        coordinator.receiveKeyInput(key: "caps", action: "press", listenerSessionID: 4)
+        coordinator.receiveKeyInput(key: "caps", action: .press, listenerSessionID: 4)
         let pressRevision = coordinator.interaction.revision
         XCTAssertEqual(coordinator.interaction.pressedKeyCodes, [57])
         XCTAssertEqual(coordinator.interaction.phase, .press)
 
-        coordinator.receiveKeyInput(key: "caps", action: "repeat", listenerSessionID: 4)
+        coordinator.receiveKeyInput(key: "caps", action: .repeat, listenerSessionID: 4)
         XCTAssertEqual(coordinator.interaction.revision, pressRevision)
 
-        coordinator.receiveKeyInput(key: "caps", action: "release", listenerSessionID: 4)
+        coordinator.receiveKeyInput(key: "caps", action: .release, listenerSessionID: 4)
         XCTAssertTrue(coordinator.interaction.pressedKeyCodes.isEmpty)
         XCTAssertEqual(coordinator.interaction.phase, .release)
         XCTAssertGreaterThan(coordinator.interaction.revision, pressRevision)
@@ -29,7 +29,7 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.interaction.heldKeyCodes, [57])
         XCTAssertEqual(coordinator.interaction.phase, .hold)
 
-        coordinator.receiveKeyInput(key: "caps", action: "release", listenerSessionID: 2)
+        coordinator.receiveKeyInput(key: "caps", action: .release, listenerSessionID: 2)
 
         XCTAssertTrue(coordinator.interaction.pressedKeyCodes.isEmpty)
         XCTAssertTrue(coordinator.interaction.heldKeyCodes.isEmpty)
@@ -37,9 +37,9 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
 
     func testNewListenerSessionClearsStalePressedKeys() {
         let coordinator = FirstSuccessKeyboardInputCoordinator()
-        coordinator.receiveKeyInput(key: "a", action: "press", listenerSessionID: 8)
+        coordinator.receiveKeyInput(key: "a", action: .press, listenerSessionID: 8)
 
-        coordinator.receiveKeyInput(key: "s", action: "press", listenerSessionID: 9)
+        coordinator.receiveKeyInput(key: "s", action: .press, listenerSessionID: 9)
 
         XCTAssertEqual(coordinator.interaction.pressedKeyCodes, [1])
     }
@@ -54,20 +54,14 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.capsTapRevision, 1)
     }
 
-    func testNotificationBridgeStopsAndClearsState() async {
+    func testTypedKeyInputStopsAndClearsState() async {
         let center = NotificationCenter()
         let coordinator = FirstSuccessKeyboardInputCoordinator(notificationCenter: center)
         coordinator.start()
 
-        center.post(
-            name: .kanataKeyInput,
-            object: nil,
-            userInfo: [
-                "key": "q",
-                "action": "press",
-                "listenerSessionID": 7,
-            ]
-        )
+        center.post(KanataObservedKeyInput(
+            key: "q", action: .press, kanataTimestamp: nil, sessionID: 7, observedAt: Date()
+        ))
         await yieldUntil { coordinator.interaction.pressedKeyCodes == [12] }
         XCTAssertEqual(coordinator.interaction.pressedKeyCodes, [12])
 
@@ -75,31 +69,25 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         let stoppedRevision = coordinator.interaction.revision
         XCTAssertTrue(coordinator.interaction.pressedKeyCodes.isEmpty)
 
-        center.post(
-            name: .kanataKeyInput,
-            object: nil,
-            userInfo: ["key": "w", "action": "press"]
-        )
+        center.post(KanataObservedKeyInput(
+            key: "w", action: .press, kanataTimestamp: nil, sessionID: 7, observedAt: Date()
+        ))
         await Task.yield()
         XCTAssertEqual(coordinator.interaction.revision, stoppedRevision)
         XCTAssertTrue(coordinator.interaction.pressedKeyCodes.isEmpty)
     }
 
-    func testNotificationBridgePreservesPressReleaseOrder() {
+    func testTypedKeyInputPreservesPressReleaseOrder() {
         let center = NotificationCenter()
         let coordinator = FirstSuccessKeyboardInputCoordinator(notificationCenter: center)
         coordinator.start()
 
-        center.post(
-            name: .kanataKeyInput,
-            object: nil,
-            userInfo: ["key": "q", "action": "press"]
-        )
-        center.post(
-            name: .kanataKeyInput,
-            object: nil,
-            userInfo: ["key": "q", "action": "release"]
-        )
+        center.post(KanataObservedKeyInput(
+            key: "q", action: .press, kanataTimestamp: nil, sessionID: 7, observedAt: Date()
+        ))
+        center.post(KanataObservedKeyInput(
+            key: "q", action: .release, kanataTimestamp: nil, sessionID: 7, observedAt: Date()
+        ))
 
         XCTAssertEqual(coordinator.interaction.revision, 2)
         XCTAssertTrue(coordinator.interaction.pressedKeyCodes.isEmpty)
@@ -116,11 +104,9 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         )
         coordinator.start()
 
-        center.post(
-            name: .kanataKeyInput,
-            object: nil,
-            userInfo: ["key": "q", "action": "press"]
-        )
+        center.post(KanataObservedKeyInput(
+            key: "q", action: .press, kanataTimestamp: nil, sessionID: 7, observedAt: Date()
+        ))
         await yieldUntil { coordinator.interaction.revision == 2 }
 
         XCTAssertTrue(coordinator.interaction.pressedKeyCodes.isEmpty)
@@ -133,11 +119,9 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         let coordinator = FirstSuccessKeyboardInputCoordinator(notificationCenter: center)
         coordinator.start()
 
-        center.post(
-            name: .kanataKeyInput,
-            object: nil,
-            userInfo: ["key": "q", "action": "press"]
-        )
+        center.post(KanataObservedKeyInput(
+            key: "q", action: .press, kanataTimestamp: nil, sessionID: 7, observedAt: Date()
+        ))
         XCTAssertEqual(coordinator.interaction.pressedKeyCodes, [12])
 
         center.post(name: .kanataConfigChanged, object: nil)
@@ -156,15 +140,9 @@ final class FirstSuccessKeyboardInputCoordinatorTests: XCTestCase {
         )
         coordinator.start()
 
-        center.post(
-            name: .kanataKeyInput,
-            object: nil,
-            userInfo: [
-                "key": "q",
-                "action": "press",
-                "listenerSessionID": 7,
-            ]
-        )
+        center.post(KanataObservedKeyInput(
+            key: "q", action: .press, kanataTimestamp: nil, sessionID: 7, observedAt: Date()
+        ))
         await yieldUntilAsync { await sleeper.waiterCount == 1 }
 
         center.post(name: .kanataTcpHeartbeat, object: nil)
