@@ -98,7 +98,7 @@ public extension InstallationWizardView {
 
         let report: InstallerReport
         do {
-            report = try await runWithTimeout(seconds: timeoutSeconds) {
+            report = try await withTimeout(.seconds(timeoutSeconds), cancellation: .waitForOperation) {
                 await InstallerEngine().runSingleAction(action)
             }
         } catch {

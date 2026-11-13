@@ -227,6 +227,7 @@ let package = Package(
         .target(
             name: "KeyPathCLI",
             dependencies: [
+                "KeyPathCore",
                 "KeyPathCLISupport",
                 "KeyPathCLICommon",
                 "KeyPathCLIHelp",

@@ -67,41 +67,14 @@ public class WizardAsyncOperationManager {
             )
 
             do {
-                // A task group waits for every child on exit, even after its
-                // timer wins. A stream lets the deadline retire UI ownership
-                // while a non-cooperative dependency finishes in the background.
-                let (stream, continuation) = AsyncThrowingStream<T, Error>.makeStream()
-                let operationTask = Task { @MainActor in
-                    do {
-                        let value = try await operation.execute { progress in
-                            Task { @MainActor in
-                                guard self.operationGenerations[operationId] == generation else { return }
-                                self.operationProgress[operationId] = progress
-                            }
+                let result = try await withTimeout(.seconds(timeoutDuration), cancellation: .returnImmediately) { @MainActor in
+                    try await operation.execute { progress in
+                        Task { @MainActor in
+                            guard self.operationGenerations[operationId] == generation else { return }
+                            self.operationProgress[operationId] = progress
                         }
-                        continuation.yield(value)
-                        continuation.finish()
-                    } catch {
-                        continuation.finish(throwing: error)
                     }
                 }
-                let deadlineTask = Task {
-                    do {
-                        try await ContinuousClock().sleep(for: .seconds(timeoutDuration))
-                        continuation.finish(throwing: TimeoutError(operation: opName, timeout: timeoutDuration))
-                    } catch {}
-                }
-                continuation.onTermination = { _ in
-                    operationTask.cancel()
-                    deadlineTask.cancel()
-                }
-                defer {
-                    operationTask.cancel()
-                    deadlineTask.cancel()
-                    continuation.finish()
-                }
-                var iterator = stream.makeAsyncIterator()
-                guard let result = try await iterator.next() else { throw CancellationError() }
 
                 // Check if task was cancelled
                 guard !Task.isCancelled else {
@@ -125,8 +98,8 @@ public class WizardAsyncOperationManager {
                 } else {
                     guard operationGenerations[operationId] == generation else { return }
                     let wizardError: WizardError
-                    if let timeoutError = error as? TimeoutError {
-                        wizardError = WizardError.timeout(operation: timeoutError.operation)
+                    if error is OperationTimeoutError {
+                        wizardError = WizardError.timeout(operation: opName)
                         AppLogger.shared.warn(
                             "⏱️ [AsyncOp] Operation timed out: \(opName) after \(timeoutDuration)s"
                         )
@@ -235,17 +208,6 @@ public class WizardAsyncOperationManager {
     /// Check if any operations are running
     @MainActor public var hasRunningOperations: Bool {
         !runningOperations.isEmpty
-    }
-}
-
-// MARK: - Timeout Error
-
-private struct TimeoutError: Error {
-    let operation: String
-    let timeout: TimeInterval
-
-    var localizedDescription: String {
-        "Operation '\(operation)' timed out after \(timeout) seconds"
     }
 }
 

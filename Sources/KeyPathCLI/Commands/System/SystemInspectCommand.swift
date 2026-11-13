@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import KeyPathAppKit
 import KeyPathCLISupport
+import KeyPathCore
 
 struct SystemInspect: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -16,10 +17,10 @@ struct SystemInspect: AsyncParsableCommand {
         let facade = SystemFacade()
         let result: CLIInspectResult
         do {
-            result = try await withThrowingTimeout(seconds: globals.timeout) {
+            result = try await withTimeout(.seconds(globals.timeout), cancellation: .returnImmediately) {
                 await facade.runInspect()
             }
-        } catch is TimeoutError {
+        } catch is OperationTimeoutError {
             let error = CLIError.serviceUnreachable(hint: "System inspection timed out. Try --timeout \(globals.timeout * 2)")
             CLIOutput.writeError(error, context: ctx)
             throw error.code.exitCode
