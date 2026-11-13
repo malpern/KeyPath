@@ -3,7 +3,7 @@ layout: default
 title: "A Numpad Under Your Hand"
 description: "Right hand becomes a numpad, left hand gets operators. Two-step activation through the Leader key."
 theme: parchment
-header_image: header-numpad-layer.png
+header_image: header-numpad-layer.jpg
 permalink: /guides/numpad-layer/
 ---
 

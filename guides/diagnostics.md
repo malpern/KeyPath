@@ -3,7 +3,7 @@ layout: default
 title: "Diagnostics & Insights"
 description: "Understand what your keyboard is doing — analytics, history, and testing tools"
 theme: parchment
-header_image: header-diagnostics.png
+header_image: header-diagnostics.jpg
 permalink: /guides/diagnostics/
 ---
 

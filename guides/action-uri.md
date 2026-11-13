@@ -3,7 +3,7 @@ layout: default
 title: "Launching Apps & Workflows"
 description: "Launch apps, URLs, and folders from your keyboard with a single keystroke"
 theme: parchment
-header_image: header-action-uri.png
+header_image: header-action-uri.jpg
 permalink: /guides/action-uri/
 ---
 

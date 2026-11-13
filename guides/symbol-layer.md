@@ -3,7 +3,7 @@ layout: default
 title: "Programming Symbols Instantly"
 description: "Brackets, pipes, and operators all under your home row. Three preset layouts for different coding styles."
 theme: parchment
-header_image: header-symbol-layer.png
+header_image: header-symbol-layer.jpg
 permalink: /guides/symbol-layer/
 ---
 

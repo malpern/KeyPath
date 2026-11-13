@@ -3,7 +3,7 @@ layout: default
 title: "Installation Wizard"
 description: "What to expect when setting up KeyPath for the first time"
 theme: parchment
-header_image: header-installation-wizard.png
+header_image: header-installation-wizard.jpg
 permalink: /guides/installation-wizard/
 ---
 

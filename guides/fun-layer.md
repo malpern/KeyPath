@@ -3,7 +3,7 @@ layout: default
 title: "Function Pack Availability"
 description: "F1–F12 mappings are supported; the combined media and brightness Function pack is unavailable in driverless mode."
 theme: parchment
-header_image: header-fun-layer.png
+header_image: header-fun-layer.jpg
 permalink: /guides/fun-layer/
 ---
 

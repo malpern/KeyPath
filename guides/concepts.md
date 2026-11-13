@@ -3,7 +3,7 @@ layout: default
 title: "Keyboard Concepts for Mac Users"
 description: "Layers, tap-hold, modifiers, and more — explained for people who've never gone beyond System Settings"
 theme: parchment
-header_image: header-concepts.png
+header_image: header-concepts.jpg
 permalink: /guides/concepts/
 ---
 
@@ -124,7 +124,7 @@ The problem: they're all in the corners. Every shortcut forces your fingers off 
               Tap for letters, hold for modifiers
 ```
 
-![Home row mods — modifiers on the home row]({{ '/images/help/header-home-row-mods.png' | relative_url }})
+![Home row mods — modifiers on the home row]({{ '/images/help/header-home-row-mods.jpg' | relative_url }})
 
 Hold F + press C = ⌘C (Copy). Hold A + press Tab = ⇧Tab. Your hands never move.
 

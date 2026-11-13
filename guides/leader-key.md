@@ -3,7 +3,7 @@ layout: default
 title: "Choose Your Leader Key"
 description: "Pick which key activates all your layers — Space, Caps Lock, Tab, or Backtick. One change updates everything."
 theme: parchment
-header_image: header-leader-key.png
+header_image: header-leader-key.jpg
 permalink: /guides/leader-key/
 ---
 

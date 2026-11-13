@@ -3,7 +3,7 @@ layout: default
 title: "Press Two Keys at Once"
 description: "Press two adjacent keys simultaneously to produce Escape, Enter, Backspace, or any other key without leaving the home row"
 theme: parchment
-header_image: header-chords.png
+header_image: header-chords.jpg
 permalink: /guides/chords/
 ---
 

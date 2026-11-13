@@ -3,7 +3,7 @@ layout: default
 title: "Window Management"
 description: "Tile, snap, and move windows with keyboard shortcuts — no mouse required"
 theme: parchment
-header_image: header-window-management.png
+header_image: header-window-management.jpg
 permalink: /guides/window-management/
 ---
 

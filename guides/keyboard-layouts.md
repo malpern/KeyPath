@@ -3,7 +3,7 @@ layout: default
 title: "Works With Your Keyboard"
 description: "15 physical keyboard layouts from MacBook to Kinesis Advantage 360"
 theme: parchment
-header_image: header-keyboard-layouts.png
+header_image: header-keyboard-layouts.jpg
 permalink: /guides/keyboard-layouts/
 ---
 

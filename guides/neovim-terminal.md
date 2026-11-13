@@ -3,7 +3,7 @@ layout: default
 title: "Neovim in the Terminal"
 description: "Bring Neovim navigation muscle memory to every macOS app with a Leader-layer HUD reference"
 theme: parchment
-header_image: header-neovim-terminal.png
+header_image: header-neovim-terminal.jpg
 permalink: /guides/neovim-terminal/
 ---
 

@@ -14,11 +14,12 @@
 #   ./Scripts/capture-peekaboo-screenshots.sh accessibility # capture one
 #   ./Scripts/capture-peekaboo-screenshots.sh file-picker
 #
-# Output goes to Sources/KeyPathAppKit/Resources/ alongside existing help images.
+# Output goes to images/help/ alongside existing help images.
 
 set -euo pipefail
 
-OUTPUT_DIR="Sources/KeyPathAppKit/Resources"
+PROJECT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+OUTPUT_DIR="${KEYPATH_HELP_CAPTURE_OUTPUT_DIR:-$PROJECT_DIR/images/help}"
 TEMP_DIR=$(mktemp -d)
 WAIT_LONG=3
 
@@ -145,6 +146,7 @@ capture_file_picker() {
 # ---------------------------------------------------------------------------
 
 check_peekaboo
+mkdir -p "$OUTPUT_DIR"
 
 echo "=== Peekaboo Screenshot Capture ==="
 echo "Output: $OUTPUT_DIR/"

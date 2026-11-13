@@ -232,52 +232,52 @@ illustrations:
       used_in: HelpBrowserView.swift (welcome page), docs.md (website)
       description: "Welcome banner for help browser landing page"
 
-    - file: header-installation.png
+    - file: header-installation.jpg
       used_in: installation.md
       description: "Keyboard unboxing with wrench and key, 'Setting Up KeyPath' script"
 
-    - file: header-concepts.png
+    - file: header-concepts.jpg
       used_in: concepts.md
       description: "Keyboard concepts watercolor header"
 
-    - file: header-use-cases.png
+    - file: header-use-cases.jpg
       used_in: use-cases.md
       description: "What You Can Build watercolor header"
 
-    - file: header-home-row-mods.png
+    - file: header-home-row-mods.jpg
       used_in: home-row-mods.md
       description: "Home row mods watercolor header"
 
-    - file: header-tap-hold.png
+    - file: header-tap-hold.jpg
       used_in: tap-hold.md
       description: "Tap-hold watercolor header"
 
-    - file: header-window-management.png
+    - file: header-window-management.jpg
       used_in: window-management.md
       description: "Window management watercolor header"
 
-    - file: header-action-uri.png
+    - file: header-action-uri.jpg
       used_in: action-uri.md, action-uri-reference.md
       description: "App launching watercolor header (shared by guide and reference)"
 
-    - file: header-privacy.png
+    - file: header-privacy.jpg
       used_in: privacy.md
       description: "Privacy & permissions watercolor header"
 
-    - file: header-karabiner-users.png
+    - file: header-karabiner-users.jpg
       used_in: karabiner-users.md
       description: "Karabiner switching guide watercolor header"
 
-    - file: header-kanata-users.png
+    - file: header-kanata-users.jpg
       used_in: kanata-users.md
       description: "Kanata switching guide watercolor header"
 
-    - file: header-keyboard-layouts.png
+    - file: header-keyboard-layouts.jpg
       used_in: keyboard-layouts.md
       description: "Keyboard layouts watercolor header"
 
     # Missing headers (articles exist but no header image yet):
-    - file: header-alternative-layouts.png
+    - file: header-alternative-layouts.jpg
       used_in: alternative-layouts.md
       description: "Alternative layouts watercolor header — keycaps swapping positions"
 

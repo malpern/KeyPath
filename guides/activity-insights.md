@@ -5,7 +5,7 @@ description: Legacy redirect
 permalink: /guides/activity-insights/
 hide_sidebar: true
 theme: parchment
-header_image: header-activity-insights.png
+header_image: header-activity-insights.jpg
 ---
 
 <meta http-equiv="refresh" content="0; url={{ '/guides/use-cases/' | relative_url }}">

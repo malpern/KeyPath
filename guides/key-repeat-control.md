@@ -3,7 +3,7 @@ layout: default
 title: "Arrow Keys at Full Speed"
 description: "Arrow keys and delete repeat 3x faster while regular typing stays steady — no accidental repeats."
 theme: parchment
-header_image: header-key-repeat-control.png
+header_image: header-key-repeat-control.jpg
 permalink: /guides/key-repeat-control/
 ---
 

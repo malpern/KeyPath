@@ -3,7 +3,7 @@ layout: default
 title: "Action URI Reference"
 description: "Technical deep-link reference for integrating KeyPath with Raycast, Alfred, and scripts"
 theme: parchment
-header_image: header-action-uri-reference.png
+header_image: header-action-uri-reference.jpg
 permalink: /guides/action-uri-reference/
 ---
 
