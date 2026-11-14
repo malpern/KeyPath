@@ -74,7 +74,8 @@ class SessionVerificationTests(unittest.TestCase):
                          (str(self.path), str(self.base / 'report.json')),
                          (runtime.canonical_config(self.uid), str(self.base / 'other.kbd')),
                          (runtime.canonical_config(self.uid),
-                          os.path.dirname(runtime.canonical_config(self.uid)) + '/../keypath/keypath.kbd')]:
+                          os.path.dirname(runtime.canonical_config(self.uid)) + '/../keypath/keypath.kbd'),
+                         (runtime.canonical_config(self.uid), 'keypath.kbd')]:
             args = tuple(new if value == old else value for value in self.worker[2])
             with self.subTest(value=old), self.assertRaises(ValueError):
                 runtime.owned_launch({100: self.parent, 101: (self.uid, self.executable, args)},

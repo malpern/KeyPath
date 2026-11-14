@@ -66,7 +66,11 @@ def discover(executable, uid):
 def canonical_config(uid):
     """The config the worker must run: the owning user's ~/.config/keypath/keypath.kbd."""
     import pwd
-    return os.path.join(pwd.getpwuid(uid).pw_dir, '.config/keypath/keypath.kbd')
+    try:
+        home = pwd.getpwuid(uid).pw_dir
+    except KeyError:
+        raise ValueError('worker owner has no account entry') from None
+    return os.path.join(home, '.config/keypath/keypath.kbd')
 
 
 def owned_launch(processes, executable, uid):
@@ -95,7 +99,7 @@ def owned_launch(processes, executable, uid):
     require('--session-port' not in args, 'worker was given a TCP port')
     config = argument('--session-config')
     # The worker refuses any '..' component; so does the verifier.
-    require('..' not in config.split('/')
+    require(config.startswith('/') and '..' not in config.split('/')
             and os.path.realpath(config) == os.path.realpath(canonical_config(uid)),
             'worker is not running the canonical config')
     nonce = argument('--session-nonce')
