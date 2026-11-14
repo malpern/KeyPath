@@ -148,8 +148,16 @@ enum RuntimeControlHandler {
     static let cliConfirmationTimeout: TimeInterval = 100
 
     /// Why a CLI uninstall stops before changing anything, or nil to go ahead.
+    /// True while a CLI uninstall dialog is open; a second request is refused.
+    @MainActor private static var uninstallPromptOpen = false
+
     @MainActor static func uninstallRefusal(confirmed: Bool, ask: @MainActor () async -> Bool) async -> String? {
         guard confirmed else { return "Uninstall needs confirmation; nothing was changed." }
+        guard !uninstallPromptOpen else {
+            return "KeyPath is already asking about an uninstall; nothing was changed."
+        }
+        uninstallPromptOpen = true
+        defer { uninstallPromptOpen = false }
         guard await ask() else { return "Uninstall was not confirmed in KeyPath; nothing was changed." }
         return nil
     }

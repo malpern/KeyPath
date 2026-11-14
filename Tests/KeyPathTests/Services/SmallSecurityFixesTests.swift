@@ -30,6 +30,23 @@ final class SmallSecurityFixesTests: XCTestCase {
         XCTAssertLessThan(RuntimeControlHandler.cliConfirmationTimeout, 120, "The dialog closes before the CLI stops waiting")
     }
 
+    func testSecondCLIUninstallIsRefusedWhileOneIsAsking() async {
+        var release: CheckedContinuation<Void, Never>?
+        let first = Task { @MainActor in
+            await RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: {
+                await withCheckedContinuation { release = $0 }
+                return false
+            })
+        }
+        while release == nil {
+            await Task.yield()
+        }
+        let second = await RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { true })
+        XCTAssertEqual(second, "KeyPath is already asking about an uninstall; nothing was changed.")
+        release?.resume()
+        _ = await first.value
+    }
+
     func testImportReviewShowsTheFullTarget() {
         XCTAssertEqual(KeyAction.runScript(path: "curl x | sh", name: "Build").importReviewDescription,
                        "Runs curl x | sh")
