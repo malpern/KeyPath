@@ -34,7 +34,7 @@ class SessionVerificationTests(unittest.TestCase):
         self.worker = (self.uid, self.executable, (self.executable, '--session-runtime',
                        '--session-owner', '100', '--session-report', str(self.path),
                        '--session-nonce', NONCE, '--session-owner-pidversion', '7',
-                       '--session-config', str(self.base / 'Home With Spaces/.config/keypath/keypath.kbd')))
+                       '--session-config', runtime.canonical_config(self.uid)))
         self.processes = {100: self.parent, 101: self.worker}
         self.report = dict(nonce=NONCE, pid=101, uid=self.uid, state='running',
                            accessibility=True, effectiveInputAccess=True, tapActive=True,
@@ -72,7 +72,7 @@ class SessionVerificationTests(unittest.TestCase):
     def test_launch_owner_nonce_port_and_report_binding(self):
         for old, new in [('100', '999'), (NONCE, 'not-a-uuid'), ('7', 'x'), ('7', '0'),
                          (str(self.path), str(self.base / 'report.json')),
-                         (str(self.base / 'Home With Spaces/.config/keypath/keypath.kbd'), str(self.base / 'other.kbd'))]:
+                         (runtime.canonical_config(self.uid), str(self.base / 'other.kbd'))]:
             args = tuple(new if value == old else value for value in self.worker[2])
             with self.subTest(value=old), self.assertRaises(ValueError):
                 runtime.owned_launch({100: self.parent, 101: (self.uid, self.executable, args)},
