@@ -55,6 +55,8 @@ struct LaunchSplashSequence {
         ceiling.cancel()
         let elapsed = now() - started
         if gaveUp.isSet {
+            // Let the hide finish before the overlay or setup appears.
+            await ceiling.value
             await preparing.value
             // The poster has been hidden, so setup brings the window back itself.
             await perform(complete ? .showOverlay : .showSetup(posterAlreadyShown: false))
