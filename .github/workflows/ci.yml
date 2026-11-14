@@ -215,10 +215,17 @@ jobs:
         # swiftpm-safe must still not overlap two test runs. lockf holds a
         # kernel lock that is released when the process exits, even if the
         # job is cancelled, so it cannot go stale.
-        if /usr/bin/lockf -t 1800 /tmp/keypath-ci-swift-tests.lock ./Scripts/test-lane.sh full; then
+        # The wait counts against this job's 25-minute budget, so give up well
+        # before it; lockf exits 75 when it does.
+        rc=0
+        /usr/bin/lockf -t 600 /tmp/keypath-ci-swift-tests.lock ./Scripts/test-lane.sh full || rc=$?
+        if [ "$rc" -eq 0 ]; then
           echo "TEST_STATUS=passed" >> $GITHUB_ENV
         else
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
+          if [ "$rc" -eq 75 ]; then
+            echo "::error::Another test run held the mini's test lock for 10 minutes; tests did not run. Re-run this job."
+          fi
           exit 1
         fi
 
