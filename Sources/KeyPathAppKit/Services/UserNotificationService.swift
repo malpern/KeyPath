@@ -245,7 +245,7 @@ final class UserNotificationService: NSObject, UNUserNotificationCenterDelegate 
             NotificationCenter.default.post(name: .openAccessibilitySettings, object: nil)
         case Action.openApp.rawValue:
             Task { @MainActor in
-                NSApplication.shared.activate(ignoringOtherApps: true)
+                NSApplication.shared.activate()
             }
         default:
             break

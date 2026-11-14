@@ -43,7 +43,7 @@ extension LiveKeyboardOverlayController {
         if appWasHidden {
             NSApp.unhide(nil)
         }
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         showForQuickLaunch(bypassHiddenCheck: true)
         guard canShowOverlay(reason: "launcher activation front") else { return }
         guard isVisible else { return }
@@ -91,7 +91,7 @@ extension LiveKeyboardOverlayController {
         }
         guard canShowOverlay(reason: "bring overlay to front") else { return }
         guard isVisible else { return }
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
         window?.orderFront(nil)
     }
 }

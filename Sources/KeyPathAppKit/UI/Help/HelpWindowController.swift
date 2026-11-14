@@ -25,7 +25,7 @@ final class HelpWindowController: NSObject, NSWindowDelegate {
     func showBrowser(selecting topic: HelpTopic?, keepOverlayVisible: Bool = false) {
         if let window, window.isVisible {
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             return
         }
 
@@ -62,7 +62,7 @@ final class HelpWindowController: NSObject, NSWindowDelegate {
         }
 
         newWindow.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
 
         window = newWindow
     }

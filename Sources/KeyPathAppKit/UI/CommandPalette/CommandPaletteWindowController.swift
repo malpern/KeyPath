@@ -94,7 +94,7 @@ final class CommandPaletteWindowController {
 
         self.panel = panel
         panel.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
     }
 
     func dismiss() {
@@ -178,7 +178,7 @@ final class CommandPaletteWindowController {
                 DispatchQueue.main.async {
                     if NSApp.isHidden {
                         NSApp.unhide(nil)
-                        NSApp.activate(ignoringOtherApps: true)
+                        NSApp.activate()
                     } else {
                         NSApp.hide(nil)
                     }
