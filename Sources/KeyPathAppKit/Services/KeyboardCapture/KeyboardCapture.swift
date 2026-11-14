@@ -367,7 +367,7 @@ public class KeyboardCapture {
         let modifiers = ModifierSet(cgEventFlags: event.flags)
         let now = Date()
 
-        AppLogger.shared.log(
+        AppLogger.shared.pressedKey(
             "🎹 [KeyboardCapture] keyDown: \(keyName) code=\(keyCode) suppress=\(suppressEvents)"
         )
         anyEventSeen = true
@@ -388,7 +388,7 @@ public class KeyboardCapture {
                last.modifiers == keyPress.modifiers,
                now.timeIntervalSince(lastAt) <= dedupWindow
             {
-                AppLogger.shared.keystroke("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
+                AppLogger.shared.pressedKey("🎹 [KeyboardCapture] Deduped duplicate keyDown: \(keyName)")
                 return
             }
         }
@@ -428,7 +428,7 @@ public class KeyboardCapture {
         let keyName = keyCodeToString(keyCode)
         let now = Date()
 
-        AppLogger.shared.log(
+        AppLogger.shared.pressedKey(
             "🎹 [KeyboardCapture] flagsChanged: \(keyName) code=\(keyCode) suppress=\(suppressEvents)"
         )
         anyEventSeen = true
@@ -446,7 +446,7 @@ public class KeyboardCapture {
             if last.baseKey == keyPress.baseKey,
                now.timeIntervalSince(lastAt) <= dedupWindow
             {
-                AppLogger.shared.keystroke("🎹 [KeyboardCapture] Deduped duplicate flagsChanged: \(keyName)")
+                AppLogger.shared.pressedKey("🎹 [KeyboardCapture] Deduped duplicate flagsChanged: \(keyName)")
                 return
             }
         }
@@ -493,7 +493,7 @@ public class KeyboardCapture {
         let now = Date()
         guard let keyPress = Self.mediaKeyPress(from: event, at: now) else { return }
         let keyName = keyPress.baseKey
-        AppLogger.shared.keystroke("🎹 [KeyboardCapture] mediaKey: \(keyName) code=\(keyPress.keyCode - 1000)")
+        AppLogger.shared.pressedKey("🎹 [KeyboardCapture] mediaKey: \(keyName) code=\(keyPress.keyCode - 1000)")
         anyEventSeen = true
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
@@ -503,7 +503,7 @@ public class KeyboardCapture {
             if last.baseKey == keyPress.baseKey,
                now.timeIntervalSince(lastAt) <= dedupWindow
             {
-                AppLogger.shared.keystroke("🎹 [KeyboardCapture] Deduped duplicate mediaKey: \(keyName)")
+                AppLogger.shared.pressedKey("🎹 [KeyboardCapture] Deduped duplicate mediaKey: \(keyName)")
                 return
             }
         }

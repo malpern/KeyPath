@@ -154,6 +154,7 @@ extension KeyboardVisualizationViewModel {
             )
 
             modifiedMap[keyCode] = newInfo
+            // From the app keymap, not a key press.
             AppLogger.shared.info("🔄 [KeyboardViz] Applied app override: \(override.inputKey) → \(outputStr) (keyCode \(keyCode))")
         }
 
@@ -215,6 +216,7 @@ extension KeyboardVisualizationViewModel {
                 return
             }
 
+            // From the config's icon message, not a key press.
             AppLogger.shared.info("🎨 [KeyboardViz] Associating icon '\(iconName)' with key \(keyCode)")
 
             // Cancel any existing clear task for this key
@@ -228,6 +230,7 @@ extension KeyboardVisualizationViewModel {
                 try? await Task.sleep(for: .seconds(2))
                 self?.customIcons.removeValue(forKey: keyCode)
                 self?.iconClearTasks.removeValue(forKey: keyCode)
+                // An icon timer, not a key press.
                 AppLogger.shared.debug("🎨 [KeyboardViz] Cleared icon for key \(keyCode)")
             }
 
@@ -253,6 +256,7 @@ extension KeyboardVisualizationViewModel {
                 if let keyCode = Self.kanataNameToKeyCode(keyName) {
                     keyCodes.insert(keyCode)
                 } else {
+                    // From the config's emphasis message, not a key press.
                     AppLogger.shared.warn("⚠️ [KeyboardViz] Unknown key name in emphasis: \(keyName)")
                 }
             }
@@ -292,7 +296,8 @@ extension KeyboardVisualizationViewModel {
     func handleHoldActivated(key: String, action: String) {
         noteTcpEventReceived()
         guard let keyCode = Self.kanataNameToKeyCode(key) else {
-            AppLogger.shared.keystroke("⌨️ [KeyboardViz] Unknown kanata key name for hold: \(key)")
+            AppLogger.shared.debug("⌨️ [KeyboardViz] Unknown kanata key name for hold (\(key.utf8.count) bytes)")
+            AppLogger.shared.pressedKey("⌨️ [KeyboardViz] Unknown kanata key name for hold: \(key)")
             return
         }
 
@@ -302,14 +307,14 @@ extension KeyboardVisualizationViewModel {
             keyVisualStates[keyCode, default: .init()].holdLabel = displayLabel
         }
         keyVisualStates[keyCode, default: .init()].isHoldActive = true
-        AppLogger.shared.keystroke("🔒 [KeyboardViz] Hold activated: \(key) -> '\(keyVisualStates[keyCode]?.holdLabel ?? "pending")' (from '\(action)')")
+        AppLogger.shared.pressedKey("🔒 [KeyboardViz] Hold activated: \(key) -> '\(keyVisualStates[keyCode]?.holdLabel ?? "pending")' (from '\(action)')")
 
         // If Kanata omitted the action string, try to resolve the hold label via simulator
         if action.isEmpty {
             // Check short-lived cache first
             if let cached = holdLabelCache[keyCode], Date().timeIntervalSince(cached.timestamp) < holdLabelCacheTTL {
                 keyVisualStates[keyCode, default: .init()].holdLabel = cached.label
-                AppLogger.shared.keystroke("🔒 [KeyboardViz] Hold label served from cache: \(key) -> '\(cached.label)'")
+                AppLogger.shared.pressedKey("🔒 [KeyboardViz] Hold label served from cache: \(key) -> '\(cached.label)'")
                 return
             }
 
@@ -317,7 +322,7 @@ extension KeyboardVisualizationViewModel {
             let layer = currentLayerName
             // Avoid duplicate lookups for the same keyCode
             if resolvingHoldLabels.contains(keyCode) {
-                AppLogger.shared.keystroke("🔒 [KeyboardViz] Hold label resolution already in-flight for \(key)")
+                AppLogger.shared.pressedKey("🔒 [KeyboardViz] Hold label resolution already in-flight for \(key)")
                 return
             }
             resolvingHoldLabels.insert(keyCode)
@@ -333,7 +338,7 @@ extension KeyboardVisualizationViewModel {
                         await MainActor.run {
                             self.keyVisualStates[keyCode, default: .init()].holdLabel = resolved
                             self.holdLabelCache[keyCode] = (resolved, Date())
-                            AppLogger.shared.keystroke("🔒 [KeyboardViz] Hold label resolved via simulator: \(key) -> '\(resolved)'")
+                            AppLogger.shared.pressedKey("🔒 [KeyboardViz] Hold label resolved via simulator: \(key) -> '\(resolved)'")
                             self.resolvingHoldLabels.remove(keyCode)
                         }
                     }
@@ -352,7 +357,8 @@ extension KeyboardVisualizationViewModel {
     func handleTapActivated(key: String, action: String) {
         noteTcpEventReceived()
         guard let sourceKeyCode = Self.kanataNameToKeyCode(key) else {
-            AppLogger.shared.keystroke("👆 [KeyboardViz] Unknown kanata key name for tap: \(key)")
+            AppLogger.shared.debug("👆 [KeyboardViz] Unknown kanata key name for tap (\(key.utf8.count) bytes)")
+            AppLogger.shared.pressedKey("👆 [KeyboardViz] Unknown kanata key name for tap: \(key)")
             return
         }
 
@@ -378,12 +384,12 @@ extension KeyboardVisualizationViewModel {
                     self?.tapOutputClearTasks.removeValue(forKey: outputKeyCode)
                 }
 
-                AppLogger.shared.keystroke("👆 [KeyboardViz] Tap activated: \(key) -> \(action)")
+                AppLogger.shared.pressedKey("👆 [KeyboardViz] Tap activated: \(key) -> \(action)")
             } else {
                 AppLogger.shared.debug("👆 [KeyboardViz] Unknown output key name: \(action)")
             }
         } else {
-            AppLogger.shared.keystroke("👆 [KeyboardViz] Tap activated with empty action: \(key)")
+            AppLogger.shared.pressedKey("👆 [KeyboardViz] Tap activated with empty action: \(key)")
         }
     }
 
@@ -436,7 +442,8 @@ extension KeyboardVisualizationViewModel {
     /// Handle a TCP KeyInput event from Kanata
     func handleTcpKeyInput(key: String, action: String) {
         guard let keyCode = Self.kanataNameToKeyCode(key) else {
-            AppLogger.shared.keystroke("⌨️ [KeyboardViz] Unknown kanata key name: \(key)")
+            AppLogger.shared.debug("⌨️ [KeyboardViz] Unknown kanata key name (\(key.utf8.count) bytes)")
+            AppLogger.shared.pressedKey("⌨️ [KeyboardViz] Unknown kanata key name: \(key)")
             return
         }
 
@@ -468,7 +475,7 @@ extension KeyboardVisualizationViewModel {
         if FeatureFlags.keyboardSuppressionDebugEnabled,
            let mappedOutput = remapOutputMap.first(where: { $0.value == keyCode })
         {
-            AppLogger.shared.debug(
+            AppLogger.shared.pressedKey(
                 """
                 🔄 [KeyboardViz] KeyInput \(key)(\(keyCode)): isRemapOutput=true, \
                 sourceKey=\(mappedOutput.key), tcpPressed=\(pressedKeyCodes), \
@@ -484,7 +491,7 @@ extension KeyboardVisualizationViewModel {
             // Track tap-hold source keys
             if isTapHoldSource {
                 activeTapHoldSources.insert(keyCode)
-                AppLogger.shared.keystroke("⌨️ [KeyboardViz] Tap-hold source activated: \(key) (\(keyCode))")
+                AppLogger.shared.pressedKey("⌨️ [KeyboardViz] Tap-hold source activated: \(key) (\(keyCode))")
             }
 
             if remapOutputMap[keyCode] != nil {
@@ -549,7 +556,7 @@ extension KeyboardVisualizationViewModel {
                 holdLabelCache.removeValue(forKey: keyCode)
                 holdClearWorkItems[keyCode]?.cancel()
                 holdClearWorkItems.removeValue(forKey: keyCode)
-                AppLogger.shared.keystroke("⌨️ [KeyboardViz] Suppressing output key release: \(key) (\(keyCode)), cleared hold state")
+                AppLogger.shared.pressedKey("⌨️ [KeyboardViz] Suppressing output key release: \(key) (\(keyCode)), cleared hold state")
                 return
             }
 
@@ -565,7 +572,7 @@ extension KeyboardVisualizationViewModel {
                     keyVisualStates[keyCode] = state.isIdle ? nil : state
                     if hadLabel {
                         holdLabelCache.removeValue(forKey: keyCode)
-                        AppLogger.shared.keystroke("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
+                        AppLogger.shared.pressedKey("⌨️ [KeyboardViz] Cleared hold label (delayed) for \(key)")
                     }
                 }
                 holdClearWorkItems.removeValue(forKey: keyCode)
@@ -573,14 +580,14 @@ extension KeyboardVisualizationViewModel {
             holdClearWorkItems[keyCode]?.cancel()
             holdClearWorkItems[keyCode] = work
             DispatchQueue.main.asyncAfter(deadline: .now() + OverlayTiming.holdReleaseGrace, execute: work)
-            AppLogger.shared.keystroke("⌨️ [KeyboardViz] TCP KeyRelease: \(key) -> keyCode \(keyCode)")
+            AppLogger.shared.pressedKey("⌨️ [KeyboardViz] TCP KeyRelease: \(key) -> keyCode \(keyCode)")
         default:
             break
         }
 
         if keyCode == 57 {
             let state = keyVisualStates[57]
-            AppLogger.shared.debug(
+            AppLogger.shared.pressedKey(
                 "🧪 [KeyboardViz] caps state: tcpPressed=\(state?.isPressed ?? false) holdActive=\(state?.isHoldActive ?? false) holdLabel=\(state?.holdLabel ?? "nil")"
             )
         }

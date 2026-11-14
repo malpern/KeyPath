@@ -197,10 +197,12 @@ public final class AppLogger: Sendable {
         log(message, level: .info, file: file, function: function, line: line)
     }
 
-    /// A message that names a key the user pressed. Debug builds log it at
-    /// debug level; release builds never write it, at any log level, because a
-    /// log of key presses is a log of what the user typed.
-    public func keystroke(
+    /// A message that names a key the user pressed, or carries an engine frame
+    /// that does. Debug builds log it at debug level. Release builds never
+    /// write it, at any log level, because a log of key presses is a log of
+    /// what the user typed. Inlined so release builds drop the call entirely.
+    @inlinable
+    public func pressedKey(
         _ message: @autoclosure () -> String, file: String = #file, function: String = #function, line: Int = #line
     ) {
         #if DEBUG

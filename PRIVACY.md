@@ -40,8 +40,9 @@ KeyPath needs **Accessibility** permission to read and remap keys.
 
 **Where key names can appear on disk:**
 - Diagnostic logs in `~/Library/Logs/KeyPath/` do not record the keys you
-  press, including while you record a shortcut. They can name keys from your
-  mappings, or keys you click in the keyboard view. Review a log before sharing it.
+  press, including while you record a shortcut, at any log level. They can name
+  keys from your mappings, or keys you click in the keyboard view. Review a log
+  before sharing it.
 - If you turn on Activity Insights, usage statistics (shortcuts used, app
   switches, actions) are stored encrypted. It does not store typed text.
 

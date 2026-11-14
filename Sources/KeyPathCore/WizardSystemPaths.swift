@@ -5,9 +5,10 @@ import Foundation
 public enum WizardSystemPaths {
     // MARK: - Test Overrides
 
-    /// Test-only overrides below are read in debug builds only: in a release
-    /// build, an environment variable must not change which paths KeyPath
-    /// inspects or removes, or which binary it runs.
+    /// The environment overrides in this type are read in debug builds only, so
+    /// in a release build they cannot change which paths WizardSystemPaths
+    /// reports or which binary it names. (`AppPaths` still redirects to a test
+    /// sandbox when `TestEnvironment.isRunningTests`; that is separate.)
     private static func currentTestRoot() -> String? {
         #if DEBUG
             guard let raw = ProcessInfo.processInfo.environment["KEYPATH_TEST_ROOT"],
