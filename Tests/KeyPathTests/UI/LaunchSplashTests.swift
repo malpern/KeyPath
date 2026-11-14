@@ -16,7 +16,10 @@ final class LaunchSplashTests: XCTestCase {
     func testPosterShipsAtTwiceItsDisplayWidth() throws {
         let url = resources.appendingPathComponent("keypath-poster-hor.png")
         let rep = try XCTUnwrap(NSImageRep(contentsOf: url))
-        XCTAssertEqual(CGFloat(rep.pixelsWide), 2 * SplashView.posterWidth, "Twice the drawn width covers Retina")
+        XCTAssertEqual(CGFloat(rep.pixelsWide), 2 * SplashView.contentSize.width, "The poster fills the window; twice its width covers Retina")
+        let aspect = CGFloat(rep.pixelsWide) / CGFloat(rep.pixelsHigh)
+        let window = SplashView.contentSize.width / SplashView.contentSize.height
+        XCTAssertEqual(aspect, window, accuracy: 0.01, "The window has the poster's shape, so nothing is cropped")
         let bytes = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
         XCTAssertLessThan(bytes, 1_000_000, "Keep the poster small; the original was 6.4 MB")
     }
@@ -40,8 +43,8 @@ final class LaunchSplashTests: XCTestCase {
         XCTAssertNotNil(SplashView.PosterCache.image)
 
         let presentation = SplashPresentation()
-        presentation.isPreparing = false
-        let renderer = ImageRenderer(content: SplashView().environment(presentation).frame(width: 640, height: 440))
+        presentation.isPreparing = ProcessInfo.processInfo.environment["KEYPATH_SPLASH_PREPARING"] != nil
+        let renderer = ImageRenderer(content: SplashView().environment(presentation).frame(width: SplashView.contentSize.width, height: SplashView.contentSize.height))
         renderer.scale = 1
         let image = try XCTUnwrap(renderer.nsImage)
         if let path = ProcessInfo.processInfo.environment["KEYPATH_SPLASH_DUMP"],
@@ -49,7 +52,7 @@ final class LaunchSplashTests: XCTestCase {
         {
             try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
         }
-        XCTAssertEqual(image.size, NSSize(width: 640, height: 440))
+        XCTAssertEqual(image.size, SplashView.contentSize)
 
         // The background gradient runs top to bottom, so a row across it is one
         // colour. A row through the poster has many.
@@ -61,8 +64,5 @@ final class LaunchSplashTests: XCTestCase {
             return String(format: "%02x%02x%02x", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
         })
         XCTAssertGreaterThan(colours.count, 50, "The middle of the splash should be the poster, not the plain background")
-        let edge = try XCTUnwrap(rep.colorAt(x: 4, y: middle)?.usingColorSpace(.sRGB))
-        let centre = try XCTUnwrap(rep.colorAt(x: rep.pixelsWide / 2, y: middle)?.usingColorSpace(.sRGB))
-        XCTAssertNotEqual(edge, centre)
     }
 }

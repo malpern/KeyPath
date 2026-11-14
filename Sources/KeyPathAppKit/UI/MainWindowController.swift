@@ -7,7 +7,7 @@ import SwiftUI
 final class MainWindowController: NSWindowController {
     private var topLeftBeforeResize: NSPoint?
     let splashPresentation = SplashPresentation()
-    private let splashContentSize = NSSize(width: 640, height: 440)
+    private let splashContentSize = SplashView.contentSize
 
     /// Stop splash activity when handing off to the wizard or keyboard overlay.
     func hideSplash() {

@@ -45,34 +45,36 @@ struct SplashView: View {
     /// Read once: the splash should not touch the disk each time it redraws.
     private static let buildInfo = BuildInfo.current()
 
-    /// The poster is drawn at a fixed width so it cannot collapse during early launch.
-    static let posterWidth: CGFloat = 560
+    /// The splash window has the poster's own shape, so the poster fills it edge
+    /// to edge. The poster ships at twice this width for Retina.
+    static let contentSize = NSSize(width: 640, height: 357)
     private let amber = Color(red: 1, green: 0.61, blue: 0.16)
     private let warmGray = Color(red: 0.76, green: 0.74, blue: 0.70)
 
     var body: some View {
         let buildInfo = Self.buildInfo
         ZStack {
-            // The poster's own dark background, so the poster card sits on matching colour.
+            // Behind the poster, and the whole background if it failed to load.
             LinearGradient(
                 colors: [KeyPathColors.splashGradientTop, KeyPathColors.splashGradientBottom],
                 startPoint: .top,
                 endPoint: .bottom
             )
 
+            poster
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .accessibilityLabel("KeyPath")
+                .accessibilityIdentifier("main-window-splash-poster")
+
+            // Status sits on the poster's empty lower band, not below it.
             VStack(spacing: 0) {
-                Spacer(minLength: 24)
-                poster
-                    .frame(width: Self.posterWidth, height: Self.posterWidth / posterAspect)
-                    .shadow(color: .black.opacity(0.16), radius: 18, x: 0, y: 10)
-                    .accessibilityLabel("KeyPath")
-                    .accessibilityIdentifier("main-window-splash-poster")
-                Spacer(minLength: 16)
+                Spacer()
                 if presentation.isPreparing {
-                    VStack(spacing: 10) {
+                    HStack(spacing: 10) {
                         TimelineView(.animation(minimumInterval: 0.55, paused: reduceMotion)) { context in
                             let active = reduceMotion ? 1 : Int(context.date.timeIntervalSinceReferenceDate / 0.55) % 3
-                            HStack(spacing: 7) {
+                            HStack(spacing: 6) {
                                 ForEach(0 ..< 3) { index in
                                     Circle().fill(amber.opacity(index == active ? 1 : 0.3))
                                         .frame(width: 5, height: 5)
@@ -86,10 +88,7 @@ struct SplashView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("main-window-splash-loading")
-                    .padding(.bottom, 28)
-                } else {
-                    // Keep the poster in place when a menu action presents a sheet.
-                    Spacer().frame(height: 56)
+                    .padding(.bottom, 22)
                 }
             }
 
@@ -98,14 +97,12 @@ struct SplashView: View {
                 HStack {
                     Spacer()
                     Text(verbatim: "v\(buildInfo.version) (\(buildInfo.build))")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.75))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(.black.opacity(0.4), in: Capsule())
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(warmGray.opacity(0.8))
                         .accessibilityIdentifier("main-window-splash-build")
                 }
-                .padding(12)
+                .padding(.trailing, 18)
+                .padding(.bottom, 14)
             }
         }
         .ignoresSafeArea()
@@ -113,15 +110,10 @@ struct SplashView: View {
         .accessibilityIdentifier("main-window-splash")
     }
 
-    private var posterAspect: CGFloat {
-        guard let size = PosterCache.image?.size, size.height > 0 else { return 1120.0 / 625.0 }
-        return size.width / size.height
-    }
-
     @ViewBuilder
     private var poster: some View {
         if let image = PosterCache.image {
-            Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+            Image(nsImage: image).resizable().interpolation(.high).scaledToFill()
         } else {
             Image(systemName: "keyboard").resizable().scaledToFit()
                 .foregroundStyle(.white.opacity(0.85))
