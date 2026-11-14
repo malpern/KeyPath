@@ -518,6 +518,12 @@ public class RuntimeCoordinator: SaveCoordinatorDelegate {
         // Successful uninstall already verified runtime cleanup and intentionally
         // leaves configuration admission suspended until process exit.
         uninstallCleanupCompleted = report.success
+        if report.success {
+            // Approvals live in the Keychain, which outlives the app. Clear them
+            // so a reinstall starts by asking again.
+            ScriptSecurityService.shared.resetAllSettings()
+            _ = KeychainLinkGrantStore.shared.setAllowsVirtualKeys(false)
+        }
         if !report.success {
             KindaVimTelemetryStore.shared.resumeAfterFailedUninstall()
         }
