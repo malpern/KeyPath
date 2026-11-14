@@ -51,7 +51,7 @@ jobs:
 
       - name: Restore kanata binary cache
         id: kanata-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/ci-kanata-cache
           key: ${{ steps.kanata-cache-key.outputs.key }}
