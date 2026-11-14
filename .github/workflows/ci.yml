@@ -182,8 +182,8 @@ jobs:
       # command policy must run on every PR, not only build.
       run: |
         set -o pipefail
-        (cd Rust/KeyPathKanataHostBridge && cargo test --features passthru-output-spike 2>&1 | tail -40)
-        (cd External/kanata && cargo test --lib control_tests 2>&1 | tee "$RUNNER_TEMP/control-tests.log" | tail -20)
+        (cd Rust/KeyPathKanataHostBridge && cargo test --locked --features passthru-output-spike 2>&1 | tail -40)
+        (cd External/kanata && cargo test --locked --lib control_tests 2>&1 | tee "$RUNNER_TEMP/control-tests.log" | tail -20)
         # A renamed module must not turn this into a pass over zero tests.
         grep -Eq 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/control-tests.log"
 

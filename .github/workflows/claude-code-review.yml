@@ -52,7 +52,6 @@ jobs:
             NF == 0 { next }
             /^docs\// { next }
             /^[^\/]+\.md$/ { next }
-            /^\.github\/workflows\/claude\.yml$/ { next }
             /^\.github\/workflows\/claude-code-review\.yml$/ { next }
             { print }
           ')"
@@ -133,12 +132,16 @@ jobs:
       - name: Skip Claude review for workflow-file changes
         if: steps.changes.outputs.workflow_changed == 'true'
         env:
-          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
         # The review action will not run a workflow file the PR itself changed.
-        # The check then passes only for the repository owner; for anyone else it
-        # fails, so a change to the reviewer cannot skip review.
+        # The check then passes only for PRs by the repository owner or Dependabot
+        # (which bumps the action pins here); anyone else's fails. This is a
+        # speed bump, not a boundary: the PR's own copy of this file runs, so it
+        # can edit this step too. Branch protection and the owner's merge are the
+        # boundary.
         run: |
-          if [ "$AUTHOR_ASSOCIATION" != "OWNER" ]; then
+          if [ "$AUTHOR" != "$OWNER" ] && [ "$AUTHOR" != "dependabot[bot]" ]; then
             echo "::error::This PR changes the Claude review workflow, which cannot review itself. The repository owner must review and merge it."
             exit 1
           fi
