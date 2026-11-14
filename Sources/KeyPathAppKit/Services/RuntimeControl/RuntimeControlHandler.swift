@@ -195,7 +195,14 @@ enum RuntimeControlHandler {
         }
         // tccutil finds the app by bundle id, which fails once it is in the
         // Trash, so clear the entries now, after the person confirmed.
-        let permissionNote = resetPermissions ? await Task.detached { resetPermissionEntries() }.value : nil
+        // tccutil can take seconds; wait on a dispatch thread, not the Swift task pool.
+        let permissionNote: String? = if resetPermissions {
+            await withCheckedContinuation { done in
+                DispatchQueue.global(qos: .userInitiated).async { done.resume(returning: resetPermissionEntries()) }
+            }
+        } else {
+            nil
+        }
         RuntimeControlServer.shared.withdrawForUninstall()
         // The same entry point as Settings' Uninstall dialog. It also records that
         // cleanup finished, which is what lets the app quit afterwards.

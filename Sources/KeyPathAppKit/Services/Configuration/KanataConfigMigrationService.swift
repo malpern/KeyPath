@@ -164,8 +164,11 @@ public final class KanataConfigMigrationService {
             withIntermediateDirectories: true,
             attributes: nil
         )
-        // Only the KeyPath folder itself is private, not ~/.config if this created it.
-        ConfigurationService.restrictToOwner(directory: keyPathConfigDirectory)
+        // Only the KeyPath folder itself is private, not ~/.config if this created it,
+        // nor a folder this service was pointed at under another name.
+        if (keyPathConfigDirectory as NSString).lastPathComponent == "keypath" {
+            ConfigurationService.restrictToOwner(directory: keyPathConfigDirectory)
+        }
         AppLogger.shared.log("✅ [MigrationService] Created KeyPath config directory: \(keyPathConfigDirectory)")
     }
 

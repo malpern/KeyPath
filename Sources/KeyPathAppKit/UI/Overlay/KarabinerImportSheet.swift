@@ -441,6 +441,9 @@ struct KarabinerImportSheet: View {
                     Text(title)
                         .font(.subheadline)
                         .fontWeight(.medium)
+                        // A launcher row shows its full URL or script path; keep long ones tidy.
+                        .lineLimit(3)
+                        .truncationMode(.middle)
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
