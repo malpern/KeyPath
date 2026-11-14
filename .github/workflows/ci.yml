@@ -17,6 +17,12 @@ concurrency:
 #   gh variable delete KEYPATH_CI_RUNNER --repo malpern/KeyPath
 # Only ci.yml has the fallback. coverage, cache-warm and runner-health are
 # mini-only jobs that do not gate PRs; they skip while this variable is set.
+#
+# A pull request from a fork always runs on the hosted image, whatever the
+# variable says: the mini's runners are persistent, hold other credentials, and
+# keep a SwiftPM scratch that later trusted builds reuse, so code from outside
+# the repository never runs there. (This workflow runs only on pull_request, so
+# github.event.pull_request is always set.)
 
 # GitHub counts a skipped check as passing, so the required checks must never be
 # skipped. `build-and-test` and `code-quality` at the bottom of this file always run
@@ -32,7 +38,7 @@ jobs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -60,12 +66,12 @@ jobs:
     # 2026-10-19 the swiftpm-safe runner is a daemon too, because clawd has no GUI
     # session; the persistent scratch below means Sparkle is fetched only on a
     # cold scratch, not on every job.
-    runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath", "swiftpm-safe"]') }}
+    runs-on: ${{ fromJSON((vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '"xcode-27"' || '["self-hosted", "macOS", "keypath", "swiftpm-safe"]') }}
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
     # 12 minutes, before test execution. Keep a finite bound with real headroom.
     # Every hosted run is cold, on a smaller machine.
-    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 60 || 25 }}
+    timeout-minutes: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && 60 || 25 }}
     # Separate from the workflow-level concurrency group above (which cancels
     # stale runs of the *same* PR): on the mini this queues jobs from *different*
     # PRs onto the single physical runner instead of letting them execute in
@@ -75,7 +81,7 @@ jobs:
     # CLIPackCRUDTests "could not enable associated rule collection" failures
     # when two PRs' CI happened to overlap.
     concurrency:
-      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-build-and-test', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
+      group: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && format('hosted-{0}-{1}-build-and-test', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
@@ -85,7 +91,7 @@ jobs:
         git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
 
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         submodules: true
         persist-credentials: false
@@ -97,7 +103,7 @@ jobs:
       # xcode-select. Never export SDKROOT here: with it set, SwiftPM's Metal step
       # reports "missing Metal Toolchain" (#1372). The cargo scripts take the SDK
       # from KEYPATH_SDKROOT.
-      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository)
       run: |
         xcode=/Applications/Xcode_27.2.app/Contents/Developer
         build=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Build version //p' | head -1)
@@ -114,7 +120,7 @@ jobs:
         # A hosted VM has far less disk than the mini. 12 GiB is a floor, not a
         # measurement of what a cold run uses; raise it once a hosted run has
         # shown the real number.
-        KEYPATH_MIN_FREE_DISK_GIB: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '12' || '40' }}
+        KEYPATH_MIN_FREE_DISK_GIB: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '12' || '40' }}
       run: ./Scripts/lab/host-disk-reserve
 
     - name: Ensure Metal toolchain
@@ -136,7 +142,7 @@ jobs:
 
     - name: Restore kanata binary cache
       id: kanata-cache
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: build/ci-kanata-cache
         key: ${{ steps.kanata-cache-key.outputs.key }}
@@ -157,8 +163,8 @@ jobs:
         else
           echo "🔨 Building kanata artifacts (cache miss: cached=$CACHED_ENGINE_SHA expected=$EXPECTED_ENGINE_SHA)"
           cd External/kanata
-          cargo build --release --target aarch64-apple-darwin 2>&1 | tail -20
-          cargo build --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -20
+          cargo build --locked --release --target aarch64-apple-darwin 2>&1 | tail -20
+          cargo build --locked --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -20
           cd ../..
           cp External/kanata/target/aarch64-apple-darwin/release/kanata build/ci-kanata-cache/kanata
           cp External/kanata/target/aarch64-apple-darwin/release/kanata_simulated_input build/ci-kanata-cache/kanata-simulator
@@ -200,7 +206,7 @@ jobs:
         # SwiftPM can wrap XCTest post-run SIGABRT as exit 1 on the self-hosted runner;
         # run-tests-safe.sh still fails if it parses any test failures and emits a warning when this path is used.
         # Not on hosted runners, where that quirk hasn't been seen.
-        KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '0' || '1' }}
+        KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '0' || '1' }}
         KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
         KEYPATH_TEST_RESET_MODULE_CACHE: "0"
         KEYPATH_SWIFT_BUILD_JOBS: "4"
@@ -232,7 +238,7 @@ jobs:
 
     - name: Upload Test Results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: test-results
         path: |
@@ -281,14 +287,14 @@ jobs:
   quality-full:
     needs: classify-docs-only
     if: ${{ (success() || failure()) && needs.classify-docs-only.outputs.docs_only != 'true' }}
-    runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
+    runs-on: ${{ fromJSON((vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
     # Hosted runs also install mise and SwiftLint on a smaller machine.
-    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 30 || 15 }}
+    timeout-minutes: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && 30 || 15 }}
     # This job does not share test state, but it does share the only physical
     # runner. Queue it with builds so SwiftFormat gets enough CPU to finish
     # before its fixed per-rule safety timeout.
     concurrency:
-      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-code-quality', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
+      group: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && format('hosted-{0}-{1}-code-quality', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
       cancel-in-progress: false
 
     steps:
@@ -298,7 +304,7 @@ jobs:
         git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
 
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         fetch-depth: 0
         persist-credentials: false
@@ -313,7 +319,7 @@ jobs:
       # xcode-select. Never export SDKROOT here: with it set, SwiftPM's Metal step
       # reports "missing Metal Toolchain" (#1372). The cargo scripts take the SDK
       # from KEYPATH_SDKROOT.
-      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository)
       run: |
         xcode=/Applications/Xcode_27.2.app/Contents/Developer
         build=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Build version //p' | head -1)
@@ -328,7 +334,7 @@ jobs:
     - name: Install mise and SwiftLint (hosted runner)
       # The mini has both; GitHub's image has neither. mise ignores a repo config
       # it hasn't been told to trust, which would skip the SwiftFormat pin.
-      if: vars.KEYPATH_CI_RUNNER == 'hosted'
+      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository)
       run: |
         brew install mise swiftlint ripgrep
         mise trust mise.toml

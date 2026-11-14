@@ -139,6 +139,7 @@ cd "$KANATA_SOURCE"
 # at parse with a clear "cmd is not enabled for this executable" message.
 MACOSX_DEPLOYMENT_TARGET=11.0 \
 env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo build \
+    --locked \
     --release \
     --features "$KANATA_FEATURES" \
     --target aarch64-apple-darwin

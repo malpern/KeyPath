@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
 
@@ -54,7 +54,6 @@ jobs:
             /^[^\/]+\.md$/ { next }
             /^\.github\/workflows\/claude\.yml$/ { next }
             /^\.github\/workflows\/claude-code-review\.yml$/ { next }
-            /^Sources\/KeyPathAppKit\/Resources\/[^\/]+\.(md|css|png)$/ { next }
             { print }
           ')"
 
@@ -117,7 +116,7 @@ jobs:
       - name: Run Claude Code Review
         id: claude-review
         if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: 'cursor'
@@ -133,7 +132,16 @@ jobs:
 
       - name: Skip Claude review for workflow-file changes
         if: steps.changes.outputs.workflow_changed == 'true'
+        env:
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+        # The review action will not run a workflow file the PR itself changed.
+        # The check then passes only for the repository owner; for anyone else it
+        # fails, so a change to the reviewer cannot skip review.
         run: |
+          if [ "$AUTHOR_ASSOCIATION" != "OWNER" ]; then
+            echo "::error::This PR changes the Claude review workflow, which cannot review itself. The repository owner must review and merge it."
+            exit 1
+          fi
           echo "Skipping Claude review because .github/workflows/claude-code-review.yml changed in this PR."
 
       - name: Skip Claude review for docs-only changes
