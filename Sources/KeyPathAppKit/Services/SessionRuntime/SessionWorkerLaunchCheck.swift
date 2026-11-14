@@ -27,7 +27,16 @@ enum SessionWorkerLaunchCheck {
         case ownerNotKeyPath = "owner-not-keypath"
     }
 
-    static func refusal(configPath: String, canonicalConfigPath: String = KeyPathConstants.Config.mainConfigPath,
+    /// The account's real config, from its home directory in the user
+    /// database. Not `KeyPathConstants.Config.mainConfigPath`, which test
+    /// detection (environment variables such as SWIFT_TEST) redirects to a
+    /// predictable sandbox a launcher could prepare.
+    static var accountConfigPath: String {
+        let home = getpwuid(getuid()).flatMap { $0.pointee.pw_dir.map { String(cString: $0) } } ?? NSHomeDirectory()
+        return home + "/.config/keypath/" + KeyPathConstants.Config.fileName
+    }
+
+    static func refusal(configPath: String, canonicalConfigPath: String = accountConfigPath,
                         ownerPID: Int32,
                         ownerSatisfiesOwnRequirement: (Int32) -> Bool = ownerSatisfiesOwnRequirement) -> Refusal?
     {

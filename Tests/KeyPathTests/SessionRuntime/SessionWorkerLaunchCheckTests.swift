@@ -59,9 +59,21 @@ final class SessionWorkerLaunchCheckTests: XCTestCase {
             ownerPID: 42, ownerPIDVersion: 1, configPath: KeyPathConstants.Config.mainConfigPath
         )
         let index = try XCTUnwrap(arguments.firstIndex(of: "--session-config"))
+        // Under test, mainConfigPath points at the test sandbox; production passes the real one.
         XCTAssertNil(SessionWorkerLaunchCheck.refusal(
-            configPath: arguments[index + 1], ownerPID: 42, ownerSatisfiesOwnRequirement: { _ in true }
+            configPath: arguments[index + 1], canonicalConfigPath: KeyPathConstants.Config.mainConfigPath,
+            ownerPID: 42, ownerSatisfiesOwnRequirement: { _ in true }
         ))
+    }
+
+    func testAdmissionIgnoresTestModeRedirection() {
+        // A test-mode environment redirects mainConfigPath; admission must not follow it.
+        XCTAssertNotEqual(SessionWorkerLaunchCheck.accountConfigPath, KeyPathConstants.Config.mainConfigPath)
+        XCTAssertTrue(SessionWorkerLaunchCheck.accountConfigPath.hasSuffix("/.config/keypath/keypath.kbd"))
+        XCTAssertEqual(SessionWorkerLaunchCheck.refusal(
+            configPath: KeyPathConstants.Config.mainConfigPath, ownerPID: 42,
+            ownerSatisfiesOwnRequirement: { _ in true }
+        ), .nonCanonicalConfig)
     }
 
     func testOwnerThatIsNotKeyPathIsRefused() {
