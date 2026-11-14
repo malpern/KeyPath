@@ -223,10 +223,11 @@ public final class KanataConfigMigrationService {
             try fileManager.createDirectory(
                 atPath: backupDir,
                 withIntermediateDirectories: true,
-                attributes: nil
+                attributes: [.posixPermissions: 0o700]
             )
         }
-        ConfigurationService.restrictToOwner(directory: backupDir)
+        // An existing folder is left alone: it sits inside the config folder,
+        // which is already private.
 
         // Copy to backup
         do {
