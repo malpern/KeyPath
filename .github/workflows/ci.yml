@@ -211,7 +211,11 @@ jobs:
         export TIMEOUT_SECONDS=300
         chmod +x ./Scripts/test-lane.sh
         chmod +x ./Scripts/run-tests-safe.sh
-        if ./Scripts/test-lane.sh full; then
+        # Belt and braces for the runner label: a second runner given
+        # swiftpm-safe must still not overlap two test runs. lockf holds a
+        # kernel lock that is released when the process exits, even if the
+        # job is cancelled, so it cannot go stale.
+        if /usr/bin/lockf -t 1800 /tmp/keypath-ci-swift-tests.lock ./Scripts/test-lane.sh full; then
           echo "TEST_STATUS=passed" >> $GITHUB_ENV
         else
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
