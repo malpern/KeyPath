@@ -25,9 +25,14 @@ concurrency:
 # variable says: the mini's runners are persistent, hold other credentials, and
 # keep a SwiftPM scratch that later trusted builds reuse, so code from outside
 # the repository never runs there. A merge-queue run (merge_group) has no
-# github.event.pull_request and is built from this repository's own queue
-# branch, so the fork test applies to pull_request events only; read the base
-# commit from whichever event ran.
+# github.event.pull_request and runs on the mini even when the queue holds a
+# fork's PR. That is deliberate: only someone with write access can add a PR to
+# the queue, and once it merges its code runs on the mini in every later build,
+# so enqueueing it is the point where the owner trusts it. The fork test
+# therefore applies to pull_request events only; read the base commit from
+# whichever event ran. The required checks are build-and-test and code-quality,
+# both from this workflow; claude-review is not required, so the queue never
+# waits for it.
 
 # GitHub counts a skipped check as passing, so the required checks must never be
 # skipped. `build-and-test` and `code-quality` at the bottom of this file always run
