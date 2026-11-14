@@ -21,8 +21,15 @@ final class LaunchSplashTests: XCTestCase {
         XCTAssertLessThan(bytes, 1_000_000, "Keep the poster small; the original was 6.4 MB")
     }
 
-    func testTestRunIsNotALoginItemLaunch() {
+    /// The detector reads the launch Apple event; with none current it says no.
+    /// Whether macOS sets the flag for an SMAppService login launch needs a real login.
+    func testNoLaunchEventIsNotALoginItemLaunch() {
         XCTAssertFalse(AppDelegate.wasLaunchedAsLoginItem())
+    }
+
+    func testLoginItemLaunchSkipsThePoster() {
+        XCTAssertFalse(LaunchSplashSequence.showsPoster(launchedAsLoginItem: true))
+        XCTAssertTrue(LaunchSplashSequence.showsPoster(launchedAsLoginItem: false))
     }
 
     /// Renders the real view with the real poster and checks the poster is drawn

@@ -13,7 +13,7 @@ final class LaunchSplashSequenceTests: XCTestCase {
         var steps: [LaunchSplashSequence.Step] = []
         var overlayAt: Duration?
         let started = ContinuousClock.now
-        await LaunchSplashSequence(minimum: minimum).run(
+        await LaunchSplashSequence(minimum: minimum, maximum: .milliseconds(300)).run(
             showsPoster: showsPoster,
             startup: {
                 try? await Task.sleep(for: startupTakes)
@@ -50,5 +50,12 @@ final class LaunchSplashSequenceTests: XCTestCase {
         XCTAssertEqual(overlay.steps, [.showOverlay])
         let setup = await run(showsPoster: false, startupTakes: .zero, complete: false)
         XCTAssertEqual(setup.steps, [.showSetup(posterAlreadyShown: false)])
+    }
+
+    /// A stalled startup does not leave the poster up: it goes after the maximum,
+    /// and the overlay still appears once startup finishes.
+    func testStalledStartupHidesThePosterAfterTheMaximum() async {
+        let result = await run(showsPoster: true, startupTakes: .milliseconds(600), complete: true)
+        XCTAssertEqual(result.steps, [.showPreparing, .hideSplash, .showOverlay])
     }
 }

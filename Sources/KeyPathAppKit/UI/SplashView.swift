@@ -18,7 +18,10 @@ struct SplashView: View {
 
     @MainActor
     enum PosterCache {
+        /// Set only once the poster has loaded: a failed load (for example the
+        /// test bundle, which has no poster) may be retried from another bundle.
         private static var didWarm = false
+        private static var didWarnMissing = false
         private(set) static var image: NSImage?
 
         /// Decode the poster before the window shows, so a brief splash is never blank.
@@ -27,7 +30,10 @@ struct SplashView: View {
             guard let url = bundle.url(forResource: "keypath-poster-hor", withExtension: "png"),
                   let poster = NSImage(contentsOf: url)
             else {
-                AppLogger.shared.warn("🖼️ [Splash] keypath-poster-hor.png not found in the app bundle")
+                if !didWarnMissing {
+                    didWarnMissing = true
+                    AppLogger.shared.warn("🖼️ [Splash] keypath-poster-hor.png not found in the app bundle")
+                }
                 return
             }
             _ = poster.cgImage(forProposedRect: nil, context: nil, hints: nil)

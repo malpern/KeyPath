@@ -13,8 +13,10 @@ splash tagline means a new poster image.
 The splash appears on every launch and stays until the keyboard overlay is up,
 for at least 1.2 seconds (`KEYPATH_SPLASH_DELAY_MS`); the overlay appears first, then
 the splash hides. If starting the engine takes longer, activity dots appear under
-the poster. It does not appear when KeyPath is
-reopened while running, or when macOS starts it at login. On first run it stays up,
-with activity dots, until the setup wizard takes over. Activity respects Reduce
+the poster. If startup stalls, the poster goes after 15 seconds and the overlay
+follows when ready. It does not appear when KeyPath is reopened while running, or
+when macOS starts it at login. When setup is not finished, the same window shows
+activity dots and then the setup wizard. The build badge in the corner shows the
+version. Activity respects Reduce
 Motion and stays off when the same window hosts a menu-action sheet.
 

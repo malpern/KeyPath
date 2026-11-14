@@ -560,6 +560,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func performLaunchSplashStep(_ step: LaunchSplashSequence.Step) async {
         switch step {
         case .showPreparing:
+            // A menu action's sheet may be using the window; it must not look busy.
+            guard !suppressLaunchSplashAutoHide else { return }
             mainWindowController?.splashPresentation.isPreparing = true
         case .showOverlay:
             AppLogger.shared.info("🪟 [AppDelegate] Relaunch — showing the overlay after the launch splash")
@@ -628,7 +630,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if hasExistingConfig {
             // Every launch shows the poster briefly (not a reopen of a running
             // app, and not a Launch at Login start), then hands off to the overlay.
-            let showsPoster = !launchedAsLoginItem && showLaunchPoster()
+            let showsPoster = LaunchSplashSequence.showsPoster(launchedAsLoginItem: launchedAsLoginItem)
+                && showLaunchPoster()
             let sequence = LaunchSplashSequence(minimum: .milliseconds(launchSplashDelayMs))
             let startup: @MainActor () async -> Bool = { [weak self] in
                 guard let self else { return false }

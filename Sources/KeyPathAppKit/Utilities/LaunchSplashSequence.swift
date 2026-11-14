@@ -5,7 +5,9 @@ import Foundation
 ///
 /// The poster stays up until that surface is ready, for at least `minimum`, so
 /// there is never a moment with no KeyPath window. If startup outlasts
-/// `minimum`, the activity dots appear so the wait does not look frozen.
+/// `minimum`, the activity dots appear so the wait does not look frozen. The
+/// splash window has no close button, so after `maximum` the poster goes away
+/// even if startup has not finished; the overlay or setup follows when it does.
 @MainActor
 struct LaunchSplashSequence {
     enum Step: Equatable {
@@ -17,6 +19,7 @@ struct LaunchSplashSequence {
     }
 
     var minimum: Duration
+    var maximum: Duration = .seconds(15)
     var sleep: @MainActor (Duration) async -> Void = { try? await Task.sleep(for: $0) }
 
     /// - Parameters:
@@ -34,12 +37,26 @@ struct LaunchSplashSequence {
         let started = ContinuousClock.now
         let minimum = minimum
         let sleep = sleep
+        let maximum = maximum
         let preparing = Task { @MainActor in
             await sleep(minimum)
             if !Task.isCancelled { await perform(.showPreparing) }
         }
+        let gaveUp = Flag()
+        let ceiling = Task { @MainActor in
+            await sleep(maximum)
+            guard !Task.isCancelled else { return }
+            gaveUp.isSet = true
+            await perform(.hideSplash)
+        }
         let complete = await startup()
+        ceiling.cancel()
         let elapsed = ContinuousClock.now - started
+        if gaveUp.isSet {
+            await preparing.value
+            await perform(complete ? .showOverlay : .showSetup(posterAlreadyShown: true))
+            return
+        }
         if elapsed < minimum {
             preparing.cancel()
             await sleep(minimum - elapsed)
@@ -52,5 +69,14 @@ struct LaunchSplashSequence {
         } else {
             await perform(.showSetup(posterAlreadyShown: true))
         }
+    }
+
+    /// The poster is skipped when macOS starts KeyPath at login.
+    static func showsPoster(launchedAsLoginItem: Bool) -> Bool {
+        !launchedAsLoginItem
+    }
+
+    @MainActor private final class Flag {
+        var isSet = false
     }
 }
