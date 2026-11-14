@@ -148,6 +148,10 @@ public final class SessionRuntimeWorker {
         guard let config = argument("--session-config") else {
             worker.finish(.failed, reason: "missing-config")
         }
+        if let refusal = SessionWorkerLaunchCheck.refusal(configPath: config, ownerPID: ownerPID) {
+            AppLogger.shared.log("🛡️ [SessionWorker] Refusing to start: \(refusal.rawValue)")
+            worker.finish(.failed, reason: refusal.rawValue)
+        }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
             // Raw API facts remain separate from combined session readiness.
             // Both snapshots are obtained only through the canonical permission owner.

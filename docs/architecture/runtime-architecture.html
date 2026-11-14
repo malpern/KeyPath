@@ -179,7 +179,7 @@ KeyPath session worker
       </div>
       <div class="flow-item">
         <div class="flow-event">Stop or restart</div>
-        <div class="flow-desc"><code>ServiceLifecycleCoordinator</code> serializes lifecycle requests and manages the owned worker. The worker watches the app’s process and exits when its owner exits.</div>
+        <div class="flow-desc"><code>ServiceLifecycleCoordinator</code> serializes lifecycle requests and manages the owned worker. The worker watches the app’s process and exits when its owner exits. Before loading anything, the worker refuses to start unless its config is the canonical <code>~/.config/keypath/keypath.kbd</code> and its named owner’s running code satisfies KeyPath’s own designated requirement (<code>SessionWorkerLaunchCheck</code>). Another process can launch the signed binary, but cannot point it at a config of its own.</div>
       </div>
       <div class="flow-item">
         <div class="flow-event">Read health</div>
