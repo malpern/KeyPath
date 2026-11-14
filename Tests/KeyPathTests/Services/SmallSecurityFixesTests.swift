@@ -88,4 +88,30 @@ final class SmallSecurityFixesTests: XCTestCase {
             .init(operation: .changeLayer, argument: RuntimeControl.Request.resetPermissionsArgument)
         ))
     }
+
+    /// A click that lands after the keypath command stopped waiting changes nothing.
+    func testLateConfirmationAfterTheCommandLeftIsRefused() async {
+        let late = await RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { true }, connected: { false })
+        XCTAssertEqual(late, "The keypath command stopped waiting; nothing was changed.")
+        var checked = false
+        let cancelled = await RuntimeControlHandler.uninstallRefusal(
+            confirmed: true, ask: { false }, connected: { checked = true; return false }
+        )
+        XCTAssertEqual(cancelled, "Uninstall was not confirmed in KeyPath; nothing was changed.")
+        XCTAssertFalse(checked, "A declined dialog is reported as declined")
+    }
+
+    /// A linked config folder (dotfiles) tightens the real folder.
+    func testLinkedConfigFolderTightensItsTarget() throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("link-\(UUID().uuidString)")
+        let target = base.appendingPathComponent("real")
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o755])
+        defer { try? FileManager.default.removeItem(at: base) }
+        let link = base.appendingPathComponent("keypath")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        ConfigurationService.restrictToOwner(directory: link.path)
+        let mode = try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int
+        XCTAssertEqual(mode, 0o700)
+    }
 }

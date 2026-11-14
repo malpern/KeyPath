@@ -159,7 +159,13 @@ enum RuntimeControlHandler {
     /// True while a CLI uninstall dialog is open; a second request is refused.
     @MainActor private static var uninstallPromptOpen = false
 
-    @MainActor static func uninstallRefusal(confirmed: Bool, ask: @MainActor () async -> Bool) async -> String? {
+    /// `connected` is checked after the dialog: a late click must not act for a
+    /// command that has already gone away.
+    @MainActor static func uninstallRefusal(
+        confirmed: Bool,
+        ask: @MainActor () async -> Bool,
+        connected: () -> Bool = { RuntimeControlServer.clientConnected() }
+    ) async -> String? {
         guard confirmed else { return "Uninstall needs confirmation; nothing was changed." }
         guard !uninstallPromptOpen else {
             return "KeyPath is already asking about an uninstall; nothing was changed."
@@ -167,6 +173,7 @@ enum RuntimeControlHandler {
         uninstallPromptOpen = true
         defer { uninstallPromptOpen = false }
         guard await ask() else { return "Uninstall was not confirmed in KeyPath; nothing was changed." }
+        guard connected() else { return "The keypath command stopped waiting; nothing was changed." }
         return nil
     }
 
@@ -184,13 +191,6 @@ enum RuntimeControlHandler {
             let status = await manager.currentRuntimeStatusInternal()
             var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
             refused.message = refusal
-            return refused
-        }
-        // A late click must not act for a command that has already gone away.
-        guard RuntimeControlServer.clientConnected() else {
-            var refused = await response(ok: false, operation: .uninstall,
-                                         status: manager.currentRuntimeStatusInternal(), lastError: nil)
-            refused.message = "The keypath command stopped waiting; nothing was changed."
             return refused
         }
         // tccutil finds the app by bundle id, which fails once it is in the
