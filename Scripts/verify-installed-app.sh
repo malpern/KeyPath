@@ -37,6 +37,12 @@ if [[ ! -f "$metal_library" || ! -s "$metal_library" ]]; then
     exit 1
 fi
 
+# The launch splash is this poster; without it the app falls back to a plain glyph.
+if [[ ! -s "$APP_PATH/Contents/Resources/keypath-poster-hor.png" ]]; then
+    echo "❌ Launch splash poster is missing: $APP_PATH/Contents/Resources/keypath-poster-hor.png" >&2
+    exit 1
+fi
+
 # Every language the app declares needs the compiled catalog in the main
 # bundle, where plain Text("…") looks (Scripts/l10n/compile-strings.sh).
 for lang in $(/usr/libexec/PlistBuddy -c "Print :CFBundleLocalizations" "$APP_PATH/Contents/Info.plist" 2>/dev/null | sed -n 's/^ *\([A-Za-z-]*\)$/\1/p'); do

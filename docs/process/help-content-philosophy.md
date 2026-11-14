@@ -11,7 +11,7 @@ Help articles live in `guides/*.md` and `migration/*.md` and render in the in-ap
 
 ## Content rules
 
-- **Brand tagline:** when using the product tagline in help content or artwork, use exactly **Keys that do more.** The former slogan is retired. Keep article introductions focused on the user’s goal rather than repeating the tagline in every guide. See [KeyPath brand](../design/keypath-brand.md).
+- **Brand tagline:** when using the product tagline in help content or artwork, use exactly **Keys that do more.** The former slogan appears only in the launch splash poster, which was restored as it was; do not use it anywhere else. Keep article introductions focused on the user’s goal rather than repeating the tagline in every guide. See [KeyPath brand](../design/keypath-brand.md).
 
 - **Titles are user goals**, not feature names: "Shortcuts Without Reaching" not "Home Row Mods", "One Key, Multiple Actions" not "Tap-Hold & Tap-Dance", "Launching Apps" not "Action URIs"
 - **Cross-links use goal-oriented names** throughout all articles
