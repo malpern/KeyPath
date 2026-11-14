@@ -203,7 +203,12 @@ public final class ConfigBackupManager {
                 attributes: nil
             )
             // Creating the backups folder may have created the KeyPath folder too.
-            ConfigurationService.restrictToOwner(directory: (backupDirectory as NSString).deletingLastPathComponent)
+            // Tighten that parent only when it is KeyPath's own folder, never a
+            // shared one such as a temp directory or the home folder.
+            let parent = (backupDirectory as NSString).deletingLastPathComponent
+            if (parent as NSString).lastPathComponent == "keypath" {
+                ConfigurationService.restrictToOwner(directory: parent)
+            }
             ConfigurationService.restrictToOwner(directory: backupDirectory)
             AppLogger.shared.log("✅ [BackupManager] Created backup directory: \(backupDirectory)")
         } catch {
