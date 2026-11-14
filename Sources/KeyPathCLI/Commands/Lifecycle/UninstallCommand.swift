@@ -47,27 +47,15 @@ struct Uninstall: AsyncParsableCommand {
             }
             throw ExitCode(2)
         }
-        // tccutil finds the app by bundle id, which fails once the app is in the
-        // Trash, so clear the entries while it is still installed. ListenEvent
-        // and PostEvent rows may remain from builds or prompts that requested them.
-        var reset: [String] = []
-        if resetPermissions {
-            for service in ["Accessibility", "ListenEvent", "PostEvent"] {
-                let tcc = Process()
-                tcc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-                tcc.arguments = ["reset", service, Self.bundleID]
-                tcc.standardOutput = FileHandle.nullDevice
-                tcc.standardError = FileHandle.nullDevice
-                if (try? tcc.run()) != nil {
-                    tcc.waitUntilExit()
-                    if tcc.terminationStatus == 0 { reset.append(service) }
-                }
-            }
-        }
         let response: RuntimeControl.Response
         do {
-            response = try RuntimeControlClient.sendLaunching(.uninstall, timeout: max(globals.timeout, 120),
-                                                              ctx: ctx, confirmed: true)
+            // KeyPath asks on screen first. It clears the permission entries
+            // itself, after the person confirms and while it is still installed.
+            CLIOutput.progress("Confirm the uninstall in KeyPath's dialog...", context: ctx)
+            response = try RuntimeControlClient.sendLaunching(
+                .uninstall, timeout: max(globals.timeout, 120), ctx: ctx, confirmed: true,
+                argument: resetPermissions ? RuntimeControl.Request.resetPermissionsArgument : nil
+            )
         } catch {
             let failure = RuntimeControlClient.appUnreachable(error, action: "uninstall")
             CLIOutput.writeError(failure, context: ctx)
@@ -75,13 +63,19 @@ struct Uninstall: AsyncParsableCommand {
         }
         CLIOutput.write(response, context: ctx) {
             var lines = [response.ok ? "KeyPath was uninstalled." : "KeyPath was not uninstalled."]
+            // The app reports the permission reset in its message.
             if let message = response.message { lines.append(message) }
-            if resetPermissions {
-                lines.append(reset.count == 3 ? "Permission entries cleared."
-                    : "Some permission entries could not be cleared; remove KeyPath in System Settings > Privacy & Security.")
+            if let warning = Self.permissionResetWarning(requested: resetPermissions, message: response.message) {
+                lines.append(warning)
             }
             return lines.joined(separator: "\n")
         }
         if !response.ok { throw ExitCode.failure }
+    }
+
+    /// An older KeyPath ignores --reset-permissions; say so rather than imply it ran.
+    static func permissionResetWarning(requested: Bool, message: String?) -> String? {
+        guard requested, !(message ?? "").localizedCaseInsensitiveContains("permission entries") else { return nil }
+        return "The running KeyPath did not report clearing its permission entries. Remove KeyPath in System Settings > Privacy & Security if you want them gone."
     }
 }

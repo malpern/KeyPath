@@ -200,8 +200,16 @@ public final class ConfigBackupManager {
             try Foundation.FileManager().createDirectory(
                 atPath: backupDirectory,
                 withIntermediateDirectories: true,
-                attributes: [Foundation.FileAttributeKey.posixPermissions: 0o755]
+                attributes: nil
             )
+            // Creating the backups folder may have created the KeyPath folder too.
+            // Tighten that parent only when it is KeyPath's own folder, never a
+            // shared one such as a temp directory or the home folder.
+            let parent = (backupDirectory as NSString).deletingLastPathComponent
+            if (parent as NSString).lastPathComponent == "keypath" {
+                ConfigurationService.restrictToOwner(directory: parent)
+            }
+            ConfigurationService.restrictToOwner(directory: backupDirectory)
             AppLogger.shared.log("✅ [BackupManager] Created backup directory: \(backupDirectory)")
         } catch {
             AppLogger.shared.log("❌ [BackupManager] Failed to create backup directory: \(error)")

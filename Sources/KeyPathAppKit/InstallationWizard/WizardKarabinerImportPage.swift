@@ -18,6 +18,22 @@ struct WizardKarabinerImportPage: View {
     @State private var selectedCollectionIds: Set<UUID> = []
     @State private var selectedAppKeymapIds: Set<UUID> = []
     @State private var importComplete = false
+    /// Launch, website, folder and script shortcuts are listed and imported only if kept.
+    @State private var importLauncherMappings = true
+
+    /// The launcher shortcuts that will be saved: none once the person unticks them.
+    private func launchersToImport<T>(_ all: [T]) -> [T] {
+        Self.launchersToImport(all, keep: importLauncherMappings)
+    }
+
+    static func launchersToImport<T>(_ all: [T], keep: Bool) -> [T] {
+        keep ? all : []
+    }
+
+    /// What the Import button counts; it is disabled at zero.
+    static func importCount(collections: Int, appKeymaps: Int, launcherMappings: Int) -> Int {
+        collections + appKeymaps + launcherMappings
+    }
 
     // Animation states
     @State private var heroScale: CGFloat = 0.8
@@ -70,7 +86,11 @@ struct WizardKarabinerImportPage: View {
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("wizard-karabiner-continue")
                 } else if conversionResult != nil {
-                    let count = selectedCollectionIds.count + selectedAppKeymapIds.count
+                    let count = Self.importCount(
+                        collections: selectedCollectionIds.count,
+                        appKeymaps: selectedAppKeymapIds.count,
+                        launcherMappings: launchersToImport(conversionResult?.launcherMappings ?? []).count
+                    )
                     Button("Import \(count) Rules") {
                         Task { await performImport() }
                     }
@@ -191,6 +211,34 @@ struct WizardKarabinerImportPage: View {
                 }
             }
 
+            // Launch, website, folder and script shortcuts: shown in full, because
+            // each one runs or opens something when its key is pressed.
+            if !result.launcherMappings.isEmpty {
+                Text("Shortcuts That Open or Run Something")
+                    .font(.headline)
+                wizardCheckboxRow(
+                    title: String(localized: "Import these \(result.launcherMappings.count) shortcuts"),
+                    subtitle: String(localized: "Each opens an app, website or folder, or runs a script, when you press its key."),
+                    isSelected: importLauncherMappings,
+                    accessibilityIdentifier: "wizard-karabiner-import-launcher-shortcuts"
+                ) {
+                    importLauncherMappings.toggle()
+                }
+                ForEach(result.launcherMappings) { mapping in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(mapping.key)
+                            .font(.caption.monospaced())
+                            .frame(minWidth: 40, alignment: .leading)
+                        Text(mapping.action.importReviewDescription)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .lineLimit(3)
+                    }
+                    .padding(.leading, 28)
+                }
+            }
+
             // Warnings
             ForEach(result.warnings, id: \.self) { warning in
                 HStack(alignment: .top, spacing: 8) {
@@ -224,6 +272,7 @@ struct WizardKarabinerImportPage: View {
         title: String,
         subtitle: String,
         isSelected: Bool,
+        accessibilityIdentifier: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -243,6 +292,7 @@ struct WizardKarabinerImportPage: View {
         }
         .buttonStyle(.plain)
         .padding(.vertical, 2)
+        .accessibilityIdentifier(accessibilityIdentifier ?? "wizard-karabiner-row-\(title)")
     }
 
     // MARK: - Actions
@@ -293,10 +343,11 @@ struct WizardKarabinerImportPage: View {
             }
         }
 
-        // Also persist any launcher mappings from the conversion
-        if !result.launcherMappings.isEmpty {
+        // Launcher mappings only if the person kept them in the review list.
+        let launchers = launchersToImport(result.launcherMappings)
+        if !launchers.isEmpty {
             do {
-                try await KarabinerConverterService.persistLauncherMappings(result.launcherMappings)
+                try await KarabinerConverterService.persistLauncherMappings(launchers)
             } catch {
                 errors.append(String(localized: "Launcher mappings: \(error.localizedDescription)"))
             }

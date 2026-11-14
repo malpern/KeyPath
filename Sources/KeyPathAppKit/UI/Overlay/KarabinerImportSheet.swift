@@ -311,7 +311,7 @@ struct KarabinerImportSheet: View {
                     sectionHeader(String(localized: "Launcher Shortcuts"), count: result.launcherMappings.count)
                     ForEach(result.launcherMappings) { mapping in
                         checkboxRow(
-                            title: mapping.action.displayName,
+                            title: mapping.action.importReviewDescription,
                             subtitle: String(localized: "Key: \(mapping.key)"),
                             icon: "arrow.up.forward.app",
                             isSelected: selectedLauncherIds.contains(mapping.id),
@@ -441,6 +441,9 @@ struct KarabinerImportSheet: View {
                     Text(title)
                         .font(.subheadline)
                         .fontWeight(.medium)
+                        // A launcher row shows its full URL or script path; keep long ones tidy.
+                        .lineLimit(3)
+                        .truncationMode(.middle)
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)

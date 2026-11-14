@@ -99,7 +99,9 @@ final class RuntimeControlServer {
             return
         }
         AppLogger.shared.info("🎛️ [RuntimeControl] CLI requested \(request.operation.rawValue)")
-        let response = await handler(request)
+        let response = await Self.$clientConnected.withValue({ Self.isConnected(client) }) {
+            await handler(request)
+        }
         await Self.offMain {
             // Start and stop can take a while; the client waits with its own timeout.
             RuntimeControl.setTimeouts(client, seconds: 5)
@@ -109,6 +111,23 @@ final class RuntimeControlServer {
             }
             close(client)
         }
+    }
+
+    /// Whether the CLI that sent the current request is still waiting for the
+    /// answer. A handler that asks the person something (uninstall) checks it,
+    /// so a command that was stopped cannot be acted on later.
+    @TaskLocal nonisolated static var clientConnected: @Sendable () -> Bool = { true }
+
+    /// The peer has not closed its end: no hang-up, and no end-of-file waiting.
+    nonisolated static func isConnected(_ fd: Int32) -> Bool {
+        var descriptor = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+        guard poll(&descriptor, 1, 0) >= 0 else { return false }
+        if descriptor.revents & Int16(POLLHUP | POLLERR | POLLNVAL) != 0 { return false }
+        if descriptor.revents & Int16(POLLIN) != 0 {
+            var byte: UInt8 = 0
+            return recv(fd, &byte, 1, MSG_PEEK | MSG_DONTWAIT) != 0
+        }
+        return true
     }
 
     private nonisolated static func offMain<T: Sendable>(_ work: @escaping @Sendable () -> T) async -> T {

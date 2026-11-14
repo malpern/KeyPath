@@ -35,7 +35,9 @@ enum RuntimeControlHandler {
         case .repair:
             return await repair(manager: manager, reason: reason)
         case .uninstall:
-            return await uninstall(confirmed: request.confirmed == true, manager: manager)
+            return await uninstall(confirmed: request.confirmed == true,
+                                   resetPermissions: wantsPermissionReset(request),
+                                   manager: manager)
         case .reload, .layer, .layers, .changeLayer, .hrmStats, .resetHrmStats:
             return await engine(request, manager: manager)
         }
@@ -113,13 +115,93 @@ enum RuntimeControlHandler {
         return await doctor(operation: .repair, ok: report.success, message: report.failureReason, manager: manager)
     }
 
+    /// Asks the person at the Mac before a CLI uninstall. `--yes` proves only
+    /// that some process running as the user sent the request, and uninstall
+    /// deletes the config. Cancel is the default. The dialog closes itself as
+    /// "cancelled" before the CLI stops waiting (120 s), so a late click can
+    /// never uninstall after the CLI reported a failure. Replaceable for tests.
+    @MainActor static var confirmUninstallFromCLI: @MainActor (_ resetPermissions: Bool) async -> Bool = { resetPermissions in
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(localized: "Uninstall KeyPath?")
+        alert.informativeText = resetPermissions
+            ? String(localized: "The keypath command asked to remove KeyPath, delete your configuration and clear its macOS permissions. Your remapping stops.")
+            : String(localized: "The keypath command asked to remove KeyPath and delete your configuration. Your remapping stops.")
+        alert.addButton(withTitle: String(localized: "Cancel")).setAccessibilityIdentifier("cli-uninstall-cancel-button")
+        let uninstall = alert.addButton(withTitle: String(localized: "Uninstall"))
+        uninstall.setAccessibilityIdentifier("cli-uninstall-confirm-button")
+        uninstall.hasDestructiveAction = true
+        alert.buttons.first?.keyEquivalent = "\u{1b}"
+        NSApp.activate(ignoringOtherApps: true)
+        // Shown as a window, not modally, so the main actor keeps running. It
+        // closes as Cancel after the timeout, or as soon as the keypath command
+        // that asked stops waiting (Ctrl-C, its own timeout).
+        let clientConnected = RuntimeControlServer.clientConnected
+        let deadline = Date().addingTimeInterval(cliConfirmationTimeout)
+        return await withCheckedContinuation { continuation in
+            var watch: Timer?
+            let presentation = NonModalAlertPresenter.present(alert) { index in
+                watch?.invalidate()
+                continuation.resume(returning: index == 1)
+            }
+            watch = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                MainActor.assumeIsolated {
+                    if Date() >= deadline || !clientConnected() { presentation.dismiss(asButton: 0) }
+                }
+            }
+        }
+    }
+
+    /// Shorter than the CLI's 120-second wait.
+    static let cliConfirmationTimeout: TimeInterval = 100
+
+    /// True while a CLI uninstall dialog is open; a second request is refused.
+    @MainActor private static var uninstallPromptOpen = false
+
+    /// Why a CLI uninstall stops before changing anything, or nil to go ahead.
+    /// `connected` is checked after the dialog: a late click must not act for a
+    /// command that has already gone away.
+    @MainActor static func uninstallRefusal(
+        confirmed: Bool,
+        ask: @MainActor () async -> Bool,
+        connected: () -> Bool = { RuntimeControlServer.clientConnected() }
+    ) async -> String? {
+        guard confirmed else { return "Uninstall needs confirmation; nothing was changed." }
+        guard !uninstallPromptOpen else {
+            return "KeyPath is already asking about an uninstall; nothing was changed."
+        }
+        uninstallPromptOpen = true
+        defer { uninstallPromptOpen = false }
+        guard await ask() else { return "Uninstall was not confirmed in KeyPath; nothing was changed." }
+        guard connected() else { return "The keypath command stopped waiting; nothing was changed." }
+        return nil
+    }
+
+    /// Whether `keypath uninstall --reset-permissions` asked to clear the permission entries.
+    static func wantsPermissionReset(_ request: RuntimeControl.Request) -> Bool {
+        request.operation == .uninstall && request.argument == RuntimeControl.Request.resetPermissionsArgument
+    }
+
     /// The app's own uninstall. On success the app quits shortly after answering.
-    static func uninstall(confirmed: Bool, manager: RuntimeCoordinator) async -> RuntimeControl.Response {
-        let status = await manager.currentRuntimeStatusInternal()
-        guard confirmed else {
+    static func uninstall(confirmed: Bool, resetPermissions: Bool = false,
+                          manager: RuntimeCoordinator) async -> RuntimeControl.Response
+    {
+        if let refusal = await uninstallRefusal(confirmed: confirmed, ask: { await confirmUninstallFromCLI(resetPermissions) }) {
+            // Read after the dialog, which can stay open for 100 seconds.
+            let status = await manager.currentRuntimeStatusInternal()
             var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
-            refused.message = "Uninstall needs confirmation; nothing was changed."
+            refused.message = refusal
             return refused
+        }
+        // tccutil finds the app by bundle id, which fails once it is in the
+        // Trash, so clear the entries now, after the person confirmed.
+        // tccutil can take seconds; wait on a dispatch thread, not the Swift task pool.
+        let permissionNote: String? = if resetPermissions {
+            await withCheckedContinuation { done in
+                DispatchQueue.global(qos: .userInitiated).async { done.resume(returning: resetPermissionEntries()) }
+            }
+        } else {
+            nil
         }
         RuntimeControlServer.shared.withdrawForUninstall()
         // The same entry point as Settings' Uninstall dialog. It also records that
@@ -128,7 +210,12 @@ enum RuntimeControlHandler {
         if !report.success { RuntimeControlServer.shared.restoreAfterFailedUninstall() }
         var answer = await response(ok: report.success, operation: .uninstall,
                                     status: manager.currentRuntimeStatusInternal(), lastError: nil)
-        answer.message = report.success ? report.logs.first : report.failureReason
+        // The entries were cleared before the uninstall, so a failure leaves KeyPath without them.
+        let regrantNote = !report.success && permissionNote != nil
+            ? "KeyPath is still installed, so grant its permissions again in System Settings → Privacy & Security."
+            : nil
+        answer.message = [report.success ? report.logs.first : report.failureReason, permissionNote, regrantNote]
+            .compactMap { $0 }.joined(separator: "\n")
         if report.success {
             // Answer first, then quit as the dialog does, from the run loop.
             Task { @MainActor in
@@ -162,5 +249,30 @@ enum RuntimeControlHandler {
             appPID: ProcessInfo.processInfo.processIdentifier,
             appVersion: BuildInfo.current().version
         )
+    }
+
+    /// Clears KeyPath's privacy entries. ListenEvent and PostEvent rows may
+    /// remain from builds or prompts that requested them.
+    nonisolated static func resetPermissionEntries() -> String {
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
+        var cleared = 0
+        for service in ["Accessibility", "ListenEvent", "PostEvent"] {
+            let tcc = Process()
+            tcc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            tcc.arguments = ["reset", service, bundleID]
+            tcc.standardOutput = FileHandle.nullDevice
+            tcc.standardError = FileHandle.nullDevice
+            let exited = DispatchSemaphore(value: 0)
+            tcc.terminationHandler = { _ in exited.signal() }
+            guard (try? tcc.run()) != nil else { continue }
+            // A hung tccutil must not hold up the uninstall.
+            if exited.wait(timeout: .now() + 10) == .timedOut {
+                tcc.terminate()
+                continue
+            }
+            if tcc.terminationStatus == 0 { cleared += 1 }
+        }
+        return cleared == 3 ? "Permission entries cleared."
+            : "Some permission entries could not be cleared; remove KeyPath in System Settings > Privacy & Security."
     }
 }

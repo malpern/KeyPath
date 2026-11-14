@@ -75,7 +75,7 @@ macOS only lets a person turn on Device Control and Data Access (Accessibility b
 | `1` | Another problem (the output says what) |
 | `6` | KeyPath couldn't be reached (`doctor` doesn't open the app; `setup` does) |
 
-`keypath uninstall` exits `2` without `--yes`, with nothing changed. See [Uninstall KeyPath]({{ '/guides/uninstall/' | relative_url }}).
+`keypath uninstall` exits `2` without `--yes`, with nothing changed. With `--yes`, KeyPath still asks on screen before it removes anything. See [Uninstall KeyPath]({{ '/guides/uninstall/' | relative_url }}).
 
 ### Configuration reload and logs
 

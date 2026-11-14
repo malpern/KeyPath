@@ -41,3 +41,11 @@ keypath uninstall                        # show the plan; changes nothing
 keypath uninstall --yes                  # back up and uninstall
 keypath uninstall --yes --reset-permissions
 ```
+
+With `--yes`, KeyPath still shows a dialog and does nothing until you click
+**Uninstall**. Cancel, or no answer within about a minute and a half, leaves
+everything as it was, including the permission entries. With
+`--reset-permissions`, KeyPath clears the permission entries right after you
+confirm and before it removes itself, because macOS can no longer find the app
+once it is in the Trash. If the uninstall then fails, KeyPath stays installed
+and asks for its permissions again.

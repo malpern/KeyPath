@@ -162,8 +162,13 @@ public final class KanataConfigMigrationService {
         try fileManager.createDirectory(
             atPath: keyPathConfigDirectory,
             withIntermediateDirectories: true,
-            attributes: [FileAttributeKey.posixPermissions: 0o755]
+            attributes: nil
         )
+        // Only the KeyPath folder itself is private, not ~/.config if this created it,
+        // nor a folder this service was pointed at under another name.
+        if (keyPathConfigDirectory as NSString).lastPathComponent == "keypath" {
+            ConfigurationService.restrictToOwner(directory: keyPathConfigDirectory)
+        }
         AppLogger.shared.log("✅ [MigrationService] Created KeyPath config directory: \(keyPathConfigDirectory)")
     }
 
@@ -221,9 +226,11 @@ public final class KanataConfigMigrationService {
             try fileManager.createDirectory(
                 atPath: backupDir,
                 withIntermediateDirectories: true,
-                attributes: [FileAttributeKey.posixPermissions: 0o755]
+                attributes: [.posixPermissions: 0o700]
             )
         }
+        // An existing folder is left alone: it sits inside the config folder,
+        // which is already private.
 
         // Copy to backup
         do {

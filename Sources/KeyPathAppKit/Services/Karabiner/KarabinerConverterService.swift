@@ -994,3 +994,23 @@ struct KarabinerConverterService: Sendable {
         return result
     }
 }
+
+public extension KeyAction {
+    /// The full target, so a person importing shortcuts can see what each one
+    /// will open or run. `displayName` shortens URLs to a domain and scripts to
+    /// a name, which hides exactly what matters here.
+    var importReviewDescription: String {
+        switch self {
+        case let .launchApp(name, bundleId):
+            String(localized: "Opens \(bundleId ?? name)")
+        case let .openURL(url):
+            String(localized: "Opens \(url)")
+        case let .openFolder(path, _):
+            String(localized: "Opens the folder \(path)")
+        case let .runScript(path, _):
+            String(localized: "Runs \(path)")
+        default:
+            displayName
+        }
+    }
+}
