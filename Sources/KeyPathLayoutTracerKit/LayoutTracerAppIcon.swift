@@ -77,17 +77,11 @@ enum LayoutTracerAppIcon {
             accessibilityDescription: nil
         ) else { return }
 
+        // The colour comes from the symbol configuration; a blend-mode tint
+        // would also colour whatever is already drawn under the rect.
         let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: weight)
-        let configured = symbol.withSymbolConfiguration(config) ?? symbol
-        let tinted = NSImage(size: configured.size, flipped: false) { bounds in
-            configured.draw(in: bounds)
-            if let context = NSGraphicsContext.current?.cgContext {
-                context.setBlendMode(.sourceAtop)
-                context.setFillColor(color.cgColor)
-                context.fill(bounds)
-            }
-            return true
-        }
+            .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+        let tinted = symbol.withSymbolConfiguration(config) ?? symbol
         tinted.draw(in: rect)
     }
 }
