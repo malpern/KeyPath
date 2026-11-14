@@ -64,19 +64,17 @@ jobs:
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
     # 12 minutes, before test execution. Keep a finite bound with real headroom.
-    # Every hosted run is cold, on a smaller machine.
-    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 60 || 25 }}
-    # Separate from the workflow-level concurrency group above (which cancels
-    # stale runs of the *same* PR): on the mini this queues jobs from *different*
-    # PRs onto the single physical runner instead of letting them execute in
-    # parallel. Hosted jobs each get their own VM, so their group is unique.
-    # Concurrent swift test runs share unsandboxed local state (e.g.
-    # RuleCollectionsManager's config file), which caused spurious
-    # CLIPackCRUDTests "could not enable associated rule collection" failures
-    # when two PRs' CI happened to overlap.
-    concurrency:
-      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-build-and-test', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
-      cancel-in-progress: false
+    # Every hosted run is cold, on a smaller machine. The mini's budget also
+    # covers up to 10 minutes waiting for the test lock below.
+    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 60 || 35 }}
+    # Two swift test runs must never overlap on the mini: they share unsandboxed
+    # local state (e.g. RuleCollectionsManager's config file), which caused
+    # spurious CLIPackCRUDTests failures. The runner label does that: only one
+    # runner carries swiftpm-safe and it runs one job at a time, so test runs
+    # from different PRs wait their turn. Do not add a job-level concurrency
+    # group for this. A group holds one running and one pending job and cancels
+    # the older pending one, so with three PRs in CI their jobs cancelled each
+    # other (2026-11-14). The runner queue never cancels a waiting job.
 
     steps:
     - name: Clean stale git credentials
@@ -203,7 +201,9 @@ jobs:
         KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '0' || '1' }}
         KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
         KEYPATH_TEST_RESET_MODULE_CACHE: "0"
-        KEYPATH_SWIFT_BUILD_JOBS: "4"
+        # The mini (M4 Pro, 14 cores) runs one test job at a time; leave a few
+        # cores for quality-full on the other runner. Hosted VMs are smaller.
+        KEYPATH_SWIFT_BUILD_JOBS: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && '4' || '10' }}
         # SCRATCH_PATH comes from "Prepare persistent SwiftPM scratch" via GITHUB_ENV.
       run: |
         echo "Running full named test lane..."
@@ -212,10 +212,22 @@ jobs:
         export TIMEOUT_SECONDS=300
         chmod +x ./Scripts/test-lane.sh
         chmod +x ./Scripts/run-tests-safe.sh
-        if ./Scripts/test-lane.sh full; then
+        # Belt and braces for the runner label: if a second runner were ever
+        # given swiftpm-safe, two test runs still must not overlap. This covers
+        # the test command only, not the setup steps before it. lockf holds a
+        # kernel lock that is released when the process exits, even if the job
+        # is cancelled, so it cannot go stale.
+        # The wait counts against this job's budget (35 minutes on the mini), so
+        # give up well before it; lockf exits 75 when it does.
+        rc=0
+        /usr/bin/lockf -t 600 /tmp/keypath-ci-swift-tests.lock ./Scripts/test-lane.sh full || rc=$?
+        if [ "$rc" -eq 0 ]; then
           echo "TEST_STATUS=passed" >> $GITHUB_ENV
         else
           echo "TEST_STATUS=failed" >> $GITHUB_ENV
+          if [ "$rc" -eq 75 ]; then
+            echo "::error::Another test run held the mini's test lock for 10 minutes; tests did not run. Re-run this job."
+          fi
           exit 1
         fi
 
@@ -284,12 +296,10 @@ jobs:
     runs-on: ${{ fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
     # Hosted runs also install mise and SwiftLint on a smaller machine.
     timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 30 || 15 }}
-    # This job does not share test state, but it does share the only physical
-    # runner. Queue it with builds so SwiftFormat gets enough CPU to finish
-    # before its fixed per-rule safety timeout.
-    concurrency:
-      group: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && format('hosted-{0}-{1}-code-quality', github.workflow, github.run_id) || 'keypath-self-hosted-runner' }}
-      cancel-in-progress: false
+    # No test state is shared, so this runs on whichever mini runner is free,
+    # alongside a test job. It lints only the changed files and takes under a
+    # minute; the test job leaves it spare cores. No job-level concurrency group:
+    # see the note on test-full.
 
     steps:
     - name: Clean stale git credentials
