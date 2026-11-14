@@ -16,7 +16,7 @@ struct SendActionIntent: AppIntent {
         if !normalized.hasPrefix("keypath://"), !normalized.contains(":") {
             normalized = "keypath://\(normalized)"
         }
-        let result = ActionDispatcher.shared.dispatch(message: normalized)
+        let result = ActionDispatcher.shared.dispatch(message: normalized, origin: .shortcut)
         switch result {
         case .success:
             return .result()

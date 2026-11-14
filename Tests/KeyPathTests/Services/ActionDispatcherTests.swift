@@ -650,10 +650,8 @@ struct ActionDispatcherScriptTests {
     func returnsFailedForNonexistentScript() throws {
         // Enable script execution
         ScriptSecurityService.shared.isScriptExecutionEnabled = true
-        ScriptSecurityService.shared.bypassFirstRunDialog = true
         defer {
             ScriptSecurityService.shared.isScriptExecutionEnabled = false
-            ScriptSecurityService.shared.bypassFirstRunDialog = false
         }
 
         let uri = try #require(KeyPathActionURI(string: "keypath://script/nonexistent/path/script.sh"))
@@ -671,7 +669,6 @@ struct ActionDispatcherScriptTests {
     func callsConfirmationCallback() throws {
         // Enable script execution but require confirmation
         ScriptSecurityService.shared.isScriptExecutionEnabled = true
-        ScriptSecurityService.shared.bypassFirstRunDialog = false
         defer {
             ScriptSecurityService.shared.isScriptExecutionEnabled = false
             ActionDispatcher.shared.onScriptConfirmationNeeded = nil
@@ -680,9 +677,9 @@ struct ActionDispatcherScriptTests {
         var confirmationRequested = false
         var requestedPath: String?
 
-        ActionDispatcher.shared.onScriptConfirmationNeeded = { path, _, _ in
+        ActionDispatcher.shared.onScriptConfirmationNeeded = { request in
             confirmationRequested = true
-            requestedPath = path
+            requestedPath = request.path
         }
 
         // Use /bin/bash which is always an executable that exists
@@ -717,10 +714,8 @@ struct ActionDispatcherScriptTests {
     @MainActor
     func returnsFailedForNotExecutableScriptType() throws {
         ScriptSecurityService.shared.isScriptExecutionEnabled = true
-        ScriptSecurityService.shared.bypassFirstRunDialog = true
         defer {
             ScriptSecurityService.shared.isScriptExecutionEnabled = false
-            ScriptSecurityService.shared.bypassFirstRunDialog = false
         }
 
         let tempPath = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)

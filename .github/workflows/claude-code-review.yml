@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
 
@@ -52,9 +52,7 @@ jobs:
             NF == 0 { next }
             /^docs\// { next }
             /^[^\/]+\.md$/ { next }
-            /^\.github\/workflows\/claude\.yml$/ { next }
             /^\.github\/workflows\/claude-code-review\.yml$/ { next }
-            /^Sources\/KeyPathAppKit\/Resources\/[^\/]+\.(md|css|png)$/ { next }
             { print }
           ')"
 
@@ -66,7 +64,7 @@ jobs:
 
       - name: Build bounded review prompt
         id: review_prompt
-        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
         run: |
           set -euo pipefail
 
@@ -93,12 +91,17 @@ jobs:
             echo "inspection tools such as git, gh pr diff, rg, sed, cat, or ls; the diff"
             echo "context is already included here."
             echo
-            echo "Focus on actionable correctness, reliability, security, performance, and"
-            echo "test-coverage findings. Use the repository's CLAUDE.md for style only when"
-            echo "the supplied diff makes it directly relevant."
+            echo "Report only BLOCKING findings: a defect in this diff that will cause wrong"
+            echo "behavior, a crash, data loss, a security hole, or a failing build or test."
+            echo "Do not report style, naming, documentation, missing-test wishes, or"
+            echo "hypotheticals about configuration outside the diff. Do not repeat a point"
+            echo "the code or a comment in the diff already addresses."
             echo
-            echo "Use exactly one Bash tool call: gh pr comment, to leave one concise review"
-            echo "comment on the PR. If there are no actionable findings, say so briefly."
+            echo "If you find blocking findings, use exactly one Bash tool call, gh pr comment,"
+            echo "to leave one concise comment listing them, each with the file, the failure"
+            echo "and the fix. If there are none, post nothing: a silent, passing check is"
+            echo "the approval. Agents act on every comment, so a comment saying all is well"
+            echo "costs a full review cycle."
             echo
             echo "Changed file summary:"
             cat "$stat_file"
@@ -116,8 +119,8 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
-        uses: anthropics/claude-code-action@v1
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: 'cursor'
@@ -133,8 +136,29 @@ jobs:
 
       - name: Skip Claude review for workflow-file changes
         if: steps.changes.outputs.workflow_changed == 'true'
+        env:
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
+        # The review action will not run a workflow file the PR itself changed.
+        # The check then passes only for PRs by the repository owner or Dependabot
+        # (which bumps the action pins here); anyone else's fails. This is a
+        # speed bump, not a boundary: the PR's own copy of this file runs, so it
+        # can edit this step too. Branch protection and the owner's merge are the
+        # boundary.
         run: |
+          if [ "$AUTHOR" != "$OWNER" ] && [ "$AUTHOR" != "dependabot[bot]" ]; then
+            echo "::error::This PR changes the Claude review workflow, which cannot review itself. The repository owner must review and merge it."
+            exit 1
+          fi
           echo "Skipping Claude review because .github/workflows/claude-code-review.yml changed in this PR."
+
+      - name: Skip Claude review for Dependabot pin updates
+        # Dependabot PRs get no repository secrets and the review action does not
+        # run for that bot, so the review cannot run. The owner reviews the pin
+        # change when merging.
+        if: github.event.pull_request.user.login == 'dependabot[bot]' && steps.changes.outputs.workflow_changed != 'true'
+        run: |
+          echo "Skipping Claude review for a Dependabot action-pin update; the owner reviews it at merge."
 
       - name: Skip Claude review for docs-only changes
         if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only == 'true'

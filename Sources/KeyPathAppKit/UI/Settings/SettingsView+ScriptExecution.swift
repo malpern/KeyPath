@@ -8,7 +8,7 @@ struct ScriptExecutionSettingsSection: View {
     @Bindable private var securityService = ScriptSecurityService.shared
     @State private var showingExecutionLog = false
     @State private var showingEnableConfirmation = false
-    @State private var showingBypassConfirmation = false
+    @State private var linksPressVirtualKeys = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -33,21 +33,22 @@ struct ScriptExecutionSettingsSection: View {
             }
 
             if securityService.isScriptExecutionEnabled {
-                SettingsToggleRow(
-                    title: String(localized: "Skip confirmation dialog"),
-                    subtitle: String(localized: "⚠️ Scripts will run immediately without warning"), subtitleColor: .orange,
-                    isOn: Binding(get: { securityService.bypassFirstRunDialog }, set: { newValue in
-                        if newValue { showingBypassConfirmation = true }
-                        else { securityService.bypassFirstRunDialog = false }
-                    }), identifier: "settings-script-bypass-dialog-toggle"
-                )
-                .padding(.leading, SettingsDesign.sectionGap)
-                .sheet(isPresented: $showingBypassConfirmation) {
-                    ScriptBypassConfirmationView(
-                        onAllow: { showingBypassConfirmation = false },
-                        onCancel: { showingBypassConfirmation = false }
-                    )
+                HStack {
+                    Text("Each script asks before its first run. \"Always Allow\" remembers it until the script changes.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button(String(localized: "Forget Approved Scripts (\(securityService.approvedScriptCount))")) {
+                        if !securityService.forgetApprovedScripts() {
+                            UserNotificationService.shared.notifyActionError(
+                                String(localized: "KeyPath couldn't remove the approved scripts from the Keychain. They still apply.")
+                            )
+                        }
+                    }
+                    .disabled(securityService.approvedScriptCount == 0)
+                    .accessibilityIdentifier("settings-script-forget-approvals-button")
                 }
+                .padding(.leading, 24)
 
                 // Execution log button
                 HStack {
@@ -64,9 +65,30 @@ struct ScriptExecutionSettingsSection: View {
                 .padding(.leading, 24)
                 .padding(.top, 4)
             }
+            if linksPressVirtualKeys {
+                HStack {
+                    Text("Links from other apps can press virtual keys without asking.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button(String(localized: "Ask Again")) {
+                        if KeychainLinkGrantStore.shared.setAllowsVirtualKeys(false) {
+                            linksPressVirtualKeys = false
+                        }
+                    }
+                    .accessibilityIdentifier("settings-links-virtual-keys-ask-again-button")
+                }
+            }
         }
         .sheet(isPresented: $showingExecutionLog) {
             ScriptExecutionLogView()
+        }
+        .onAppear {
+            if securityService.isScriptExecutionEnabled { securityService.refreshApprovedScriptCount() }
+            linksPressVirtualKeys = KeychainLinkGrantStore.shared.allowsVirtualKeys
+        }
+        .onChange(of: securityService.isScriptExecutionEnabled) { _, enabled in
+            if enabled { securityService.refreshApprovedScriptCount() }
         }
     }
 }

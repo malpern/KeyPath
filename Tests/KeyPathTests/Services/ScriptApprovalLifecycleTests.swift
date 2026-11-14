@@ -8,7 +8,7 @@ final class ScriptApprovalLifecycleTests: XCTestCase {
         try await withFixture { dispatcher, security, path, executed in
             var confirm: (() -> Void)?
             var errors: [String] = []
-            dispatcher.onScriptConfirmationNeeded = { _, approve, _ in confirm = approve }
+            dispatcher.onScriptConfirmationNeeded = { confirm = $0.runOnce }
             dispatcher.onError = { errors.append($0) }
             _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "script:" + path)))
             let approve = try XCTUnwrap(confirm)
@@ -23,7 +23,7 @@ final class ScriptApprovalLifecycleTests: XCTestCase {
     func testDeletedScriptCannotUsePendingConfirmation() async throws {
         try await withFixture { dispatcher, _, path, executed in
             var confirm: (() -> Void)?
-            dispatcher.onScriptConfirmationNeeded = { _, approve, _ in confirm = approve }
+            dispatcher.onScriptConfirmationNeeded = { confirm = $0.runOnce }
             _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "script:" + path)))
             try FileManager.default.removeItem(atPath: path)
             try XCTUnwrap(confirm)()
@@ -36,7 +36,7 @@ final class ScriptApprovalLifecycleTests: XCTestCase {
         try await withFixture { dispatcher, _, path, executed in
             var confirm: (() -> Void)?
             var prompts = 0
-            dispatcher.onScriptConfirmationNeeded = { _, approve, _ in prompts += 1; confirm = approve }
+            dispatcher.onScriptConfirmationNeeded = { prompts += 1; confirm = $0.runOnce }
             _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "script:" + path)))
             try XCTUnwrap(confirm)()
             await dispatcher.scriptTask?.value
@@ -47,7 +47,7 @@ final class ScriptApprovalLifecycleTests: XCTestCase {
 
     func testCancelledScriptDoesNotExecute() async throws {
         try await withFixture { dispatcher, _, path, executed in
-            dispatcher.onScriptConfirmationNeeded = { _, _, cancel in cancel() }
+            dispatcher.onScriptConfirmationNeeded = { $0.cancel() }
             _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "script:" + path)))
             await dispatcher.scriptTask?.value
             XCTAssertTrue(executed.paths.isEmpty)
@@ -62,6 +62,54 @@ final class ScriptApprovalLifecycleTests: XCTestCase {
         }
     }
 
+    func testScriptEditedAfterPromptDoesNotRun() async throws {
+        try await withFixture { dispatcher, _, path, executed in
+            var confirm: (() -> Void)?
+            var errors: [String] = []
+            dispatcher.onScriptConfirmationNeeded = { confirm = $0.runOnce }
+            dispatcher.onError = { errors.append($0) }
+            _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "script:" + path)))
+            try Data("#!/bin/sh\necho swapped\n".utf8).write(to: URL(fileURLWithPath: path))
+            try XCTUnwrap(confirm)()
+            await dispatcher.scriptTask?.value
+            XCTAssertTrue(executed.paths.isEmpty)
+            XCTAssertTrue(errors.contains(where: { $0.contains("changed") }))
+        }
+    }
+
+    func testAlwaysAllowRunsLaterWithoutAsking() async throws {
+        try await withFixture { dispatcher, _, path, executed in
+            var always: (() -> Void)?
+            var prompts = 0
+            dispatcher.onScriptConfirmationNeeded = { prompts += 1; always = $0.alwaysAllow }
+            let uri = try XCTUnwrap(KeyPathActionURI(string: "script:" + path))
+            _ = dispatcher.dispatch(uri)
+            try XCTUnwrap(always)()
+            await dispatcher.scriptTask?.value
+            _ = dispatcher.dispatch(uri)
+            await dispatcher.scriptTask?.value
+            XCTAssertEqual(prompts, 1)
+            XCTAssertEqual(executed.paths, [path, path])
+        }
+    }
+
+    func testAlwaysAllowRefusesScriptChangedWhileAsking() async throws {
+        try await withFixture { dispatcher, security, path, executed in
+            var always: (() -> Void)?
+            var errors: [String] = []
+            dispatcher.onScriptConfirmationNeeded = { always = $0.alwaysAllow }
+            dispatcher.onError = { errors.append($0) }
+            _ = try dispatcher.dispatch(XCTUnwrap(KeyPathActionURI(string: "script:" + path)))
+            try Data("#!/bin/sh\necho swapped\n".utf8).write(to: URL(fileURLWithPath: path))
+            try XCTUnwrap(always)()
+            await dispatcher.scriptTask?.value
+            XCTAssertTrue(executed.paths.isEmpty)
+            security.refreshApprovedScriptCount()
+            XCTAssertEqual(security.approvedScriptCount, 0, "Nothing is remembered for changed contents")
+            XCTAssertTrue(errors.contains(where: { $0.contains("changed") }))
+        }
+    }
+
     private final class Executed { var paths: [String] = [] }
 
     private func withFixture(_ body: (ActionDispatcher, ScriptSecurityService, String, Executed) async throws -> Void) async throws {
@@ -71,9 +119,8 @@ final class ScriptApprovalLifecycleTests: XCTestCase {
         let script = FileManager.default.temporaryDirectory.appendingPathComponent("approval-\(UUID().uuidString).sh")
         try Data("#!/bin/sh\nexit 0\n".utf8).write(to: script)
         defer { try? FileManager.default.removeItem(at: script) }
-        let security = ScriptSecurityService(defaults: defaults)
+        let security = ScriptSecurityService(defaults: defaults, approvals: InMemoryScriptApprovalStore())
         security.isScriptExecutionEnabled = true
-        security.bypassFirstRunDialog = false
         let executed = Executed()
         let dispatcher = ActionDispatcher(scriptSecurityService: security, scriptExecutor: { executed.paths.append($0) })
         try await body(dispatcher, security, script.path, executed)

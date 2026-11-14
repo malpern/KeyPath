@@ -89,12 +89,14 @@ cargo clean \
 
 if [ -n "$BRIDGE_FEATURES" ]; then
     env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo build \
+        --locked \
         --manifest-path "$BRIDGE_ROOT/Cargo.toml" \
         --release \
         --features "$BRIDGE_FEATURES" \
         --target "$BRIDGE_TARGET"
 else
     env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo build \
+        --locked \
         --manifest-path "$BRIDGE_ROOT/Cargo.toml" \
         --release \
         --target "$BRIDGE_TARGET"
