@@ -15,7 +15,8 @@ The user-facing version of this page, with diagrams, is
 - **No analytics, telemetry or crash reporting.** KeyPath contains no tracking
   SDKs and uploads no usage data.
 - **Keyboard data stays on your Mac.** Key events are processed locally for
-  remapping. Local diagnostic logs can contain key names; nothing uploads them.
+  remapping. KeyPath does not log the keys you press. Diagnostic logs can name
+  keys from your mappings; nothing uploads them.
 - **One permission.** Accessibility (shown as **Device Control and Data
   Access** on macOS 27). No Input Monitoring, no Full Disk Access.
 - **No root.** KeyPath does not install a privileged helper, a system service
@@ -38,8 +39,9 @@ KeyPath needs **Accessibility** permission to read and remap keys.
   or at the login screen
 
 **Where key names can appear on disk:**
-- Diagnostic logs in `~/Library/Logs/KeyPath/` can include key names, for
-  example while you record a shortcut. Review a log before sharing it.
+- Diagnostic logs in `~/Library/Logs/KeyPath/` do not record the keys you
+  press, including while you record a shortcut. They can name keys from your
+  mappings, or keys you click in the keyboard view. Review a log before sharing it.
 - If you turn on Activity Insights, usage statistics (shortcuts used, app
   switches, actions) are stored encrypted. It does not store typed text.
 

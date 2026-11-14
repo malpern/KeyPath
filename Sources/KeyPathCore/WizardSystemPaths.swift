@@ -5,16 +5,23 @@ import Foundation
 public enum WizardSystemPaths {
     // MARK: - Test Overrides
 
+    /// Test-only overrides below are read in debug builds only: in a release
+    /// build, an environment variable must not change which paths KeyPath
+    /// inspects or removes, or which binary it runs.
     private static func currentTestRoot() -> String? {
-        guard let raw = ProcessInfo.processInfo.environment["KEYPATH_TEST_ROOT"],
-              !raw.isEmpty
-        else {
+        #if DEBUG
+            guard let raw = ProcessInfo.processInfo.environment["KEYPATH_TEST_ROOT"],
+                  !raw.isEmpty
+            else {
+                return nil
+            }
+            if raw.hasSuffix("/") {
+                return String(raw.dropLast())
+            }
+            return raw
+        #else
             return nil
-        }
-        if raw.hasSuffix("/") {
-            return String(raw.dropLast())
-        }
-        return raw
+        #endif
     }
 
     public static func remapSystemPath(_ path: String) -> String {
@@ -28,11 +35,13 @@ public enum WizardSystemPaths {
     }
 
     private static func resolvedHomeDirectory() -> String {
-        if let override = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
-           !override.isEmpty
-        {
-            return override
-        }
+        #if DEBUG
+            if let override = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
+               !override.isEmpty
+            {
+                return override
+            }
+        #endif
         return NSHomeDirectory()
     }
 
@@ -56,23 +65,25 @@ public enum WizardSystemPaths {
             if let override = bundledKanataPathOverride, !override.isEmpty {
                 return override
             }
+            if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"],
+               !override.isEmpty
+            {
+                return override
+            }
         #endif
-        if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_KANATA_OVERRIDE"],
-           !override.isEmpty
-        {
-            return override
-        }
         return currentRuntimeHost().bundledCorePath
     }
 
     /// Bundled kanata simulator binary path (for dry-run simulation)
     /// This binary outputs structured JSON instead of sending real HID events
     public static var bundledSimulatorPath: String {
-        if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_SIMULATOR_OVERRIDE"],
-           !override.isEmpty
-        {
-            return override
-        }
+        #if DEBUG
+            if let override = ProcessInfo.processInfo.environment["KEYPATH_BUNDLED_SIMULATOR_OVERRIDE"],
+               !override.isEmpty
+            {
+                return override
+            }
+        #endif
         return "\(Bundle.main.bundlePath)/Contents/Library/KeyPath/kanata-simulator"
     }
 
