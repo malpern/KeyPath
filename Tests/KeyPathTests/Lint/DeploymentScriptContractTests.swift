@@ -404,8 +404,11 @@ final class DeploymentScriptContractTests: XCTestCase {
             1,
             "Only build-and-test should require the SwiftPM-safe interactive runner in ci.yml, written as \(safeRunnerChoice) inside its runs-on expression."
         )
-        XCTAssertEqual(ci.components(separatedBy: #"vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"'"#).count - 1, 2,
-                       #"Both required jobs move to the hosted image together; each runs-on should start with fromJSON(vars.KEYPATH_CI_RUNNER == 'hosted' && '"xcode-27"' || …)."#)
+        // Both required jobs move to the hosted image together, either by the repo
+        // variable or because the pull request comes from a fork (S5).
+        let hostedChoice = #"(vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '"xcode-27"'"#
+        XCTAssertEqual(ci.components(separatedBy: hostedChoice).count - 1, 2,
+                       "Both required jobs move to the hosted image together; each runs-on should start with fromJSON(\(hostedChoice) || …).")
         XCTAssertFalse(ci.contains(safeRunner),
                        "A literal safe-runner job in ci.yml would bypass the single-job check above.")
         XCTAssertTrue(cacheWarm.contains(safeRunner))

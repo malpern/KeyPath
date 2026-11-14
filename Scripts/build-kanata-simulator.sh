@@ -90,6 +90,7 @@ echo "🔨 Building kanata_simulated_input for ARM64..."
 cd "$KANATA_SOURCE"
 MACOSX_DEPLOYMENT_TARGET=11.0 \
 env ${KEYPATH_SDKROOT:+SDKROOT="$KEYPATH_SDKROOT"} cargo build \
+    --locked \
     --release \
     --package kanata-sim \
     --target aarch64-apple-darwin

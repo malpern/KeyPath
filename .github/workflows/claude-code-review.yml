@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 1
 
@@ -52,9 +52,7 @@ jobs:
             NF == 0 { next }
             /^docs\// { next }
             /^[^\/]+\.md$/ { next }
-            /^\.github\/workflows\/claude\.yml$/ { next }
             /^\.github\/workflows\/claude-code-review\.yml$/ { next }
-            /^Sources\/KeyPathAppKit\/Resources\/[^\/]+\.(md|css|png)$/ { next }
             { print }
           ')"
 
@@ -66,7 +64,7 @@ jobs:
 
       - name: Build bounded review prompt
         id: review_prompt
-        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
         run: |
           set -euo pipefail
 
@@ -116,8 +114,8 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
-        uses: anthropics/claude-code-action@v1
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
+        uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           allowed_bots: 'cursor'
@@ -133,8 +131,29 @@ jobs:
 
       - name: Skip Claude review for workflow-file changes
         if: steps.changes.outputs.workflow_changed == 'true'
+        env:
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
+        # The review action will not run a workflow file the PR itself changed.
+        # The check then passes only for PRs by the repository owner or Dependabot
+        # (which bumps the action pins here); anyone else's fails. This is a
+        # speed bump, not a boundary: the PR's own copy of this file runs, so it
+        # can edit this step too. Branch protection and the owner's merge are the
+        # boundary.
         run: |
+          if [ "$AUTHOR" != "$OWNER" ] && [ "$AUTHOR" != "dependabot[bot]" ]; then
+            echo "::error::This PR changes the Claude review workflow, which cannot review itself. The repository owner must review and merge it."
+            exit 1
+          fi
           echo "Skipping Claude review because .github/workflows/claude-code-review.yml changed in this PR."
+
+      - name: Skip Claude review for Dependabot pin updates
+        # Dependabot PRs get no repository secrets and the review action does not
+        # run for that bot, so the review cannot run. The owner reviews the pin
+        # change when merging.
+        if: github.event.pull_request.user.login == 'dependabot[bot]' && steps.changes.outputs.workflow_changed != 'true'
+        run: |
+          echo "Skipping Claude review for a Dependabot action-pin update; the owner reviews it at merge."
 
       - name: Skip Claude review for docs-only changes
         if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only == 'true'
