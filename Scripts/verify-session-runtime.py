@@ -63,6 +63,17 @@ def discover(executable, uid):
     return processes
 
 
+def canonical_config(uid):
+    """The config the worker must run: the owning user's ~/.config/keypath/keypath.kbd."""
+    # Must match SessionWorkerLaunchCheck.accountConfigPath (KeyPathConstants.Config.fileName).
+    import pwd
+    try:
+        home = pwd.getpwuid(uid).pw_dir
+    except KeyError:
+        raise ValueError('worker owner has no account entry') from None
+    return os.path.join(home, '.config/keypath/keypath.kbd')
+
+
 def owned_launch(processes, executable, uid):
     parents = [(pid, identity) for pid, identity in processes.items()
                if identity[:2] == (uid, executable)
@@ -87,7 +98,11 @@ def owned_launch(processes, executable, uid):
     version = argument('--session-owner-pidversion')
     require(version.isdigit() and 0 < int(version) <= 2**32 - 1, 'invalid owner PID version')
     require('--session-port' not in args, 'worker was given a TCP port')
-    require(bool(argument('--session-config')), 'worker config path unavailable')
+    config = argument('--session-config')
+    # The worker refuses any '..' component; so does the verifier.
+    require(config.startswith('/') and '..' not in config.split('/')
+            and os.path.realpath(config) == os.path.realpath(canonical_config(uid)),
+            'worker is not running the canonical config')
     nonce = argument('--session-nonce')
     require(str(uuid.UUID(nonce)).lower() == nonce.lower(), 'invalid session nonce')
     report = Path(argument('--session-report'))

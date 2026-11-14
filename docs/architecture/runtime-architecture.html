@@ -179,7 +179,7 @@ KeyPath session worker
       </div>
       <div class="flow-item">
         <div class="flow-event">Stop or restart</div>
-        <div class="flow-desc"><code>ServiceLifecycleCoordinator</code> serializes lifecycle requests and manages the owned worker. The worker watches the app’s process and exits when its owner exits.</div>
+        <div class="flow-desc"><code>ServiceLifecycleCoordinator</code> serializes lifecycle requests and manages the owned worker. The worker watches the app’s process and exits when its owner exits. Before loading anything, the worker refuses to start unless its config is the canonical <code>~/.config/keypath/keypath.kbd</code> (compared with <code>realpath</code>, <code>..</code> refused) and its named owner’s running code satisfies KeyPath’s own designated requirement (<code>SessionWorkerLaunchCheck</code>). Another process can still launch the signed binary, but the worker then runs only the user’s own config, and only the KeyPath owner can reach its engine socket. The owner check does not prove that owner launched the worker: NSWorkspace launches leave no channel for a secret. On an ad-hoc signed dev build the designated requirement is the binary’s hash, so after a redeploy a still-running older app cannot start the new worker; the worker logs <code>owner-not-keypath</code> with both config paths. Quit and relaunch KeyPath after deploying.</div>
       </div>
       <div class="flow-item">
         <div class="flow-event">Read health</div>
