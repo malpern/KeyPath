@@ -113,12 +113,32 @@ enum RuntimeControlHandler {
         return await doctor(operation: .repair, ok: report.success, message: report.failureReason, manager: manager)
     }
 
+    /// Asks the person at the Mac before a CLI uninstall. `--yes` proves only
+    /// that some process running as the user sent the request, and uninstall
+    /// deletes the config. Replaceable for tests.
+    @MainActor static var confirmUninstallFromCLI: @MainActor () -> Bool = {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(localized: "Uninstall KeyPath?")
+        alert.informativeText = String(localized: "The keypath command asked to remove KeyPath and delete your configuration. Your remapping stops.")
+        alert.addButton(withTitle: String(localized: "Uninstall")).setAccessibilityIdentifier("cli-uninstall-confirm-button")
+        alert.addButton(withTitle: String(localized: "Cancel")).setAccessibilityIdentifier("cli-uninstall-cancel-button")
+        alert.buttons.last?.keyEquivalent = "\u{1b}"
+        NSApp.activate()
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
     /// The app's own uninstall. On success the app quits shortly after answering.
     static func uninstall(confirmed: Bool, manager: RuntimeCoordinator) async -> RuntimeControl.Response {
         let status = await manager.currentRuntimeStatusInternal()
         guard confirmed else {
             var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
             refused.message = "Uninstall needs confirmation; nothing was changed."
+            return refused
+        }
+        guard await MainActor.run(body: { confirmUninstallFromCLI() }) else {
+            var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
+            refused.message = "Uninstall was cancelled in KeyPath; nothing was changed."
             return refused
         }
         RuntimeControlServer.shared.withdrawForUninstall()

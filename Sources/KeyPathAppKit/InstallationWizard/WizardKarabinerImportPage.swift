@@ -4,6 +4,7 @@
 
 import KeyPathCore
 import KeyPathInstallationWizard
+import KeyPathRulesCore
 import KeyPathWizardCore
 import SwiftUI
 
@@ -18,6 +19,8 @@ struct WizardKarabinerImportPage: View {
     @State private var selectedCollectionIds: Set<UUID> = []
     @State private var selectedAppKeymapIds: Set<UUID> = []
     @State private var importComplete = false
+    /// Launch, website, folder and script shortcuts are listed and imported only if kept.
+    @State private var importLauncherMappings = true
 
     // Animation states
     @State private var heroScale: CGFloat = 0.8
@@ -71,6 +74,7 @@ struct WizardKarabinerImportPage: View {
                         .accessibilityIdentifier("wizard-karabiner-continue")
                 } else if conversionResult != nil {
                     let count = selectedCollectionIds.count + selectedAppKeymapIds.count
+                        + (importLauncherMappings ? (conversionResult?.launcherMappings.count ?? 0) : 0)
                     Button("Import \(count) Rules") {
                         Task { await performImport() }
                     }
@@ -191,6 +195,33 @@ struct WizardKarabinerImportPage: View {
                 }
             }
 
+            // Launch, website, folder and script shortcuts: shown in full, because
+            // each one runs or opens something when its key is pressed.
+            if !result.launcherMappings.isEmpty {
+                Text("Shortcuts That Open or Run Something")
+                    .font(.headline)
+                wizardCheckboxRow(
+                    title: String(localized: "Import these \(result.launcherMappings.count) shortcuts"),
+                    subtitle: String(localized: "Each opens an app, website or folder, or runs a script, when you press its key."),
+                    isSelected: importLauncherMappings
+                ) {
+                    importLauncherMappings.toggle()
+                }
+                ForEach(result.launcherMappings) { mapping in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(mapping.key)
+                            .font(.caption.monospaced())
+                            .frame(minWidth: 40, alignment: .leading)
+                        Text(Self.importReviewDescription(mapping.action))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .lineLimit(3)
+                    }
+                    .padding(.leading, 28)
+                }
+            }
+
             // Warnings
             ForEach(result.warnings, id: \.self) { warning in
                 HStack(alignment: .top, spacing: 8) {
@@ -293,8 +324,8 @@ struct WizardKarabinerImportPage: View {
             }
         }
 
-        // Also persist any launcher mappings from the conversion
-        if !result.launcherMappings.isEmpty {
+        // Launcher mappings only if the person kept them in the review list.
+        if importLauncherMappings, !result.launcherMappings.isEmpty {
             do {
                 try await KarabinerConverterService.persistLauncherMappings(result.launcherMappings)
             } catch {
@@ -308,6 +339,22 @@ struct WizardKarabinerImportPage: View {
             withAnimation {
                 importComplete = true
             }
+        }
+    }
+
+    /// The full target, so a person can see what a shortcut will open or run.
+    static func importReviewDescription(_ action: KeyAction) -> String {
+        switch action {
+        case let .launchApp(name, bundleId):
+            String(localized: "Opens \(bundleId ?? name)")
+        case let .openURL(url):
+            String(localized: "Opens \(url)")
+        case let .openFolder(path, _):
+            String(localized: "Opens the folder \(path)")
+        case let .runScript(path, _):
+            String(localized: "Runs \(path)")
+        default:
+            action.displayName
         }
     }
 }

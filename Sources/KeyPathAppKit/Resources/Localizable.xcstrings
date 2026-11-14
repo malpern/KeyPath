@@ -9206,6 +9206,7 @@
       }
     },
     "Configuration File Invalid" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -12123,6 +12124,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "E+R → 取り消す"
+          }
+        }
+      }
+    },
+    "Each opens an app, website or folder, or runs a script, when you press its key." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "キーを押すと、それぞれアプリ・Webサイト・フォルダを開くか、スクリプトを実行します。"
           }
         }
       }
@@ -16572,6 +16583,16 @@
         }
       }
     },
+    "Import these %lld shortcuts" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "これら%lld個のショートカットを読み込む"
+          }
+        }
+      }
+    },
     "Important: Use physical key positions, not after any remapping" : {
       "localizations" : {
         "en" : {
@@ -18797,6 +18818,7 @@
       }
     },
     "KeyPath detected errors in your configuration file and has automatically created a backup and restored default settings.\n\nErrors found:\n%@\n\nYour original configuration has been backed up to:\n%@\n\nKeyPath is now using a default configuration (Caps Lock → Escape)." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -18829,6 +18851,7 @@
       }
     },
     "KeyPath found errors in the configuration:\n\n%@\n\nWhat would you like to do?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -23577,6 +23600,7 @@
       }
     },
     "Open Backup Location" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {
@@ -24012,6 +24036,16 @@
         }
       }
     },
+    "Opens %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@を開く"
+          }
+        }
+      }
+    },
     "Opens Instantly" : {
       "localizations" : {
         "ja" : {
@@ -24028,6 +24062,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "URLを開く"
+          }
+        }
+      }
+    },
+    "Opens the folder %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォルダ%@を開く"
           }
         }
       }
@@ -28368,6 +28412,16 @@
         }
       }
     },
+    "Runs %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@を実行"
+          }
+        }
+      }
+    },
     "Runtime is stopped. %@" : {
       "localizations" : {
         "ja" : {
@@ -30157,6 +30211,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ショートカット"
+          }
+        }
+      }
+    },
+    "Shortcuts That Open or Run Something" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "何かを開く・実行するショートカット"
           }
         }
       }
@@ -33346,6 +33410,16 @@
         }
       }
     },
+    "The keypath command asked to remove KeyPath and delete your configuration. Your remapping stops." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "keypathコマンドが、KeyPathを削除して設定を消去するよう要求しました。リマップは停止します。"
+          }
+        }
+      }
+    },
     "The live keyboard overlay and hint panel auto-hide while these apps are frontmost. They restore when you switch away." : {
       "localizations" : {
         "ja" : {
@@ -35458,7 +35532,6 @@
       }
     },
     "Uninstall" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -35992,6 +36065,7 @@
       }
     },
     "Use Default Config" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ja" : {
           "stringUnit" : {

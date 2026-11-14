@@ -162,7 +162,7 @@ public final class KanataConfigMigrationService {
         try fileManager.createDirectory(
             atPath: keyPathConfigDirectory,
             withIntermediateDirectories: true,
-            attributes: [FileAttributeKey.posixPermissions: 0o755]
+            attributes: [FileAttributeKey.posixPermissions: 0o700]
         )
         AppLogger.shared.log("✅ [MigrationService] Created KeyPath config directory: \(keyPathConfigDirectory)")
     }
@@ -221,7 +221,7 @@ public final class KanataConfigMigrationService {
             try fileManager.createDirectory(
                 atPath: backupDir,
                 withIntermediateDirectories: true,
-                attributes: [FileAttributeKey.posixPermissions: 0o755]
+                attributes: [FileAttributeKey.posixPermissions: 0o700]
             )
         }
 

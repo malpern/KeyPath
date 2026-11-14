@@ -1525,6 +1525,22 @@ extension ConfigurationService {
         }
     }
 
+    /// The config folder holds the user's mappings, including any scripts and
+    /// URLs they bind, so only the user can read it. An older KeyPath created it
+    /// 0755; tighten that once, without touching files inside.
+    nonisolated static func restrictToOwner(directory path: String) {
+        let fileManager = Foundation.FileManager()
+        guard let mode = (try? fileManager.attributesOfItem(atPath: path))?[.posixPermissions] as? Int,
+              mode & 0o077 != 0
+        else { return }
+        do {
+            try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path)
+            AppLogger.shared.log("🔐 [ConfigService] Restricted \(path) to its owner")
+        } catch {
+            AppLogger.shared.log("⚠️ [ConfigService] Could not restrict \(path): \(error.localizedDescription)")
+        }
+    }
+
     func createDirectoryAsync(path: String) async throws {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
@@ -1532,8 +1548,10 @@ extension ConfigurationService {
                     try Foundation.FileManager().createDirectory(
                         atPath: path,
                         withIntermediateDirectories: true,
-                        attributes: [FileAttributeKey.posixPermissions: 0o755]
+                        attributes: nil
                     )
+                    // Only the KeyPath folder itself, not ~/.config if this created it.
+                    Self.restrictToOwner(directory: path)
                     cont.resume()
                 } catch {
                     cont.resume(throwing: error)
