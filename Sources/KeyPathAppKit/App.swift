@@ -127,6 +127,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarController?
     private var initialMainWindowShown = false
     private var suppressLaunchSplashAutoHide = false
+    /// macOS started KeyPath at login. The poster splash is skipped then, so
+    /// it does not appear by itself while the person is logging in.
+    private var launchedAsLoginItem = false
     private var runtimeStartupTask: Task<Void, Never>?
     private var keyboardCapture: KeyboardCapture?
     private var launchGate = ApplicationLaunchGate()
@@ -257,6 +260,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        // Read while the launch Apple event is still the current event.
+        launchedAsLoginItem = Self.wasLaunchedAsLoginItem()
         AppLogger.shared.info("[LaunchTrace] delegate callback instance=\(ObjectIdentifier(self))")
         recordApplicationLaunch()
     }
@@ -307,7 +312,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !isHeadlessMode {
             setupMenuBarController()
-            SplashView.EmblemCache.warmIfNeeded()
+            SplashView.PosterCache.warmIfNeeded()
             NSApp.activate(ignoringOtherApps: true)
         }
 
@@ -540,6 +545,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Public Window Access
 
+    /// Shows the poster for `launchSplashDelayMs`, then hides it, unless something
+    /// else claimed the window meanwhile (the setup wizard, a menu action).
+    private func showBriefLaunchSplash() {
+        guard let controller = mainWindowController else { return }
+        controller.splashPresentation.isPreparing = false
+        controller.show(focus: true)
+        AppLogger.shared.info("🪟 [AppDelegate] Showing the launch splash")
+        let delay = launchSplashDelayMs
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(delay))
+            guard let self, !self.suppressLaunchSplashAutoHide else { return }
+            mainWindowController?.hideSplash()
+            AppLogger.shared.info("🪟 [AppDelegate] Launch splash hidden after \(delay)ms")
+        }
+    }
+
+    /// True when macOS opened KeyPath as a login item. Must be called while the
+    /// launch ('oapp') Apple event is current, during applicationDidFinishLaunching.
+    static func wasLaunchedAsLoginItem() -> Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              event.eventClass == kCoreEventClass, event.eventID == kAEOpenApplication
+        else { return false }
+        return event.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+    }
+
     /// Bring the main window (splash) to the front. Used by menu actions that present
     /// sheets — those sheets attach to this window, so it must actually be shown here.
     @MainActor
@@ -582,10 +612,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         suppressLaunchSplashAutoHide = false
 
         if hasExistingConfig {
+            // Every launch shows the poster briefly (not a reopen of a running
+            // app, and not a Launch at Login start), then hands off to the overlay.
+            let showsPoster = !launchedAsLoginItem
+            let posterShownAt = ContinuousClock.now
+            if showsPoster { showBriefLaunchSplash() }
             Task { @MainActor in
                 await runtimeStartupTask?.value
                 if await hasCompletedInitialWizard() {
-                    AppLogger.shared.info("🪟 [AppDelegate] Relaunch detected — skipping splash, restoring overlay directly")
+                    if showsPoster {
+                        // The overlay appears once the poster has had its moment.
+                        let remaining = .milliseconds(launchSplashDelayMs) - (ContinuousClock.now - posterShownAt)
+                        if remaining > .zero { try? await Task.sleep(for: remaining) }
+                    }
+                    AppLogger.shared.info("🪟 [AppDelegate] Relaunch — showing the overlay after the launch splash")
                     LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
                 } else {
                     AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — showing launch splash before setup wizard")
