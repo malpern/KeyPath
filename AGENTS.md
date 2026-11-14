@@ -166,10 +166,12 @@ Notes:
 - Before pushing, run the quick checks CI runs, so they fail locally in seconds:
   `./Scripts/lint-no-sleep.sh`, `python3 Scripts/check-accessibility.py`, and
   `./Scripts/l10n/sync-strings.sh --check` after a Debug build.
-- Merge with `gh pr merge <n> --auto --merge`. With the merge queue on, that
-  adds the PR to the queue, which tests it on top of the PRs ahead of it. Do
-  not bring branches up to date by hand to get them merged; resolve real
-  conflicts only.
+- Merge with `gh pr merge <n> --auto --merge`; it lands once `build-and-test`
+  and `code-quality` pass. `master` does not require branches to be up to date
+  (GitHub's merge queue is not available to a personally owned repository), so
+  do not update a branch just to merge it; resolve real conflicts only. A PR
+  whose CI ran before a change to `.github/workflows/ci.yml` needs `master`
+  merged in to pick that change up.
 - Git guardrail hooks in `.claude/settings.json` block commits on `master`,
   force-pushes to `master`, `reset --hard`, and `clean -f`.
 

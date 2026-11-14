@@ -4,8 +4,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ main, master ]
-  # The merge queue tests each queued PR on top of the ones ahead of it, so
-  # nobody has to bring a branch up to date by hand before it can merge.
+  # Kept for a merge queue, which is not available while the repository is
+  # personally owned (GitHub offers it to organization repositories). It is
+  # inert until a queue exists; the jobs below already handle both events.
   merge_group:
 
 concurrency:
