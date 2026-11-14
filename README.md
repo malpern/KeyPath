@@ -10,7 +10,7 @@
 
   Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.
 
-  <a href="https://keypath-app.com"><strong>keypath-app.com</strong></a> · <a href="https://github.com/malpern-labs/KeyPath/releases">Download</a> · <a href="https://malpern.github.io/KeyPath/documentation/">Docs</a> · <a href="https://github.com/malpern-labs/KeyPath/issues">Issues</a>
+  <a href="https://keypath-app.com"><strong>keypath-app.com</strong></a> · <a href="https://github.com/malpern-labs/KeyPath/releases">Download</a> · <a href="https://malpern.github.io/KeyPath/docs.html">Docs</a> · <a href="https://github.com/malpern-labs/KeyPath/issues">Issues</a>
 
   [![macOS 27+](https://img.shields.io/badge/macOS-27%2B-blue.svg)](https://www.apple.com/macos/)
   [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
