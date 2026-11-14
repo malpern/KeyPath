@@ -66,12 +66,14 @@ final class SessionWorkerLaunchCheckTests: XCTestCase {
         ))
     }
 
-    func testAdmissionIgnoresTestModeRedirection() {
-        // A test-mode environment redirects mainConfigPath; admission must not follow it.
-        XCTAssertNotEqual(SessionWorkerLaunchCheck.accountConfigPath, KeyPathConstants.Config.mainConfigPath)
-        XCTAssertTrue(SessionWorkerLaunchCheck.accountConfigPath.hasSuffix("/.config/keypath/keypath.kbd"))
+    func testAdmissionUsesTheAccountsRealHome() throws {
+        // From the user database, whatever the environment says.
+        let entry = try XCTUnwrap(getpwuid(getuid()))
+        let home = try String(cString: XCTUnwrap(entry.pointee.pw_dir))
+        XCTAssertEqual(SessionWorkerLaunchCheck.accountConfigPath, home + "/.config/keypath/keypath.kbd")
+        // A test-sandbox spelling of the config is refused.
         XCTAssertEqual(SessionWorkerLaunchCheck.refusal(
-            configPath: KeyPathConstants.Config.mainConfigPath, ownerPID: 42,
+            configPath: "/private/tmp/keypath-tests-123/.config/keypath/keypath.kbd", ownerPID: 42,
             ownerSatisfiesOwnRequirement: { _ in true }
         ), .nonCanonicalConfig)
     }
