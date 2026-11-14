@@ -643,7 +643,8 @@ actor KanataEventListener {
 
     private func handleLine(_ line: String, sessionID: Int) async {
         // Reduce log noise - log heartbeat messages at debug level
-        AppLogger.shared.debug("🌐 [EventListener] Received line: '\(line)'")
+        // Engine frames carry the keys the user presses.
+        AppLogger.shared.pressedKey("🌐 [EventListener] Received line: '\(line)'")
 
         guard let data = line.data(using: .utf8) else {
             AppLogger.shared.log("🌐 [EventListener] Failed to convert line to UTF8 data")
@@ -651,10 +652,12 @@ actor KanataEventListener {
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            AppLogger.shared.log("🌐 [EventListener] Failed to parse JSON from: '\(line)'")
+            AppLogger.shared.log("🌐 [EventListener] Failed to parse a \(line.utf8.count)-byte engine line as JSON")
+            AppLogger.shared.pressedKey("🌐 [EventListener] Unparsed line: '\(line)'")
             return
         }
 
+        // The message's JSON field names, not a key press.
         AppLogger.shared.debug("🌐 [EventListener] Parsed JSON keys: \(json.keys.joined(separator: ", "))")
 
         // Handle LayerChange events
@@ -722,7 +725,7 @@ actor KanataEventListener {
                     sessionID: sessionID,
                     observedAt: Date()
                 )
-                AppLogger.shared.debug("⌨️ [EventListener] KeyInput: \(key) \(action)")
+                AppLogger.shared.pressedKey("⌨️ [EventListener] KeyInput: \(key) \(action)")
                 if let handler = keyInputHandler {
                     await handler(observed)
                 }
@@ -776,7 +779,7 @@ actor KanataEventListener {
 
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("hold-activated") {
-                AppLogger.shared.debug("🔒 [EventListener] HoldActivated: \(key) -> \(action) reason=\(reason ?? "none")")
+                AppLogger.shared.pressedKey("🔒 [EventListener] HoldActivated: \(key) -> \(action) reason=\(reason ?? "none")")
                 let activation = KanataHoldActivation(
                     key: key,
                     action: action,
@@ -806,7 +809,7 @@ actor KanataEventListener {
 
             // Respect capability advertisement when available; still process for backward compat
             if capabilities.isEmpty || capabilities.contains("tap-activated") {
-                AppLogger.shared.debug("👆 [EventListener] TapActivated: \(key) -> \(action) reason=\(reason ?? "none")")
+                AppLogger.shared.pressedKey("👆 [EventListener] TapActivated: \(key) -> \(action) reason=\(reason ?? "none")")
                 let activation = KanataTapActivation(
                     key: key,
                     action: action,
@@ -833,7 +836,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("oneshot-activated") {
-                AppLogger.shared.debug("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
+                AppLogger.shared.pressedKey("⚡ [EventListener] OneShotActivated: \(key) -> \(modifiers)")
                 let activation = KanataOneShotActivation(
                     key: key,
                     modifiers: modifiers,
@@ -859,7 +862,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("chord-resolved") {
-                AppLogger.shared.debug("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
+                AppLogger.shared.pressedKey("🎹 [EventListener] ChordResolved: \(keys) -> \(action)")
                 let resolution = KanataChordResolution(
                     keys: keys,
                     action: action,
@@ -886,7 +889,7 @@ actor KanataEventListener {
         {
             let observedAt = Date()
             if capabilities.isEmpty || capabilities.contains("tap-dance-resolved") {
-                AppLogger.shared.debug("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
+                AppLogger.shared.pressedKey("💃 [EventListener] TapDanceResolved: \(key) x\(tapCount) -> \(action)")
                 let resolution = KanataTapDanceResolution(
                     key: key,
                     tapCount: tapCount,

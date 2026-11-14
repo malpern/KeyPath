@@ -28,7 +28,7 @@ extension KeyboardCapture {
         noKeyBreadcrumbTimer?.invalidate()
         noKeyBreadcrumbTimer = nil
 
-        AppLogger.shared.log("🎹 [KeyboardCapture] TCP keyInput: \(keyName) action=press")
+        AppLogger.shared.pressedKey("🎹 [KeyboardCapture] TCP keyInput: \(keyName) action=press")
 
         // Convert TCP key name to KeyPress
         let keyPress = KeyPress(
@@ -43,7 +43,7 @@ extension KeyboardCapture {
             if last.baseKey == keyPress.baseKey,
                Date().timeIntervalSince(lastAt) <= dedupWindow
             {
-                AppLogger.shared.log("🎹 [KeyboardCapture] Deduped duplicate TCP key: \(keyName)")
+                AppLogger.shared.pressedKey("🎹 [KeyboardCapture] Deduped duplicate TCP key: \(keyName)")
                 return
             }
         }

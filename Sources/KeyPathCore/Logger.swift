@@ -72,19 +72,21 @@ public final class AppLogger: Sendable {
         options = Mutex(Options(minimumLevel: configuredLevel, enableConsoleLogging: consoleEnabled))
 
         // Use test overrides before the standard macOS log directory.
-        var directory: String = if let explicitOverride = ProcessInfo.processInfo.environment["KEYPATH_LOG_DIR_OVERRIDE"],
-                                   !explicitOverride.isEmpty
-        {
-            explicitOverride
-        } else if let homeOverride = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
-                  !homeOverride.isEmpty
-        {
-            homeOverride + "/Library/Logs/KeyPath"
-        } else {
-            // AppPaths redirects to the per-process test sandbox under test, so a
-            // plain `swift test` never writes into the developer's real debug log.
-            AppPaths.logsDirectory.path
-        }
+        // AppPaths redirects to the per-process test sandbox under test, so a
+        // plain `swift test` never writes into the developer's real debug log.
+        // The directory overrides exist for tests and are not read in release builds.
+        var directory = AppPaths.logsDirectory.path
+        #if DEBUG
+            if let explicitOverride = ProcessInfo.processInfo.environment["KEYPATH_LOG_DIR_OVERRIDE"],
+               !explicitOverride.isEmpty
+            {
+                directory = explicitOverride
+            } else if let homeOverride = ProcessInfo.processInfo.environment["KEYPATH_HOME_DIR_OVERRIDE"],
+                      !homeOverride.isEmpty
+            {
+                directory = homeOverride + "/Library/Logs/KeyPath"
+            }
+        #endif
 
         dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -193,6 +195,19 @@ public final class AppLogger: Sendable {
         _ message: String, file: String = #file, function: String = #function, line: Int = #line
     ) {
         log(message, level: .info, file: file, function: function, line: line)
+    }
+
+    /// A message that names a key the user pressed, or carries an engine frame
+    /// that does. Debug builds log it at debug level. Release builds never
+    /// write it, at any log level, because a log of key presses is a log of
+    /// what the user typed. Inlined so release builds drop the call entirely.
+    @inlinable
+    public func pressedKey(
+        _ message: @autoclosure () -> String, file: String = #file, function: String = #function, line: Int = #line
+    ) {
+        #if DEBUG
+            log(message(), level: .debug, file: file, function: function, line: line)
+        #endif
     }
 
     public func warn(
