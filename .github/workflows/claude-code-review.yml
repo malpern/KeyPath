@@ -64,7 +64,7 @@ jobs:
 
       - name: Build bounded review prompt
         id: review_prompt
-        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
         run: |
           set -euo pipefail
 
@@ -114,7 +114,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true'
+        if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only != 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
         uses: anthropics/claude-code-action@f3b070c88125d33dbae5653df5f143101d4ea9dc # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -146,6 +146,14 @@ jobs:
             exit 1
           fi
           echo "Skipping Claude review because .github/workflows/claude-code-review.yml changed in this PR."
+
+      - name: Skip Claude review for Dependabot pin updates
+        # Dependabot PRs get no repository secrets and the review action does not
+        # run for that bot, so the review cannot run. The owner reviews the pin
+        # change when merging.
+        if: github.event.pull_request.user.login == 'dependabot[bot]' && steps.changes.outputs.workflow_changed != 'true'
+        run: |
+          echo "Skipping Claude review for a Dependabot action-pin update; the owner reviews it at merge."
 
       - name: Skip Claude review for docs-only changes
         if: steps.changes.outputs.workflow_changed != 'true' && steps.changes.outputs.docs_only == 'true'
