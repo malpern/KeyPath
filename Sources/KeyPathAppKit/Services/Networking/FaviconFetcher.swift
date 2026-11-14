@@ -352,14 +352,29 @@ final class FaviconFetcher {
     }
 
     /// Normalize favicon into a square bitmap to avoid odd rendering artifacts.
-    private func normalizedFaviconImage(_ image: NSImage, size: CGFloat = 64) -> NSImage {
+    func normalizedFaviconImage(_ image: NSImage, size: CGFloat = 64) -> NSImage {
         let targetSize = NSSize(width: size, height: size)
-        let normalized = NSImage(size: targetSize)
-        normalized.lockFocus()
-
-        if let context = NSGraphicsContext.current {
-            context.imageInterpolation = .high
+        // Draw into a bitmap of its own (lockFocus is deprecated), at 2x so it
+        // stays sharp on Retina screens.
+        let pixels = Int(size * 2)
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        ) else {
+            AppLogger.shared.log("⚠️ [FaviconFetcher] Could not create a bitmap; using the favicon as is")
+            return image
         }
+        // The point size must be set before the context exists, or the context
+        // works in pixels and the icon fills only one quadrant.
+        bitmap.size = targetSize
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+            AppLogger.shared.log("⚠️ [FaviconFetcher] Could not create a drawing context; using the favicon as is")
+            return image
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
 
         let rep = bestFaviconRepresentation(for: image)
         let sourceSize: NSSize = if let rep, rep.pixelsWide > 0, rep.pixelsHigh > 0 {
@@ -384,7 +399,9 @@ final class FaviconFetcher {
                 fraction: 1.0
             )
         }
-        normalized.unlockFocus()
+        NSGraphicsContext.restoreGraphicsState()
+        let normalized = NSImage(size: targetSize)
+        normalized.addRepresentation(bitmap)
         return normalized
     }
 

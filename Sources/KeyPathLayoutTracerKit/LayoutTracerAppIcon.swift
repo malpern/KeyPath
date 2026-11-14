@@ -2,10 +2,15 @@ import AppKit
 
 enum LayoutTracerAppIcon {
     static func makeIcon(size: CGFloat = 512) -> NSImage {
-        let image = NSImage(size: NSSize(width: size, height: size))
-        image.lockFocus()
+        let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { bounds in
+            drawIcon(in: bounds, size: size)
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }
 
-        let bounds = CGRect(origin: .zero, size: image.size)
+    private static func drawIcon(in bounds: CGRect, size: CGFloat) {
         let cornerRadius = size * 0.22
 
         let base = NSBezierPath(roundedRect: bounds, xRadius: cornerRadius, yRadius: cornerRadius)
@@ -26,10 +31,6 @@ enum LayoutTracerAppIcon {
         )
 
         drawRulerBadge(size: size)
-
-        image.unlockFocus()
-        image.isTemplate = false
-        return image
     }
 
     private static func drawRulerBadge(size: CGFloat) {
@@ -76,16 +77,11 @@ enum LayoutTracerAppIcon {
             accessibilityDescription: nil
         ) else { return }
 
+        // The colour comes from the symbol configuration; a blend-mode tint
+        // would also colour whatever is already drawn under the rect.
         let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: weight)
-        let configured = symbol.withSymbolConfiguration(config) ?? symbol
-        let tinted = configured.copy() as? NSImage ?? configured
-        tinted.lockFocus()
-        if let context = NSGraphicsContext.current?.cgContext {
-            context.setBlendMode(.sourceAtop)
-            context.setFillColor(color.cgColor)
-            context.fill(CGRect(origin: .zero, size: tinted.size))
-        }
-        tinted.unlockFocus()
+            .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+        let tinted = symbol.withSymbolConfiguration(config) ?? symbol
         tinted.draw(in: rect)
     }
 }
