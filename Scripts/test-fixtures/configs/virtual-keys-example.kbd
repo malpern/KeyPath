@@ -95,6 +95,8 @@
 ;; ============================================================================
 ;; Usage Examples (run in Terminal):
 ;; ============================================================================
+;; KeyPath asks before a link from another app presses a virtual key, unless
+;; you chose "Always Allow" in that prompt.
 ;;
 ;; Trigger text expansion:
 ;;   open "keypath://fakekey/email-sig/tap"

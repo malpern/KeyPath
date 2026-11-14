@@ -348,10 +348,32 @@ ActionDispatcher.shared.onError = { message in
 
 ## Security Considerations
 
-- **Launch action**: Only launches apps from standard macOS app directories
-- **Open action**: Opens URLs in user's default browser (sandboxed)
-- **No file system access**: Actions cannot read/write arbitrary files
-- **No shell execution**: `cmd` action is not supported (use Kanata's native `cmd` for that)
+Every dispatch carries an `ActionOrigin`: `.engine` (the user's config),
+`.app` (KeyPath's UI), `.shortcut` (App Intents) or `.externalURL` (a link
+another app opened, which may come from a web page or a document).
+`ExternalActionPolicy` limits `.externalURL` only:
+
+- `script` is refused. Scripts start from a key binding or a Shortcut.
+- `open` accepts only `http` and `https`. The handler and the policy share one
+  normalisation (`ExternalActionPolicy.openTarget`).
+- `fakekey` / `vkey` ask through `onExternalActionConfirmationNeeded`, unless
+  the user chose "Always Allow" (`KeychainLinkGrantStore`, a Keychain item, so
+  another process cannot set it silently). With no prompt registered, the
+  action is refused. A virtual key bound to `push-msg "script:…"` comes back
+  with origin `.engine`, so a link the user allows can reach a script; the
+  prompt says so.
+- Prompts (`ActionConfirmationPrompts`) never block the caller: the engine's
+  event reader dispatches actions and must keep reading. One prompt shows at a
+  time; a request that arrives while one is open is declined.
+
+For every origin:
+
+- **Launch action**: takes an app name or bundle ID, never a path (`/` and `..` are refused).
+- **Script action**: each script asks before its first run. "Always Allow"
+  stores the script's path and SHA-256 in the Keychain
+  (`KeychainScriptApprovalStore`), so an edited script asks again. A script that
+  changes between the prompt and the run does not run.
+- **No shell execution in the engine**: kanata is built without its `cmd` feature.
 
 ## Virtual Keys Inspector
 

@@ -50,13 +50,9 @@ Now trigger it from KeyPath using an action URI in your Kanata config:
 (push-msg "script:~/scripts/hello.sh")
 ```
 
-Or test it from Terminal:
+The first time a script runs, KeyPath asks before running it and shows the script's path. Choose **Run Once**, or **Always Allow** to stop asking for that script. If you edit the script later, KeyPath asks again.
 
-```bash
-open "keypath://script/~/scripts/hello.sh"
-```
-
-The first time a script runs, KeyPath shows a confirmation dialog with the script path. You can check "Don't show again" to skip the dialog for future scripts.
+A `keypath://script/…` link opened from another app, Terminal included, does not start the script. Links can come from web pages and documents, so scripts start from your own key bindings or from the Send KeyPath Action shortcut. A link that presses a virtual key runs whatever that key does, which can be a script, so KeyPath asks before a link presses a virtual key.
 
 ---
 
@@ -170,7 +166,7 @@ Two equivalent ways to reference a script:
 | Context | Syntax | Example |
 |---------|--------|---------|
 | Kanata config | Shorthand | `script:~/scripts/hello.sh` |
-| Deep link | Full URI | `keypath://script/~/scripts/hello.sh` |
+| Shortcuts | Full URI | `keypath://script/~/scripts/hello.sh` |
 
 Tilde (`~`) is expanded to your home directory. Paths with spaces work when URL-encoded in the full URI format.
 
@@ -184,29 +180,26 @@ Script execution has three layers of protection:
 
 Script execution is off by default. Nothing runs until you explicitly enable it in Settings. You can disable it at any time to block all script execution instantly.
 
-### 2. First-run confirmation
+### 2. Each script asks first
 
-The first time any script runs, KeyPath shows a confirmation dialog:
+The first time each script runs, KeyPath asks:
 
 ```
   ┌─────────────────────────────────────────────────┐
-  │  ⚠️  Script Execution                           │
+  │  ⚠️  Run this script?                           │
   │                                                  │
-  │  ~/scripts/hello.sh                              │
+  │  /Users/you/scripts/hello.sh                     │
   │                                                  │
-  │  This script can:                                │
-  │  • Execute system commands                       │
-  │  • Read and write files                          │
-  │  • Access the network                            │
-  │  • Control other applications                    │
+  │  Scripts can run any command, and read or        │
+  │  change your files. Run it only if you trust it. │
   │                                                  │
-  │  ☐ Don't show this warning again                 │
-  │                                                  │
-  │          [ Cancel ]  [ Run Script ]              │
+  │   [ Run Once ]  [ Always Allow ]  [ Cancel ]     │
   └─────────────────────────────────────────────────┘
 ```
 
-Check "Don't show again" only if you trust all scripts you'll run. This bypasses the dialog for future scripts.
+**Always Allow** remembers that one script, with its current contents, in your Keychain. If the script changes, KeyPath asks again. To make every script ask again, use **Settings > Script Execution > Forget Approved Scripts**.
+
+A `keypath://script/…` link opened by another app does not start a script.
 
 ### 3. Execution log
 
@@ -229,13 +222,6 @@ The most common pattern: bind a script to a key on a navigation layer or through
 ```lisp
 ;; In your Kanata config, on the nav layer:
 (push-msg "script:~/scripts/deploy.sh")
-```
-
-### Through the CLI
-
-```bash
-# Trigger a script directly
-open "keypath://script/~/scripts/hello.sh"
 ```
 
 ### Through Shortcuts or Siri

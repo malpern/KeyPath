@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
 
@@ -51,7 +51,7 @@ jobs:
 
       - name: Restore kanata binary cache
         id: kanata-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/ci-kanata-cache
           key: ${{ steps.kanata-cache-key.outputs.key }}
@@ -64,8 +64,8 @@ jobs:
             exit 0
           fi
           cd External/kanata
-          cargo build --release --target aarch64-apple-darwin 2>&1 | tail -20
-          cargo build --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -20
+          cargo build --locked --release --target aarch64-apple-darwin 2>&1 | tail -20
+          cargo build --locked --release --target aarch64-apple-darwin -p kanata-sim 2>&1 | tail -20
           cd ../..
           cp External/kanata/target/aarch64-apple-darwin/release/kanata build/ci-kanata-cache/kanata
           cp External/kanata/target/aarch64-apple-darwin/release/kanata_simulated_input build/ci-kanata-cache/kanata-simulator

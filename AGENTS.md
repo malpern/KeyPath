@@ -156,6 +156,20 @@ Notes:
 - Do not report missing local review tools as a PR issue. The actionable gate
   state is `remote review gate selected`; the GitHub `claude-review` check is
   the enforced reviewer in that path.
+- Run the review gate once, when the change is complete, and batch every fix
+  from it into one push. Re-run it only if those fixes changed logic, not after
+  each small edit. Each run takes 5–10 minutes.
+- Review comments marked minor, non-blocking or optional do not need a push.
+  Reply once in the PR if a decision needs recording. GitHub `claude-review`
+  comments only when it finds a blocking defect; a passing check with no
+  comment is its approval.
+- Before pushing, run the quick checks CI runs, so they fail locally in seconds:
+  `./Scripts/lint-no-sleep.sh`, `python3 Scripts/check-accessibility.py`, and
+  `./Scripts/l10n/sync-strings.sh --check` after a Debug build.
+- Merge with `gh pr merge <n> --auto --merge`. With the merge queue on, that
+  adds the PR to the queue, which tests it on top of the PRs ahead of it. Do
+  not bring branches up to date by hand to get them merged; resolve real
+  conflicts only.
 - Git guardrail hooks in `.claude/settings.json` block commits on `master`,
   force-pushes to `master`, `reset --hard`, and `clean -f`.
 
@@ -471,7 +485,7 @@ Trigger via URL scheme:
 open "keypath://layer/vim"           # Switch layer
 open "keypath://launch/Safari"       # Launch app
 open "keypath://window/left"         # Snap window
-open "keypath://fakekey/nav-mode/tap" # Trigger virtual key
+open "keypath://fakekey/nav-mode/tap" # Trigger virtual key (asks first unless "Always Allow" was chosen)
 ```
 
 ### Composing Tools
@@ -515,3 +529,15 @@ Load these on demand; do not treat them as required reading for every session.
 ## Air UI iteration
 
 Follow `docs/ITERATION_WORKFLOW.md` for small Air-focused changes. Use Help → Preview KeyPath Tour for non-mutating visual checks, the real tour for save integration checks, and verify both JSON and generated config after deleting test shortcuts. Record the installed binary hash and distinguish automated coverage from live verification.
+
+## Review guidelines
+
+For automated reviewers, including Codex and `claude-review`:
+
+- Flag only blocking defects in the diff: wrong behavior, a crash, data loss, a
+  security hole, or a failing build or test (P0/P1). Skip style, naming,
+  documentation, missing-test wishes, and hypotheticals about configuration
+  outside the diff.
+- Do not repeat a point the diff already addresses in code or in a comment.
+- If there is nothing blocking, leave no comment. Agents act on every review
+  comment, so an "all good" or minor-notes comment costs a full review cycle.

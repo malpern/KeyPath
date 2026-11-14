@@ -19,6 +19,40 @@ public enum OverlayCommand: String, Sendable {
     case toggle, show, hide
 }
 
+/// Where a dispatched action came from. KeyPath trusts actions from the
+/// user's own config, its own UI, and Shortcuts. A `keypath://` link opened by
+/// another app could come from a web page or a document, so a few actions are
+/// limited or need the user's OK (see `ExternalActionPolicy`).
+public enum ActionOrigin: Sendable {
+    /// The user's config, through the engine.
+    case engine
+    /// KeyPath's own UI.
+    case app
+    /// An App Intent run from Shortcuts or Siri.
+    case shortcut
+    /// A `keypath://` URL opened by another app.
+    case externalURL
+}
+
+/// Asks the user whether a link from another app may press a virtual key.
+public struct ExternalActionConfirmation {
+    /// The virtual key's name.
+    public let virtualKey: String
+    public let allow: () -> Void
+    /// Let links from other apps press virtual keys without asking from now on.
+    public let alwaysAllow: () -> Void
+    public let deny: () -> Void
+}
+
+/// Asks the user whether to run a script that has not been approved yet.
+public struct ScriptConfirmation {
+    public let path: String
+    public let runOnce: () -> Void
+    /// Run now and remember this script, with its current contents.
+    public let alwaysAllow: () -> Void
+    public let cancel: () -> Void
+}
+
 /// `keypath://runtime/{start|stop|restart}`: the same lifecycle operations as
 /// `keypath start|stop|restart`, for Shortcuts, Raycast or Hammerspoon.
 public enum RuntimeCommand: String, Sendable {
@@ -71,9 +105,11 @@ public final class ActionDispatcher {
     /// Called when a settings navigation action carries additional target details.
     public var onSettingsNavigationAction: ((Notification.Name, [AnyHashable: Any]?) -> Void)?
 
-    /// Called when script execution needs user confirmation
-    /// Parameters: script path, confirm callback, cancel callback
-    public var onScriptConfirmationNeeded: ((String, @escaping () -> Void, @escaping () -> Void) -> Void)?
+    /// Called when a script has not been approved yet.
+    public var onScriptConfirmationNeeded: ((ScriptConfirmation) -> Void)?
+
+    /// Called when a link from another app asks for an action that needs the user's OK.
+    public var onExternalActionConfirmationNeeded: ((ExternalActionConfirmation) -> Void)?
 
     /// Called when script execution is disabled and user tries to run a script
     /// Parameter: callback to open settings
@@ -86,24 +122,68 @@ public final class ActionDispatcher {
     private(set) var scriptTask: Task<Void, Never>?
     private let scriptSecurityService: ScriptSecurityService
     private let scriptExecutor: (@MainActor (String) async throws -> Void)?
+    private let linkGrants: LinkGrantStore
 
     // MARK: - Initialization
 
     init(
         scriptSecurityService: ScriptSecurityService = .shared,
-        scriptExecutor: (@MainActor (String) async throws -> Void)? = nil
+        scriptExecutor: (@MainActor (String) async throws -> Void)? = nil,
+        linkGrants: LinkGrantStore = KeychainLinkGrantStore.shared
     ) {
         self.scriptSecurityService = scriptSecurityService
         self.scriptExecutor = scriptExecutor
+        self.linkGrants = linkGrants
     }
 
     // MARK: - Dispatch
 
-    /// Dispatch a KeyPath action URI
+    /// Dispatch a KeyPath action URI.
+    ///
+    /// Returns `.success` once the action is accepted. When KeyPath must ask the
+    /// user first (an unapproved script, a virtual key from another app), the
+    /// prompt appears after this returns, and the action runs only if allowed.
     @discardableResult
-    public func dispatch(_ uri: KeyPathActionURI) -> ActionDispatchResult {
-        AppLogger.shared.log("🎬 [ActionDispatcher] Dispatching: \(uri.url.absoluteString)")
+    public func dispatch(_ uri: KeyPathActionURI, origin: ActionOrigin = .app) -> ActionDispatchResult {
+        AppLogger.shared.log("🎬 [ActionDispatcher] Dispatching \(uri.action) from \(origin)")
 
+        if origin == .externalURL {
+            switch ExternalActionPolicy.decision(for: uri, allowsVirtualKeys: linkGrants.allowsVirtualKeys) {
+            case .allow:
+                break
+            case let .refuse(message):
+                AppLogger.shared.log("🛡️ [ActionDispatcher] Refused \(uri.action)/\(uri.target ?? "") from another app")
+                onError?(message)
+                return .failed(uri.action, NSError(domain: "ActionDispatcher", code: 12, userInfo: [
+                    NSLocalizedDescriptionKey: message
+                ]))
+            case let .confirmVirtualKey(name):
+                guard let ask = onExternalActionConfirmationNeeded else {
+                    let message = String(localized: "Another app asked KeyPath to press the virtual key “\(name)”, but KeyPath could not ask you first.")
+                    onError?(message)
+                    return .failed(uri.action, NSError(domain: "ActionDispatcher", code: 13, userInfo: [
+                        NSLocalizedDescriptionKey: message
+                    ]))
+                }
+                ask(ExternalActionConfirmation(
+                    virtualKey: name,
+                    allow: { [weak self] in _ = self?.route(uri) },
+                    alwaysAllow: { [weak self] in
+                        guard let self else { return }
+                        if !linkGrants.setAllowsVirtualKeys(true) {
+                            onError?(String(localized: "KeyPath couldn't save “Always Allow”. It will ask again next time."))
+                        }
+                        _ = route(uri)
+                    },
+                    deny: { AppLogger.shared.log("🛡️ [ActionDispatcher] User denied \(uri.action) from another app") }
+                ))
+                return .success
+            }
+        }
+        return route(uri)
+    }
+
+    private func route(_ uri: KeyPathActionURI) -> ActionDispatchResult {
         // Forward to loaded plugins for analytics/side effects
         PluginManager.shared.broadcastActionEvent(
             action: uri.action,
@@ -148,9 +228,9 @@ public final class ActionDispatcher {
 
     /// Dispatch a raw message string (attempts to parse as URI first)
     @discardableResult
-    public func dispatch(message: String) -> ActionDispatchResult {
+    public func dispatch(message: String, origin: ActionOrigin = .app) -> ActionDispatchResult {
         if let uri = KeyPathActionURI(string: message) {
-            return dispatch(uri)
+            return dispatch(uri, origin: origin)
         } else {
             let errorMessage = String(localized: "Invalid keypath:// URI: \(message)")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(errorMessage)")
@@ -218,6 +298,15 @@ public final class ActionDispatcher {
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .missingTarget("launch")
+        }
+
+        guard ExternalActionPolicy.isPlainAppName(appIdentifier) else {
+            let message = String(localized: "App names can't contain \"/\" or \"..\": \(appIdentifier)")
+            AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
+            onError?(message)
+            return .failed("launch", NSError(domain: "ActionDispatcher", code: 14, userInfo: [
+                NSLocalizedDescriptionKey: message
+            ]))
         }
 
         AppLogger.shared.log("🚀 [ActionDispatcher] Launching app: \(appIdentifier)")
@@ -330,24 +419,16 @@ public final class ActionDispatcher {
     /// Open a URL in the default browser
     /// Format: keypath://open/{encoded-url}
     private func handleOpen(_ uri: KeyPathActionURI) -> ActionDispatchResult {
-        // Reconstruct URL from path components
-        let urlString = uri.pathComponents.joined(separator: "/")
-
-        guard !urlString.isEmpty else {
+        guard !uri.pathComponents.isEmpty else {
             let message = String(localized: "open action requires URL: keypath://open/{url}")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .missingTarget("open")
         }
 
-        // Handle URL-encoded strings and add https:// if missing scheme
-        var finalURLString = urlString.removingPercentEncoding ?? urlString
-        if !finalURLString.contains("://") {
-            finalURLString = "https://\(finalURLString)"
-        }
-
-        guard let url = URL(string: finalURLString) else {
-            let message = String(localized: "Invalid URL: \(finalURLString)")
+        // Same normalisation the outside-link policy checks.
+        guard let url = ExternalActionPolicy.openTarget(uri) else {
+            let message = String(localized: "Invalid URL: \(uri.pathComponents.joined(separator: "/"))")
             AppLogger.shared.log("⚠️ [ActionDispatcher] \(message)")
             onError?(message)
             return .failed("open", NSError(domain: "ActionDispatcher", code: 2, userInfo: [
@@ -767,17 +848,31 @@ public final class ActionDispatcher {
                 NSLocalizedDescriptionKey: message
             ]))
 
-        case let .needsConfirmation(path):
+        case let .needsConfirmation(path, digest):
             AppLogger.shared.log("🔐 [ActionDispatcher] Script needs user confirmation")
             if let handler = onScriptConfirmationNeeded {
-                handler(path, { [weak self] in
-                    // Approval waives another prompt, not current security/file checks.
-                    // User confirmed - execute the script
-                    self?.executeScript(at: path)
-                }, {
-                    // User cancelled
-                    AppLogger.shared.log("🔐 [ActionDispatcher] User cancelled script execution")
-                })
+                // Approval waives another prompt, not current security or file checks,
+                // and only for the contents the user was asked about.
+                handler(ScriptConfirmation(
+                    path: path,
+                    runOnce: { [weak self] in
+                        self?.executeScript(at: path, expectedDigest: digest)
+                    },
+                    alwaysAllow: { [weak self] in
+                        guard let self else { return }
+                        guard ScriptApproval.digest(ofFileAt: path) == digest else {
+                            onError?(String(localized: "The script changed while KeyPath was asking. Run it again to review it."))
+                            return
+                        }
+                        if !scriptSecurityService.alwaysAllow(path: path, digest: digest) {
+                            onError?(String(localized: "KeyPath couldn't save “Always Allow” for this script. It will ask again next time."))
+                        }
+                        executeScript(at: path, expectedDigest: digest)
+                    },
+                    cancel: {
+                        AppLogger.shared.log("🔐 [ActionDispatcher] User cancelled script execution")
+                    }
+                ))
             } else {
                 // No UI handler registered, cannot show dialog
                 let message = String(localized: "Script execution requires confirmation but no UI is available")
@@ -788,18 +883,19 @@ public final class ActionDispatcher {
             }
             return .success // Approval UI is handling this request.
 
-        case .allowed:
-            // Execute directly
-            executeScript(at: expandedPath)
+        case let .allowed(digest):
+            executeScript(at: expandedPath, expectedDigest: digest)
             return .success
         }
     }
 
-    /// Confirmation does not authorize execution after scripts are disabled or removed.
-    private func scriptRemainsExecutable(at path: String) -> Bool {
+    /// Confirmation does not authorize execution after scripts are disabled,
+    /// removed, or changed since the user was asked.
+    private func scriptRemainsExecutable(at path: String, expectedDigest: String) -> Bool {
         switch scriptSecurityService.checkExecution(at: path) {
-        case .allowed, .needsConfirmation:
-            return true
+        case let .allowed(digest), let .needsConfirmation(_, digest):
+            if digest == expectedDigest { return true }
+            onError?(String(localized: "The script changed after it was approved. Run it again to review it."))
         case .disabled:
             onError?(String(localized: "Script execution is disabled. Enable it in Settings to run scripts."))
         case let .fileNotFound(path):
@@ -811,8 +907,8 @@ public final class ActionDispatcher {
     }
 
     /// Execute an already-approved script, subject to current security settings.
-    private func executeScript(at path: String) {
-        guard scriptRemainsExecutable(at: path) else { return }
+    private func executeScript(at path: String, expectedDigest: String) {
+        guard scriptRemainsExecutable(at: path, expectedDigest: expectedDigest) else { return }
         let securityService = scriptSecurityService
         // Check script type on main actor before entering task
         let isAppleScriptFile = securityService.isAppleScript(path)
@@ -820,7 +916,7 @@ public final class ActionDispatcher {
 
         scriptTask?.cancel()
         scriptTask = Task { [weak self] in
-            guard let self, !Task.isCancelled, scriptRemainsExecutable(at: path) else { return }
+            guard let self, !Task.isCancelled, scriptRemainsExecutable(at: path, expectedDigest: expectedDigest) else { return }
             LiveKeyboardOverlayController.shared.noteLauncherActionDispatched()
             do {
                 if let executor = scriptExecutor {
