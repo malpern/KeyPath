@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 @testable import KeyPathAppKit
 import KeyPathCore
@@ -125,5 +126,20 @@ final class SmallSecurityFixesTests: XCTestCase {
             launcherMappings: WizardKarabinerImportPage.launchersToImport([1, 2], keep: false).count
         )
         XCTAssertEqual(onlyLaunchers, 0, "The Import button is disabled at zero")
+    }
+
+    /// The CLI dialog can be answered by a click, the timeout or a dropped
+    /// command; whichever comes first is reported, once.
+    func testAlertReportsOnlyTheFirstAnswer() {
+        var answers: [Int] = []
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 10, height: 10),
+                              styleMask: [], backing: .buffered, defer: true)
+        let presentation = NonModalAlertPresenter.Presentation(window: window) { answers.append($0) }
+        presentation.dismiss(asButton: 1)
+        presentation.dismiss(asButton: 1)
+        let button = NSButton()
+        button.tag = 0
+        presentation.buttonPressed(button)
+        XCTAssertEqual(answers, [1])
     }
 }
