@@ -93,7 +93,10 @@ def owned_launch(processes, executable, uid):
     version = argument('--session-owner-pidversion')
     require(version.isdigit() and 0 < int(version) <= 2**32 - 1, 'invalid owner PID version')
     require('--session-port' not in args, 'worker was given a TCP port')
-    require(os.path.realpath(argument('--session-config')) == os.path.realpath(canonical_config(uid)),
+    config = argument('--session-config')
+    # The worker refuses any '..' component; so does the verifier.
+    require('..' not in config.split('/')
+            and os.path.realpath(config) == os.path.realpath(canonical_config(uid)),
             'worker is not running the canonical config')
     nonce = argument('--session-nonce')
     require(str(uuid.UUID(nonce)).lower() == nonce.lower(), 'invalid session nonce')

@@ -72,7 +72,9 @@ class SessionVerificationTests(unittest.TestCase):
     def test_launch_owner_nonce_port_and_report_binding(self):
         for old, new in [('100', '999'), (NONCE, 'not-a-uuid'), ('7', 'x'), ('7', '0'),
                          (str(self.path), str(self.base / 'report.json')),
-                         (runtime.canonical_config(self.uid), str(self.base / 'other.kbd'))]:
+                         (runtime.canonical_config(self.uid), str(self.base / 'other.kbd')),
+                         (runtime.canonical_config(self.uid),
+                          os.path.dirname(runtime.canonical_config(self.uid)) + '/../keypath/keypath.kbd')]:
             args = tuple(new if value == old else value for value in self.worker[2])
             with self.subTest(value=old), self.assertRaises(ValueError):
                 runtime.owned_launch({100: self.parent, 101: (self.uid, self.executable, args)},
