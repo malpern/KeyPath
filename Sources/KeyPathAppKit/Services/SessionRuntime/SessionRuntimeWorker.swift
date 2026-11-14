@@ -149,7 +149,9 @@ public final class SessionRuntimeWorker {
             worker.finish(.failed, reason: "missing-config")
         }
         if let refusal = SessionWorkerLaunchCheck.refusal(configPath: config, ownerPID: ownerPID) {
-            AppLogger.shared.log("🛡️ [SessionWorker] Refusing to start: \(refusal.rawValue)")
+            AppLogger.shared.log(
+                "🛡️ [SessionWorker] Refusing to start: \(refusal.rawValue) config=\(config) expected=\(SessionWorkerLaunchCheck.accountConfigPath) owner=\(ownerPID)"
+            )
             worker.finish(.failed, reason: refusal.rawValue)
         }
         #if KEYPATH_TAP_TIMEOUT_EXPERIMENT
