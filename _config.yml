@@ -46,7 +46,7 @@ collections:
 # Site settings
 theme_color: "#007AFF"
 accent_color: "#007AFF"
-github_url: "https://github.com/malpern/KeyPath"
+github_url: "https://github.com/malpern-labs/KeyPath"
 
 # Navigation
 navigation:
@@ -62,8 +62,8 @@ footer:
   copyright: "© 2025–2026 KeyPath"
   links:
     - title: GitHub
-      url: "https://github.com/malpern/KeyPath"
+      url: "https://github.com/malpern-labs/KeyPath"
     - title: Issues
-      url: "https://github.com/malpern/KeyPath/issues"
+      url: "https://github.com/malpern-labs/KeyPath/issues"
     - title: License
-      url: "https://github.com/malpern/KeyPath/blob/main/LICENSE"
+      url: "https://github.com/malpern-labs/KeyPath/blob/master/LICENSE"

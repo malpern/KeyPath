@@ -158,12 +158,12 @@ KeyPath session worker
       <div class="type-card">
         <div class="type-header"><h3 class="type-name">Engine socket</h3></div>
         <p class="type-desc">The worker reports the path to its Unix-domain socket. The socket is mode <code>0600</code> in a private directory of mode <code>0700</code>. The server verifies the launching app’s user, process ID, process version, and code signature on every connection. The app uses this channel to reload configuration, query layers, control virtual keys, and receive engine events.</p>
-        <p class="type-desc"><a href="https://github.com/malpern/KeyPath/blob/master/docs/adr/adr-046-session-engine-control-channel.md">ADR-046 and peer verification</a></p>
+        <p class="type-desc"><a href="https://github.com/malpern-labs/KeyPath/blob/master/docs/adr/adr-046-session-engine-control-channel.md">ADR-046 and peer verification</a></p>
       </div>
       <div class="type-card">
         <div class="type-header"><h3 class="type-name">App runtime-control socket</h3></div>
         <p class="type-desc"><code>RuntimeControlServer</code> accepts CLI requests in the app. The app runs lifecycle commands through its coordinator and handles CLI engine commands on the worker’s private channel.</p>
-        <p class="type-desc"><a href="https://github.com/malpern/KeyPath/blob/master/docs/architecture/cli-runtime-control.md">CLI request routing</a></p>
+        <p class="type-desc"><a href="https://github.com/malpern-labs/KeyPath/blob/master/docs/architecture/cli-runtime-control.md">CLI request routing</a></p>
       </div>
     </div>
   </section>
@@ -227,7 +227,7 @@ KeyPath session worker
         <h3>Installation wizard</h3>
         <p>Prerequisite checks and setup flow.</p>
       </a>
-      <a class="cross-link" href="https://github.com/malpern/KeyPath/blob/master/docs/adr/adr-045-retire-privileged-runtime-stack.md">
+      <a class="cross-link" href="https://github.com/malpern-labs/KeyPath/blob/master/docs/adr/adr-045-retire-privileged-runtime-stack.md">
         <h3>Session runtime decision</h3>
         <p>ADR-045 records the move to the user-session worker.</p>
       </a>

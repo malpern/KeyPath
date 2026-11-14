@@ -20,7 +20,7 @@ KeyPath needs deep access to your Mac to do its job. We know that's a lot to ask
 - **App updates.** Once a day KeyPath asks GitHub whether a new version exists, and by default installs it when you quit. The request carries no keyboard data or system profile. Turn either off in **Settings → General → Updates**.
 - **Offline Help.** Guides, styles and images are included in the app. Opening a guide can quietly check GitHub Pages for compatible Help content updates; no keyboard data or logs are sent.
 - **Local keyboard data.** Rule and macro recording captures keys you choose to record, and the recent-keypress view keeps a limited history in memory. Diagnostic logs can include key names, including in release builds. KeyPath does not upload this keyboard data or these logs.
-- **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern/KeyPath).
+- **Open source.** Every claim on this page is verifiable in [the source code](https://github.com/malpern-labs/KeyPath).
 - **Everything stays on your Mac.** Configuration and logs are local files you own and control.
 
 ---
@@ -161,7 +161,7 @@ Keyboard remapping, recording, local diagnostics and the bundled Help guides wor
 
 ### Is KeyPath open source?
 
-Yes. [The full source code is on GitHub](https://github.com/malpern/KeyPath) under the MIT License. Every permission, every network request, and every file access described on this page is verifiable in the code.
+Yes. [The full source code is on GitHub](https://github.com/malpern-labs/KeyPath) under the MIT License. Every permission, every network request, and every file access described on this page is verifiable in the code.
 
 ### Can I use KeyPath without Full Disk Access?
 
@@ -196,11 +196,11 @@ Keyboard usage analytics are available in **Activity Insights**, a built-in plug
 
 ## Still have concerns?
 
-We take this seriously. If you have questions about KeyPath's privacy practices or find something in the source code that doesn't match what's described here, please [open an issue on GitHub](https://github.com/malpern/KeyPath/issues).
+We take this seriously. If you have questions about KeyPath's privacy practices or find something in the source code that doesn't match what's described here, please [open an issue on GitHub](https://github.com/malpern-labs/KeyPath/issues).
 
 - **[FAQ](https://malpern.github.io/KeyPath/docs)** — More questions and answers about KeyPath
 - **[Installation]({{ '/getting-started/installation/' | relative_url }})** — Setup wizard and permission walkthrough
-- **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
+- **[GitHub Issues](https://github.com/malpern-labs/KeyPath/issues)** — Report bugs or ask questions
 - **[Back to Docs](https://malpern.github.io/KeyPath/docs)**
 
 ## External references

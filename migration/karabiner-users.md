@@ -240,7 +240,7 @@ Not every Karabiner feature has a direct KeyPath equivalent. Here's the current 
 | App-specific rules | **Supported** | Automatic layer switching via TCP |
 | Simultaneous key combos | **Supported** | Kanata `chord` action |
 | Mouse button remapping | **Limited** | Kanata supports mouse keys, but Karabiner's mouse button conditions are more flexible |
-| Device-specific rules | **Limited** | Kanata's `device-if` works in raw config, but there is no UI (see [#203](https://github.com/malpern/KeyPath/issues/203)) |
+| Device-specific rules | **Limited** | Kanata's `device-if` works in raw config, but there is no UI (see [#203](https://github.com/malpern-labs/KeyPath/issues/203)) |
 | Complex variable conditions | **Limited** | Kanata's `switch` action covers most cases, but some multi-variable conditions need restructuring |
 | Profile switching | **Deferred** | Karabiner lets you switch between profiles; KeyPath uses a single config with layers |
 | Community rule import | **Limited** | Built-in collections are available; community sharing and direct community-library import are not provided (Karabiner has [thousands](https://ke-complex-modifications.pqrs.org/)) |
