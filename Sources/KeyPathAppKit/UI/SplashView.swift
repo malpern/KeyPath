@@ -105,6 +105,9 @@ struct SplashView: View {
                 .padding(.bottom, 14)
             }
         }
+        // The window takes its size from this view, so it must ask for its full
+        // size; a view that only fills what it is given shrinks the window.
+        .frame(width: Self.contentSize.width, height: Self.contentSize.height)
         .ignoresSafeArea()
         .onAppear { PosterCache.warmIfNeeded() }
         .accessibilityIdentifier("main-window-splash")

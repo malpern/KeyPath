@@ -65,4 +65,13 @@ final class LaunchSplashTests: XCTestCase {
         })
         XCTAssertGreaterThan(colours.count, 50, "The middle of the splash should be the poster, not the plain background")
     }
+
+    /// The splash window sizes itself from this view. A view that only fills the
+    /// space it is given asks for almost nothing, and the window shrank to a small
+    /// rounded tile on a real launch.
+    func testSplashAsksForItsFullWindowSize() {
+        let presentation = SplashPresentation()
+        let host = NSHostingController(rootView: SplashView().environment(presentation))
+        XCTAssertEqual(host.view.fittingSize, SplashView.contentSize)
+    }
 }
