@@ -185,4 +185,24 @@ final class ExternalActionPolicyTests: XCTestCase {
         guard case .unknownAction = result else { return XCTFail("Only exact action names route") }
         XCTAssertFalse(prompted)
     }
+
+    /// Every action the router handles has a reviewed decision for links from
+    /// other apps. The policy allows unknown actions by default, so a new action
+    /// fails here until someone decides whether a web page may trigger it.
+    func testEveryRoutedActionHasAReviewedLinkDecision() throws {
+        let reviewed: Set = ["launch", "layer", "rule", "notify", "open", "fakekey", "vkey", "system",
+                             "window", "settings", "folder", "script", "overlay", "runtime"]
+        let source = try String(contentsOf: LintScanner.path("Sources/KeyPathAppKit/Services/ActionDispatcher.swift"),
+                                encoding: .utf8)
+        let start = try XCTUnwrap(source.range(of: "private func route(_ uri: KeyPathActionURI)"))
+        let body = source[start.upperBound...]
+        let end = try XCTUnwrap(body.range(of: "default:"))
+        let regex = try NSRegularExpression(pattern: #""([a-z]+)""#)
+        let switchText = String(body[..<end.lowerBound])
+        let routed = Set(regex.matches(in: switchText, range: NSRange(switchText.startIndex..., in: switchText))
+            .compactMap { Range($0.range(at: 1), in: switchText).map { String(switchText[$0]) } })
+        XCTAssertEqual(routed.subtracting(reviewed), [],
+                       "New actions: decide in ExternalActionPolicy whether a link from another app may run them, then add them here.")
+        XCTAssertFalse(routed.isEmpty)
+    }
 }
