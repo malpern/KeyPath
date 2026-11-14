@@ -529,3 +529,15 @@ Load these on demand; do not treat them as required reading for every session.
 ## Air UI iteration
 
 Follow `docs/ITERATION_WORKFLOW.md` for small Air-focused changes. Use Help → Preview KeyPath Tour for non-mutating visual checks, the real tour for save integration checks, and verify both JSON and generated config after deleting test shortcuts. Record the installed binary hash and distinguish automated coverage from live verification.
+
+## Review guidelines
+
+For automated reviewers, including Codex and `claude-review`:
+
+- Flag only blocking defects in the diff: wrong behavior, a crash, data loss, a
+  security hole, or a failing build or test (P0/P1). Skip style, naming,
+  documentation, missing-test wishes, and hypotheticals about configuration
+  outside the diff.
+- Do not repeat a point the diff already addresses in code or in a comment.
+- If there is nothing blocking, leave no comment. Agents act on every review
+  comment, so an "all good" or minor-notes comment costs a full review cycle.
