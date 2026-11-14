@@ -7,13 +7,13 @@ import XCTest
 final class LaunchSplashSequenceTests: XCTestCase {
     private let minimum = Duration.milliseconds(60)
 
-    private func run(showsPoster: Bool, startupTakes: Duration, complete: Bool)
+    private func run(showsPoster: Bool, startupTakes: Duration, complete: Bool, maximum: Duration = .seconds(5))
         async -> (steps: [LaunchSplashSequence.Step], overlayAt: Duration?)
     {
         var steps: [LaunchSplashSequence.Step] = []
         var overlayAt: Duration?
         let started = ContinuousClock.now
-        await LaunchSplashSequence(minimum: minimum, maximum: .milliseconds(300)).run(
+        await LaunchSplashSequence(minimum: minimum, maximum: maximum).run(
             showsPoster: showsPoster,
             startup: {
                 try? await Task.sleep(for: startupTakes)
@@ -53,9 +53,16 @@ final class LaunchSplashSequenceTests: XCTestCase {
     }
 
     /// A stalled startup does not leave the poster up: it goes after the maximum,
-    /// and the overlay still appears once startup finishes.
+    /// and the overlay still appears once startup finishes. The margins are wide
+    /// so a busy machine cannot reorder the steps.
     func testStalledStartupHidesThePosterAfterTheMaximum() async {
-        let result = await run(showsPoster: true, startupTakes: .milliseconds(600), complete: true)
+        let result = await run(showsPoster: true, startupTakes: .seconds(1), complete: true, maximum: .milliseconds(250))
         XCTAssertEqual(result.steps, [.showPreparing, .hideSplash, .showOverlay])
+    }
+
+    /// After the ceiling hid the poster, setup is told so and brings the window back.
+    func testStalledStartupWithSetupPendingDoesNotClaimThePosterIsUp() async {
+        let result = await run(showsPoster: true, startupTakes: .seconds(1), complete: false, maximum: .milliseconds(250))
+        XCTAssertEqual(result.steps, [.showPreparing, .hideSplash, .showSetup(posterAlreadyShown: false)])
     }
 }

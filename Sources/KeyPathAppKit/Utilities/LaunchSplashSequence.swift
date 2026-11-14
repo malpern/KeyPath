@@ -54,7 +54,8 @@ struct LaunchSplashSequence {
         let elapsed = ContinuousClock.now - started
         if gaveUp.isSet {
             await preparing.value
-            await perform(complete ? .showOverlay : .showSetup(posterAlreadyShown: true))
+            // The poster has been hidden, so setup brings the window back itself.
+            await perform(complete ? .showOverlay : .showSetup(posterAlreadyShown: false))
             return
         }
         if elapsed < minimum {

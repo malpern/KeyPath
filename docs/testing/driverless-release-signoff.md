@@ -556,6 +556,11 @@ Preview and evidence: `/Users/malpern/keypath-review-evidence/20261018-installer
 
 ### Splash and tagline unification — 2026-10-18
 
+> Superseded in November 2026: the owner asked for the original poster splash
+> back, baked-in “Tap. Remap. Done.” included. When signing off a newer build,
+> check the splash against `docs/design/keypath-brand.md`, not the description
+> below. Every other surface still uses **Keys that do more.**
+
 Source `7a3130399` implements the approved centered amber-keycap splash with native
 ivory serif wordmark and warm-gray **Keys that do more.** tagline. Retired both
 old poster resources, including their baked-in old tagline. Brand policy is now

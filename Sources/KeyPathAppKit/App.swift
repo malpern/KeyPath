@@ -173,7 +173,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func recordApplicationLaunch() {
         // Both launch paths arrive here while the launch Apple event is still current.
-        if !launchedAsLoginItem { launchedAsLoginItem = Self.wasLaunchedAsLoginItem() }
+        if !launchedAsLoginItem {
+            launchedAsLoginItem = Self.wasLaunchedAsLoginItem()
+            // Logged so one real login shows whether macOS sets the flag for an
+            // SMAppService launch.
+            AppLogger.shared.info("🪟 [AppDelegate] Launched as login item: \(launchedAsLoginItem)")
+        }
         if launchGate.didFinishLaunching() {
             finishApplicationLaunch()
         }
@@ -550,7 +555,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Shows the poster without the activity dots. `LaunchSplashSequence` decides
     /// when it goes away. Returns false when there is no window to show it in.
     private func showLaunchPoster() -> Bool {
-        guard let controller = mainWindowController else { return false }
+        guard let controller = mainWindowController else {
+            AppLogger.shared.warn("🪟 [AppDelegate] Launch splash skipped: the main window does not exist yet")
+            return false
+        }
         controller.splashPresentation.isPreparing = false
         controller.show(focus: true)
         AppLogger.shared.info("🪟 [AppDelegate] Showing the launch splash")
