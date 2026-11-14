@@ -64,8 +64,9 @@ jobs:
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
     # 12 minutes, before test execution. Keep a finite bound with real headroom.
-    # Every hosted run is cold, on a smaller machine.
-    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 60 || 25 }}
+    # Every hosted run is cold, on a smaller machine. The mini's budget also
+    # covers up to 10 minutes waiting for the test lock below.
+    timeout-minutes: ${{ vars.KEYPATH_CI_RUNNER == 'hosted' && 60 || 35 }}
     # Two swift test runs must never overlap on the mini: they share unsandboxed
     # local state (e.g. RuleCollectionsManager's config file), which caused
     # spurious CLIPackCRUDTests failures. The runner label does that: only one
@@ -211,12 +212,13 @@ jobs:
         export TIMEOUT_SECONDS=300
         chmod +x ./Scripts/test-lane.sh
         chmod +x ./Scripts/run-tests-safe.sh
-        # Belt and braces for the runner label: a second runner given
-        # swiftpm-safe must still not overlap two test runs. lockf holds a
-        # kernel lock that is released when the process exits, even if the
-        # job is cancelled, so it cannot go stale.
-        # The wait counts against this job's 25-minute budget, so give up well
-        # before it; lockf exits 75 when it does.
+        # Belt and braces for the runner label: if a second runner were ever
+        # given swiftpm-safe, two test runs still must not overlap. This covers
+        # the test command only, not the setup steps before it. lockf holds a
+        # kernel lock that is released when the process exits, even if the job
+        # is cancelled, so it cannot go stale.
+        # The wait counts against this job's budget (35 minutes on the mini), so
+        # give up well before it; lockf exits 75 when it does.
         rc=0
         /usr/bin/lockf -t 600 /tmp/keypath-ci-swift-tests.lock ./Scripts/test-lane.sh full || rc=$?
         if [ "$rc" -eq 0 ]; then
