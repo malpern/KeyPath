@@ -1529,11 +1529,12 @@ extension ConfigurationService {
     /// URLs they bind, so only the user can read it. An older KeyPath created it
     /// 0755; tighten that once, without touching files inside.
     nonisolated static func restrictToOwner(directory path: String) {
-        // A dotfiles setup may link the folder elsewhere; check and tighten the
-        // real folder, not the link's own mode.
-        let path = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        // A linked folder (dotfiles) may point at something shared, such as the
+        // whole dotfiles folder, so its owner decides its permissions.
         let fileManager = Foundation.FileManager()
-        guard let mode = (try? fileManager.attributesOfItem(atPath: path))?[.posixPermissions] as? Int,
+        guard let attributes = try? fileManager.attributesOfItem(atPath: path),
+              attributes[.type] as? FileAttributeType == .typeDirectory,
+              let mode = attributes[.posixPermissions] as? Int,
               mode & 0o077 != 0
         else { return }
         do {

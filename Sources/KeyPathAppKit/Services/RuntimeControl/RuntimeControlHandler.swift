@@ -155,10 +155,10 @@ enum RuntimeControlHandler {
     /// Shorter than the CLI's 120-second wait.
     static let cliConfirmationTimeout: TimeInterval = 100
 
-    /// Why a CLI uninstall stops before changing anything, or nil to go ahead.
     /// True while a CLI uninstall dialog is open; a second request is refused.
     @MainActor private static var uninstallPromptOpen = false
 
+    /// Why a CLI uninstall stops before changing anything, or nil to go ahead.
     /// `connected` is checked after the dialog: a late click must not act for a
     /// command that has already gone away.
     @MainActor static func uninstallRefusal(

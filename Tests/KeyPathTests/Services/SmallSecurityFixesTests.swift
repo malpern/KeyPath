@@ -101,10 +101,10 @@ final class SmallSecurityFixesTests: XCTestCase {
         XCTAssertFalse(checked, "A declined dialog is reported as declined")
     }
 
-    /// A linked config folder (dotfiles) tightens the real folder.
-    func testLinkedConfigFolderTightensItsTarget() throws {
+    /// A linked config folder (dotfiles) is left alone: it may point at a shared folder.
+    func testLinkedConfigFolderIsLeftAlone() throws {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("link-\(UUID().uuidString)")
-        let target = base.appendingPathComponent("real")
+        let target = base.appendingPathComponent("dotfiles")
         try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o755])
         defer { try? FileManager.default.removeItem(at: base) }
@@ -112,7 +112,7 @@ final class SmallSecurityFixesTests: XCTestCase {
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
         ConfigurationService.restrictToOwner(directory: link.path)
         let mode = try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int
-        XCTAssertEqual(mode, 0o700)
+        XCTAssertEqual(mode, 0o755)
     }
 
     /// Unticking the launcher shortcuts in the import review saves none of them,
