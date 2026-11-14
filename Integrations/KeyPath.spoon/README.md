@@ -126,7 +126,7 @@ spoon.KeyPath:start()
 ## Requirements
 
 - [Hammerspoon](https://www.hammerspoon.org/) 0.9.93+
-- [KeyPath](https://github.com/malpern/KeyPath) with distributed notification support
+- [KeyPath](https://github.com/malpern-labs/KeyPath) with distributed notification support
 
 ## How It Works
 

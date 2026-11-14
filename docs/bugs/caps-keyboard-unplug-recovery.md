@@ -1,7 +1,7 @@
 # Unplugging the Caps Lock keyboard stopped all remapping
 
 Found 2026-10-19 by a hardware unplug test on the mini (build c656e34a0, the
-malpern/KeyPath#1307 candidate), with the cl80 chosen for Caps Lock and other
+malpern-labs/KeyPath#1307 candidate), with the cl80 chosen for Caps Lock and other
 keyboards connected.
 
 ## What happened

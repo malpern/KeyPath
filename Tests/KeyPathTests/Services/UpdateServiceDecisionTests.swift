@@ -28,7 +28,7 @@ final class UpdateServiceDecisionTests: XCTestCase {
         service.configureRuntimeStop { cleanupCalls += 1; return true }
         service.openDownloadPage = { opened.append($0); return true }
         service.checkForUpdates()
-        XCTAssertEqual(opened.map(\.absoluteString), ["https://github.com/malpern/KeyPath/releases/latest"])
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://github.com/malpern-labs/KeyPath/releases/latest"])
         XCTAssertEqual(cleanupCalls, 0)
     }
 

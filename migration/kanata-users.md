@@ -178,7 +178,7 @@ KeyPath doesn't parse your Kanata config — it uses TCP and a simulator to unde
 - Complex aliases or macros (use your text editor for these)
 - Managed sections (marked `;; === KEYPATH MANAGED ===`) are overwritten when you save through the UI — your custom sections are always preserved
 
-**Bottom line:** Use KeyPath's UI for new simple rules, keep your hand-written rules in your config file. Both coexist. See [ADR-025](https://github.com/malpern/KeyPath/blob/main/docs/adr/adr-025-config-management.md) for the preservation model.
+**Bottom line:** Use KeyPath's UI for new simple rules, keep your hand-written rules in your config file. Both coexist. See [ADR-025](https://github.com/malpern-labs/KeyPath/blob/main/docs/adr/adr-025-config-management.md) for the preservation model.
 
 ---
 
@@ -197,7 +197,7 @@ KeyPath only overwrites sections marked with `;; === KEYPATH MANAGED ===`. Your 
 
 1. Check if you're editing in a managed section
 2. Use KeyPath's UI for new rules, edit your config file for custom rules
-3. See [ADR-025](https://github.com/malpern/KeyPath/blob/main/docs/adr/adr-025-config-management.md) for the preservation model
+3. See [ADR-025](https://github.com/malpern-labs/KeyPath/blob/main/docs/adr/adr-025-config-management.md) for the preservation model
 
 ### TCP Port Conflicts?
 
@@ -246,14 +246,14 @@ ln -s ~/.config/kanata/my-config.kbd ~/.config/keypath/keypath.kbd
 
 ## Architecture details
 
-- **[ADR-027](https://github.com/malpern/KeyPath/blob/main/docs/adr/adr-027-app-specific-keymaps.md)** — Details on the two-file model
-- **[ADR-023](https://github.com/malpern/KeyPath/blob/main/docs/adr/adr-023-no-config-parsing.md)** — Why KeyPath doesn't parse configs
-- **[ADR-025](https://github.com/malpern/KeyPath/blob/main/docs/adr/adr-025-config-management.md)** — How config preservation works
+- **[ADR-027](https://github.com/malpern-labs/KeyPath/blob/main/docs/adr/adr-027-app-specific-keymaps.md)** — Details on the two-file model
+- **[ADR-023](https://github.com/malpern-labs/KeyPath/blob/main/docs/adr/adr-023-no-config-parsing.md)** — Why KeyPath doesn't parse configs
+- **[ADR-025](https://github.com/malpern-labs/KeyPath/blob/main/docs/adr/adr-025-config-management.md)** — How config preservation works
 
 ## Getting Help
 
 - **[FAQ](https://malpern.github.io/KeyPath/docs)** — Common questions about KeyPath
-- **[GitHub Issues](https://github.com/malpern/KeyPath/issues)** — Report bugs or ask questions
+- **[GitHub Issues](https://github.com/malpern-labs/KeyPath/issues)** — Report bugs or ask questions
 - **[Privacy & Permissions]({{ '/guides/privacy/' | relative_url }})** — What KeyPath accesses and why
 - **[Kanata documentation](https://github.com/jtroo/kanata/blob/main/docs/config.adoc)** — Full Kanata config reference ↗
 - **[Kanata GitHub](https://github.com/jtroo/kanata)** — Kanata source code and discussions ↗

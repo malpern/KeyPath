@@ -27,11 +27,11 @@ public enum CLIExitCode: Int32, Codable, Sendable, CaseIterable {
 }
 
 public enum CLIDocsURL {
-    public static let faq = "https://github.com/malpern/KeyPath/blob/master/docs/guides/faq.md"
-    public static let debugging = "https://github.com/malpern/KeyPath/blob/master/docs/troubleshooting/debugging-kanata.md"
-    public static let actionURI = "https://github.com/malpern/KeyPath/blob/master/docs/guides/action-uri-system.md"
-    public static let ruleCollections = "https://github.com/malpern/KeyPath/blob/master/docs/architecture/rules-architecture.html"
-    public static let permissions = "https://github.com/malpern/KeyPath/blob/master/docs/architecture/permissions-architecture.html"
+    public static let faq = "https://github.com/malpern-labs/KeyPath/blob/master/docs/guides/faq.md"
+    public static let debugging = "https://github.com/malpern-labs/KeyPath/blob/master/docs/troubleshooting/debugging-kanata.md"
+    public static let actionURI = "https://github.com/malpern-labs/KeyPath/blob/master/docs/guides/action-uri-system.md"
+    public static let ruleCollections = "https://github.com/malpern-labs/KeyPath/blob/master/docs/architecture/rules-architecture.html"
+    public static let permissions = "https://github.com/malpern-labs/KeyPath/blob/master/docs/architecture/permissions-architecture.html"
 }
 
 public extension CLIError {

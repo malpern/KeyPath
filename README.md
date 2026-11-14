@@ -10,7 +10,7 @@
 
   Remap keys, launch apps, tile windows, and automate workflows — all without leaving the home row.
 
-  <a href="https://keypath-app.com"><strong>keypath-app.com</strong></a> · <a href="https://github.com/malpern/KeyPath/releases">Download</a> · <a href="https://malpern.github.io/KeyPath/documentation/">Docs</a> · <a href="https://github.com/malpern/KeyPath/issues">Issues</a>
+  <a href="https://keypath-app.com"><strong>keypath-app.com</strong></a> · <a href="https://github.com/malpern-labs/KeyPath/releases">Download</a> · <a href="https://malpern.github.io/KeyPath/documentation/">Docs</a> · <a href="https://github.com/malpern-labs/KeyPath/issues">Issues</a>
 
   [![macOS 27+](https://img.shields.io/badge/macOS-27%2B-blue.svg)](https://www.apple.com/macos/)
   [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
@@ -86,7 +86,7 @@ Copy your config to `~/.config/keypath/keypath.kbd` and run the setup wizard.
 
 ### Setup (once)
 
-1. **Download** KeyPath from the [releases page](https://github.com/malpern/KeyPath/releases) or [build from source](#build-from-source)
+1. **Download** KeyPath from the [releases page](https://github.com/malpern-labs/KeyPath/releases) or [build from source](#build-from-source)
 2. **Run the setup wizard** — it walks you through the permissions KeyPath needs
 3. **Start remapping** — create rules visually or enable pre-built collections
 
@@ -113,7 +113,7 @@ KeyPath runs Kanata in your user session, with no system service or driver. The 
 ## Build from source
 
 ```bash
-git clone https://github.com/malpern/KeyPath.git
+git clone https://github.com/malpern-labs/KeyPath.git
 cd KeyPath
 ./build.sh                         # Full build: compile, sign, notarize, deploy
 ```

@@ -17,8 +17,8 @@ concurrency:
 # variable KEYPATH_CI_RUNNER=hosted and both jobs run on GitHub's macOS 27 /
 # Xcode 27 image (`xcode-27`) instead. Delete the variable to return to the
 # mini. Job names, and so the required checks, are the same either way.
-#   gh variable set KEYPATH_CI_RUNNER --repo malpern/KeyPath --body hosted
-#   gh variable delete KEYPATH_CI_RUNNER --repo malpern/KeyPath
+#   gh variable set KEYPATH_CI_RUNNER --repo malpern-labs/KeyPath --body hosted
+#   gh variable delete KEYPATH_CI_RUNNER --repo malpern-labs/KeyPath
 # Only ci.yml has the fallback. coverage, cache-warm and runner-health are
 # mini-only jobs that do not gate PRs; they skip while this variable is set.
 #

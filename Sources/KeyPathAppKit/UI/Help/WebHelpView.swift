@@ -33,7 +33,7 @@ enum HelpLoadError: Equatable {
 /// Shows a bundled or previously downloaded guide, with quiet background content updates.
 struct WebHelpView: View {
     /// Issues URL for the "Report a broken link" fallback (degenerate file:// fallback avoids a force-unwrap).
-    private static let reportIssueURL: URL = .init(string: "https://github.com/malpern/KeyPath/issues")
+    private static let reportIssueURL: URL = .init(string: "https://github.com/malpern-labs/KeyPath/issues")
         ?? URL(fileURLWithPath: "/")
 
     let url: URL

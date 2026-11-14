@@ -286,7 +286,7 @@ gh release create "v${VERSION}" \
     "$SPARKLE_DMG" \
     --title "KeyPath ${VERSION}" \
     ${PRERELEASE_FLAG:+"$PRERELEASE_FLAG"} \
-    --notes "See [release notes](https://github.com/malpern/KeyPath/releases/tag/v${VERSION}) for details."
+    --notes "See [release notes](https://github.com/malpern-labs/KeyPath/releases/tag/v${VERSION}) for details."
 
 echo "📝 Updating appcast.xml..."
 ditto "$SPARKLE_APPCAST" appcast.xml
@@ -309,10 +309,10 @@ if ! git -C "$GHPAGES_WORKTREE" diff --quiet || ! git -C "$GHPAGES_WORKTREE" dif
     exit 1
 fi
 
-DMG_URL="https://github.com/malpern/KeyPath/releases/download/v${VERSION}/KeyPath-${VERSION}.dmg"
+DMG_URL="https://github.com/malpern-labs/KeyPath/releases/download/v${VERSION}/KeyPath-${VERSION}.dmg"
 if [ -f "$GHPAGES_WORKTREE/index.md" ]; then
     # Replace any existing DMG download link with the new version
-    sed -i '' "s|https://github.com/malpern/KeyPath/releases/download/[^\"]*\.dmg|${DMG_URL}|g" "$GHPAGES_WORKTREE/index.md"
+    sed -i '' "s|https://github.com/malpern\(-labs\)\{0,1\}/KeyPath/releases/download/[^\"]*\.dmg|${DMG_URL}|g" "$GHPAGES_WORKTREE/index.md"
     cd "$GHPAGES_WORKTREE"
     git add index.md
     if git diff --cached --quiet; then
@@ -350,7 +350,7 @@ fi
 
 echo ""
 echo "🎉 Release v${VERSION} published!"
-echo "   • GitHub Release: https://github.com/malpern/KeyPath/releases/tag/v${VERSION}"
+echo "   • GitHub Release: https://github.com/malpern-labs/KeyPath/releases/tag/v${VERSION}"
 echo "   • Sparkle update will reach users within 24 hours"
 echo "   • Website download link updated"
 echo "   • Homebrew cask updated"

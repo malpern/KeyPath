@@ -58,7 +58,7 @@ import KeyPathRulesCore
         // TODO: Remove once macOS multi-device support lands upstream:
         //   - psych3r/driverkit#15 (macOS multi-device DriverKit support)
         //   - jtroo/kanata#1974 (Kanata device-switch support)
-        // Tracked by: https://github.com/malpern/KeyPath/issues/254
+        // Tracked by: https://github.com/malpern-labs/KeyPath/issues/254
 
         static let connectedDevices: [ConnectedDevice] = [
             ConnectedDevice(

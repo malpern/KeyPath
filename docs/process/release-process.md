@@ -253,8 +253,8 @@ merge failed.
 Safer pattern:
 
 ```bash
-gh pr merge <number> --repo malpern/KeyPath --merge --delete-branch
-gh pr view <number> --repo malpern/KeyPath --json state,mergeCommit
+gh pr merge <number> --repo malpern-labs/KeyPath --merge --delete-branch
+gh pr view <number> --repo malpern-labs/KeyPath --json state,mergeCommit
 git fetch --prune origin
 ```
 

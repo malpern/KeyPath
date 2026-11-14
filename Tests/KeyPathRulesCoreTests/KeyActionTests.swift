@@ -121,7 +121,7 @@ struct KeyActionTests {
 
         @Test("openURL shows the domain")
         func openURL() {
-            let action = KeyAction.openURL("https://github.com/malpern/KeyPath")
+            let action = KeyAction.openURL("https://github.com/malpern-labs/KeyPath")
             #expect(action.displayName == "github.com")
         }
 

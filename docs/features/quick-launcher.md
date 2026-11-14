@@ -312,5 +312,5 @@ To change:
 
 Have a great Quick Launcher workflow? Share it with us!
 
-- File feature requests: [KeyPath Issues](https://github.com/malpern/keypath/issues)
-- Join discussions: [KeyPath Discussions](https://github.com/malpern/keypath/discussions)
+- File feature requests: [KeyPath Issues](https://github.com/malpern-labs/keypath/issues)
+- Join discussions: [KeyPath Discussions](https://github.com/malpern-labs/keypath/discussions)

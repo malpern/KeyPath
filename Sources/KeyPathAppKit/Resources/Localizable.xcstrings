@@ -10208,12 +10208,12 @@
         }
       }
     },
-    "Couldn't open the downloads page. Visit github.com/malpern/KeyPath/releases." : {
+    "Couldn't open the downloads page. Visit github.com/malpern-labs/KeyPath/releases." : {
       "localizations" : {
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ダウンロードページを開けませんでした。github.com/malpern/KeyPath/releasesにアクセスしてください。"
+            "value" : "ダウンロードページを開けませんでした。github.com/malpern-labs/KeyPath/releasesにアクセスしてください。"
           }
         }
       }

@@ -12,7 +12,7 @@ Do not open public GitHub issues for security vulnerabilities.
 Use one of the private channels below:
 
 - GitHub Security Advisory (preferred):
-  https://github.com/malpern/KeyPath/security/advisories/new
+  https://github.com/malpern-labs/KeyPath/security/advisories/new
 - Email fallback: malpern@gmail.com
 
 Please include:
