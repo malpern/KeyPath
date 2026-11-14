@@ -7,13 +7,24 @@ import KeyPathCore
 /// in a dedicated, testable type.
 @MainActor
 enum DeepLinkRouter {
+    /// Links that arrived before the app wired its prompts (a cold launch).
+    private static var pending: [KeyPathActionURI] = []
+    private static let maximumPending = 20
+
+    /// Dispatches links held during launch. Called once the prompts are wired.
+    static func flushPending() {
+        let held = pending
+        pending = []
+        for uri in held {
+            ActionDispatcher.shared.dispatch(uri, origin: .externalURL)
+        }
+    }
+
     /// Process an array of URLs, dispatching any `keypath://` action URIs.
     static func handle(_ urls: [URL]) {
         AppLogger.shared.log("🔗 [DeepLinkRouter] Received \(urls.count) URL(s) to open")
 
         for url in urls {
-            AppLogger.shared.log("🔗 [DeepLinkRouter] Processing URL: \(url.absoluteString)")
-
             // Only handle keypath:// URLs
             guard url.scheme == KeyPathActionURI.scheme else {
                 AppLogger.shared.log("⚠️ [DeepLinkRouter] Ignoring non-keypath URL: \(url.scheme ?? "nil")")
@@ -23,10 +34,20 @@ enum DeepLinkRouter {
             // Parse and dispatch
             if let actionURI = KeyPathActionURI(string: url.absoluteString) {
                 AppLogger.shared.log("🎬 [DeepLinkRouter] Dispatching action: \(actionURI.action)")
-                ActionDispatcher.shared.dispatch(actionURI)
+                // Another app opened this link; it may come from a web page or a document.
+                if ActionDispatcher.shared.onExternalActionConfirmationNeeded == nil {
+                    // A launch burst is a handful of links; more is not a person.
+                    if pending.count < maximumPending {
+                        pending.append(actionURI)
+                    } else {
+                        AppLogger.shared.log("⚠️ [DeepLinkRouter] Dropped a link that arrived during launch; too many were waiting")
+                    }
+                } else {
+                    ActionDispatcher.shared.dispatch(actionURI, origin: .externalURL)
+                }
             } else {
                 AppLogger.shared.log("⚠️ [DeepLinkRouter] Failed to parse URL as KeyPathActionURI")
-                ActionDispatcher.shared.onError?(String(localized: "Invalid keypath:// URL: \(url.absoluteString)"))
+                ActionDispatcher.shared.onError?(String(localized: "KeyPath couldn't read a keypath:// link from another app."))
             }
         }
     }

@@ -136,6 +136,29 @@ enum AppNotificationWiring {
             UserNotificationService.shared.notifyActionError(message)
         }
 
+        // Scripts that have not been approved yet ask before they run, and links
+        // from other apps ask before pressing virtual keys. Headless runs have
+        // nobody to answer, so they decline instead of opening a modal.
+        let headless = delegate.isHeadlessMode
+        ActionDispatcher.shared.onScriptConfirmationNeeded = { request in
+            if headless {
+                AppLogger.shared.log("🛡️ [App] Headless: declining unapproved script \(request.path)")
+                request.cancel()
+            } else {
+                ActionConfirmationPrompts.confirmScript(request)
+            }
+        }
+        ActionDispatcher.shared.onExternalActionConfirmationNeeded = { request in
+            if headless {
+                AppLogger.shared.log("🛡️ [App] Headless: declining virtual key \(request.virtualKey) from a link")
+                request.deny()
+            } else {
+                ActionConfirmationPrompts.confirmExternalAction(request)
+            }
+        }
+        // Links that arrived during launch, before the prompts above existed.
+        DeepLinkRouter.flushPending()
+
         // Wire overlay actions (keypath://overlay/..., push-msg "overlay:toggle") to the overlay
         ActionDispatcher.shared.onOverlayAction = { command in
             let overlay = LiveKeyboardOverlayController.shared

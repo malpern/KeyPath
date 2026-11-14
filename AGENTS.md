@@ -471,7 +471,7 @@ Trigger via URL scheme:
 open "keypath://layer/vim"           # Switch layer
 open "keypath://launch/Safari"       # Launch app
 open "keypath://window/left"         # Snap window
-open "keypath://fakekey/nav-mode/tap" # Trigger virtual key
+open "keypath://fakekey/nav-mode/tap" # Trigger virtual key (asks first unless "Always Allow" was chosen)
 ```
 
 ### Composing Tools
