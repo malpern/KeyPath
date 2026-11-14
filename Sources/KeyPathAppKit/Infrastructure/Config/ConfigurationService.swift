@@ -1550,8 +1550,11 @@ extension ConfigurationService {
                         withIntermediateDirectories: true,
                         attributes: nil
                     )
-                    // Only the KeyPath folder itself, not ~/.config if this created it.
-                    Self.restrictToOwner(directory: path)
+                    // Only the KeyPath folder itself, not ~/.config if this created it,
+                    // and never a folder with another name.
+                    if (path as NSString).lastPathComponent == "keypath" {
+                        Self.restrictToOwner(directory: path)
+                    }
                     cont.resume()
                 } catch {
                     cont.resume(throwing: error)

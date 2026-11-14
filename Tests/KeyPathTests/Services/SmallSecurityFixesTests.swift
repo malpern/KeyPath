@@ -57,4 +57,13 @@ final class SmallSecurityFixesTests: XCTestCase {
         XCTAssertEqual(KeyAction.launchApp(name: "Safari", bundleId: "com.apple.Safari").importReviewDescription,
                        "Opens com.apple.Safari")
     }
+
+    func testControlClientDisconnectIsDetected() {
+        var fds: [Int32] = [0, 0]
+        XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &fds), 0)
+        defer { close(fds[0]) }
+        XCTAssertTrue(RuntimeControlServer.isConnected(fds[0]), "A waiting client is connected")
+        close(fds[1])
+        XCTAssertFalse(RuntimeControlServer.isConnected(fds[0]), "A client that went away is not")
+    }
 }

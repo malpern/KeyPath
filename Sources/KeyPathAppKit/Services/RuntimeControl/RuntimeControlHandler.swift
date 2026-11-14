@@ -133,15 +133,21 @@ enum RuntimeControlHandler {
         uninstall.hasDestructiveAction = true
         alert.buttons.first?.keyEquivalent = "\u{1b}"
         NSApp.activate(ignoringOtherApps: true)
-        // Shown as a window, not modally, so the main actor keeps running.
+        // Shown as a window, not modally, so the main actor keeps running. It
+        // closes as Cancel after the timeout, or as soon as the keypath command
+        // that asked stops waiting (Ctrl-C, its own timeout).
+        let clientConnected = RuntimeControlServer.clientConnected
+        let deadline = Date().addingTimeInterval(cliConfirmationTimeout)
         return await withCheckedContinuation { continuation in
-            var timeout: Timer?
+            var watch: Timer?
             let presentation = NonModalAlertPresenter.present(alert) { index in
-                timeout?.invalidate()
+                watch?.invalidate()
                 continuation.resume(returning: index == 1)
             }
-            timeout = Timer.scheduledTimer(withTimeInterval: cliConfirmationTimeout, repeats: false) { _ in
-                MainActor.assumeIsolated { presentation.dismiss(asButton: 0) }
+            watch = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                MainActor.assumeIsolated {
+                    if Date() >= deadline || !clientConnected() { presentation.dismiss(asButton: 0) }
+                }
             }
         }
     }
@@ -173,6 +179,13 @@ enum RuntimeControlHandler {
             let status = await manager.currentRuntimeStatusInternal()
             var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
             refused.message = refusal
+            return refused
+        }
+        // A late click must not act for a command that has already gone away.
+        guard RuntimeControlServer.clientConnected() else {
+            var refused = await response(ok: false, operation: .uninstall,
+                                         status: manager.currentRuntimeStatusInternal(), lastError: nil)
+            refused.message = "The keypath command stopped waiting; nothing was changed."
             return refused
         }
         // tccutil finds the app by bundle id, which fails once it is in the
