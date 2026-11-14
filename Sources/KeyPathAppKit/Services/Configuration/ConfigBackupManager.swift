@@ -202,6 +202,9 @@ public final class ConfigBackupManager {
                 withIntermediateDirectories: true,
                 attributes: nil
             )
+            // Creating the backups folder may have created the KeyPath folder too.
+            ConfigurationService.restrictToOwner(directory: (backupDirectory as NSString).deletingLastPathComponent)
+            ConfigurationService.restrictToOwner(directory: backupDirectory)
             AppLogger.shared.log("✅ [BackupManager] Created backup directory: \(backupDirectory)")
         } catch {
             AppLogger.shared.log("❌ [BackupManager] Failed to create backup directory: \(error)")

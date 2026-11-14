@@ -33420,6 +33420,16 @@
         }
       }
     },
+    "The keypath command asked to remove KeyPath, delete your configuration and clear its macOS permissions. Your remapping stops." : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "keypathコマンドが、KeyPathを削除して設定を消去し、macOSの権限を解除するよう要求しました。リマップは停止します。"
+          }
+        }
+      }
+    },
     "The live keyboard overlay and hint panel auto-hide while these apps are frontmost. They restore when you switch away." : {
       "localizations" : {
         "ja" : {

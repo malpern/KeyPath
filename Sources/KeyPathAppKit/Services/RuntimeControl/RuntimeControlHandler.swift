@@ -120,11 +120,13 @@ enum RuntimeControlHandler {
     /// deletes the config. Cancel is the default. The dialog closes itself as
     /// "cancelled" before the CLI stops waiting (120 s), so a late click can
     /// never uninstall after the CLI reported a failure. Replaceable for tests.
-    @MainActor static var confirmUninstallFromCLI: @MainActor () async -> Bool = {
+    @MainActor static var confirmUninstallFromCLI: @MainActor (_ resetPermissions: Bool) async -> Bool = { resetPermissions in
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = String(localized: "Uninstall KeyPath?")
-        alert.informativeText = String(localized: "The keypath command asked to remove KeyPath and delete your configuration. Your remapping stops.")
+        alert.informativeText = resetPermissions
+            ? String(localized: "The keypath command asked to remove KeyPath, delete your configuration and clear its macOS permissions. Your remapping stops.")
+            : String(localized: "The keypath command asked to remove KeyPath and delete your configuration. Your remapping stops.")
         alert.addButton(withTitle: String(localized: "Cancel")).setAccessibilityIdentifier("cli-uninstall-cancel-button")
         let uninstall = alert.addButton(withTitle: String(localized: "Uninstall"))
         uninstall.setAccessibilityIdentifier("cli-uninstall-confirm-button")
@@ -167,7 +169,7 @@ enum RuntimeControlHandler {
                           manager: RuntimeCoordinator) async -> RuntimeControl.Response
     {
         let status = await manager.currentRuntimeStatusInternal()
-        if let refusal = await uninstallRefusal(confirmed: confirmed, ask: { await confirmUninstallFromCLI() }) {
+        if let refusal = await uninstallRefusal(confirmed: confirmed, ask: { await confirmUninstallFromCLI(resetPermissions) }) {
             var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
             refused.message = refusal
             return refused
