@@ -58,7 +58,10 @@ Exit codes for doctor/setup: `0` ready, `7` a permission needs the user (only a
 person can grant TCC; tell Micah which switch, do not retry in a loop), `1` other,
 `6` app unreachable (`doctor` does not launch it, `setup` does). Never run
 `uninstall --yes` without the user's explicit go-ahead: it removes their KeyPath
-data (after backing it up to ~/Downloads) and moves the app to the Trash.
+data (after backing it up to ~/Downloads) and moves the app to the Trash. It also
+waits for the person to click **Uninstall** in KeyPath's dialog; if they cancel or
+don't answer within 100 seconds it exits 1 with nothing changed. Ask them to watch
+for the dialog rather than retrying.
 
 ### Configuration Reload & Logs
 

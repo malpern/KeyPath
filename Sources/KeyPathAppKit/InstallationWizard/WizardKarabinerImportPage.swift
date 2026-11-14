@@ -4,7 +4,6 @@
 
 import KeyPathCore
 import KeyPathInstallationWizard
-import KeyPathRulesCore
 import KeyPathWizardCore
 import SwiftUI
 
@@ -203,7 +202,8 @@ struct WizardKarabinerImportPage: View {
                 wizardCheckboxRow(
                     title: String(localized: "Import these \(result.launcherMappings.count) shortcuts"),
                     subtitle: String(localized: "Each opens an app, website or folder, or runs a script, when you press its key."),
-                    isSelected: importLauncherMappings
+                    isSelected: importLauncherMappings,
+                    accessibilityIdentifier: "wizard-karabiner-import-launcher-shortcuts"
                 ) {
                     importLauncherMappings.toggle()
                 }
@@ -212,7 +212,7 @@ struct WizardKarabinerImportPage: View {
                         Text(mapping.key)
                             .font(.caption.monospaced())
                             .frame(minWidth: 40, alignment: .leading)
-                        Text(Self.importReviewDescription(mapping.action))
+                        Text(mapping.action.importReviewDescription)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
@@ -255,6 +255,7 @@ struct WizardKarabinerImportPage: View {
         title: String,
         subtitle: String,
         isSelected: Bool,
+        accessibilityIdentifier: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -274,6 +275,7 @@ struct WizardKarabinerImportPage: View {
         }
         .buttonStyle(.plain)
         .padding(.vertical, 2)
+        .accessibilityIdentifier(accessibilityIdentifier ?? "wizard-karabiner-row-\(title)")
     }
 
     // MARK: - Actions
@@ -339,22 +341,6 @@ struct WizardKarabinerImportPage: View {
             withAnimation {
                 importComplete = true
             }
-        }
-    }
-
-    /// The full target, so a person can see what a shortcut will open or run.
-    static func importReviewDescription(_ action: KeyAction) -> String {
-        switch action {
-        case let .launchApp(name, bundleId):
-            String(localized: "Opens \(bundleId ?? name)")
-        case let .openURL(url):
-            String(localized: "Opens \(url)")
-        case let .openFolder(path, _):
-            String(localized: "Opens the folder \(path)")
-        case let .runScript(path, _):
-            String(localized: "Runs \(path)")
-        default:
-            action.displayName
         }
     }
 }

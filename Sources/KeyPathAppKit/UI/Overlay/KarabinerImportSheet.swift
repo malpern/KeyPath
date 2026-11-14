@@ -311,7 +311,7 @@ struct KarabinerImportSheet: View {
                     sectionHeader(String(localized: "Launcher Shortcuts"), count: result.launcherMappings.count)
                     ForEach(result.launcherMappings) { mapping in
                         checkboxRow(
-                            title: mapping.action.displayName,
+                            title: mapping.action.importReviewDescription,
                             subtitle: String(localized: "Key: \(mapping.key)"),
                             icon: "arrow.up.forward.app",
                             isSelected: selectedLauncherIds.contains(mapping.id),

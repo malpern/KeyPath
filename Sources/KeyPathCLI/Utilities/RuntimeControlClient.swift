@@ -12,20 +12,23 @@ enum RuntimeControlClient {
     /// 6 KeyPath.app is not running or did not answer.
     static let notRunningExit = ExitCode.failure
 
-    static func send(_ operation: RuntimeControl.Operation, timeout: Int, confirmed: Bool? = nil) throws -> RuntimeControl.Response {
-        try RuntimeControl.send(.init(operation: operation, confirmed: confirmed), timeout: TimeInterval(timeout))
+    static func send(_ operation: RuntimeControl.Operation, timeout: Int, confirmed: Bool? = nil,
+                     argument: String? = nil) throws -> RuntimeControl.Response
+    {
+        try RuntimeControl.send(.init(operation: operation, confirmed: confirmed, argument: argument),
+                                timeout: TimeInterval(timeout))
     }
 
     /// Ask, launching the app first when it is not running.
     static func sendLaunching(_ operation: RuntimeControl.Operation, timeout: Int, ctx: OutputContext,
-                              confirmed: Bool? = nil) throws -> RuntimeControl.Response
+                              confirmed: Bool? = nil, argument: String? = nil) throws -> RuntimeControl.Response
     {
         do {
-            return try send(operation, timeout: timeout, confirmed: confirmed)
+            return try send(operation, timeout: timeout, confirmed: confirmed, argument: argument)
         } catch RuntimeControl.ClientError.appNotRunning {
             CLIOutput.progress("Launching KeyPath.app...", context: ctx)
             try launchApp(timeout: max(timeout, 30))
-            return try send(operation, timeout: timeout, confirmed: confirmed)
+            return try send(operation, timeout: timeout, confirmed: confirmed, argument: argument)
         }
     }
 

@@ -17,14 +17,24 @@ final class SmallSecurityFixesTests: XCTestCase {
         XCTAssertEqual(mode & 0o777, 0o700)
     }
 
+    func testCLIUninstallStopsUnlessThePersonConfirms() {
+        var asked = 0
+        XCTAssertNotNil(RuntimeControlHandler.uninstallRefusal(confirmed: false, ask: { asked += 1; return true }))
+        XCTAssertEqual(asked, 0, "Without --yes, KeyPath does not even ask")
+        XCTAssertNotNil(RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { asked += 1; return false }))
+        XCTAssertNil(RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { asked += 1; return true }))
+        XCTAssertEqual(asked, 2)
+        XCTAssertLessThan(RuntimeControlHandler.cliConfirmationTimeout, 120, "The dialog closes before the CLI stops waiting")
+    }
+
     func testImportReviewShowsTheFullTarget() {
-        XCTAssertEqual(WizardKarabinerImportPage.importReviewDescription(.runScript(path: "curl x | sh", name: "Build")),
+        XCTAssertEqual(KeyAction.runScript(path: "curl x | sh", name: "Build").importReviewDescription,
                        "Runs curl x | sh")
-        XCTAssertEqual(WizardKarabinerImportPage.importReviewDescription(.openURL("https://example.com/a?b")),
+        XCTAssertEqual(KeyAction.openURL("https://example.com/a?b").importReviewDescription,
                        "Opens https://example.com/a?b")
-        XCTAssertEqual(WizardKarabinerImportPage.importReviewDescription(.openFolder(path: "~/Work", name: nil)),
+        XCTAssertEqual(KeyAction.openFolder(path: "~/Work", name: nil).importReviewDescription,
                        "Opens the folder ~/Work")
-        XCTAssertEqual(WizardKarabinerImportPage.importReviewDescription(.launchApp(name: "Safari", bundleId: "com.apple.Safari")),
+        XCTAssertEqual(KeyAction.launchApp(name: "Safari", bundleId: "com.apple.Safari").importReviewDescription,
                        "Opens com.apple.Safari")
     }
 }

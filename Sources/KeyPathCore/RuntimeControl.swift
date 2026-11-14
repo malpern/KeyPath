@@ -49,8 +49,11 @@ public enum RuntimeControl {
         public let operation: Operation
         public let reason: String?
         public let confirmed: Bool?
-        /// changeLayer: the layer name.
+        /// changeLayer: the layer name. uninstall: `resetPermissionsArgument`
+        /// also clears KeyPath's macOS permission entries, after the person confirms.
         public let argument: String?
+
+        public static let resetPermissionsArgument = "reset-permissions"
 
         public init(operation: Operation, reason: String? = nil, confirmed: Bool? = nil, argument: String? = nil) {
             self.operation = operation
