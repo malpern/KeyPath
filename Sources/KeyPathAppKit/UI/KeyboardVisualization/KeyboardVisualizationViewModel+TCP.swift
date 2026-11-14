@@ -140,6 +140,7 @@ extension KeyboardVisualizationViewModel {
         for override in appKeymap.overrides {
             // Find the keyCode for this input key
             guard let keyCode = Self.kanataNameToKeyCode(override.inputKey) else {
+                // From the app keymap, not a key press.
                 AppLogger.shared.debug("⚠️ [KeyboardViz] Unknown key for override: \(override.inputKey)")
                 continue
             }
@@ -262,6 +263,7 @@ extension KeyboardVisualizationViewModel {
             }
 
             customEmphasisKeyCodes = keyCodes
+            // From the config's emphasis message, not a key press.
             AppLogger.shared.debug("✨ [KeyboardViz] Emphasis set: \(keyNames.joined(separator: ", ")) -> \(keyCodes)")
             return
         }

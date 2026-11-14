@@ -14,7 +14,11 @@ final class PressedKeyLoggingLintTests: XCTestCase {
         "Sources/KeyPathAppKit/UI/KeyboardVisualization/KeyboardVisualizationViewModel+TCP.swift",
     ]
     /// Interpolations that carry a pressed key or an engine frame.
-    private static let keyInterpolation = try! NSRegularExpression(pattern: #"\\\((keyName|key|line|keyCode)\)"#)
+    /// Any interpolation whose expression names a key (`key`, `keys`, `keyName`,
+    /// `keyPress.baseKey`, `pressedKeyCodes`, ...) or a raw engine `line`.
+    private static let keyInterpolation = try! NSRegularExpression(
+        pattern: #"\\\([^)]*([kK]ey|\bline\b)[^)]*\)"#
+    )
     /// A comment on the line before marks a key that comes from the config, not a press.
     private static let configMarker = "not a key press"
 
@@ -30,7 +34,11 @@ final class PressedKeyLoggingLintTests: XCTestCase {
                 markedFromConfig = index > 0 && lines[index - 1].contains(configMarker)
             }
             let range = NSRange(line.startIndex..., in: line)
-            guard let call = currentCall, keyInterpolation.firstMatch(in: line, range: range) != nil else {
+            // A length (`key.utf8.count`) says nothing about which key it was.
+            let namesAKey = keyInterpolation.matches(in: line, range: range).contains { match in
+                Range(match.range, in: line).map { !line[$0].contains(".count") } ?? false
+            }
+            guard let call = currentCall, namesAKey else {
                 if line.trimmingCharacters(in: .whitespaces).hasSuffix(")") { currentCall = nil }
                 continue
             }
@@ -58,5 +66,8 @@ final class PressedKeyLoggingLintTests: XCTestCase {
         XCTAssertEqual(Self.violations(in: #"AppLogger.shared.debug("Received line: '\(line)'")"#), [1])
         XCTAssertEqual(Self.violations(in: #"AppLogger.shared.pressedKey("keyDown: \(keyName)")"#), [])
         XCTAssertEqual(Self.violations(in: "// from the config, not a key press\nAppLogger.shared.warn(\"x \\(key)\")"), [])
+        XCTAssertEqual(Self.violations(in: #"AppLogger.shared.debug("x \(keyPress.baseKey)")"#), [1])
+        XCTAssertEqual(Self.violations(in: #"AppLogger.shared.debug("x \(pressedKeyCodes)")"#), [1])
+        XCTAssertEqual(Self.violations(in: #"AppLogger.shared.debug("x (\(key.utf8.count) bytes)")"#), [])
     }
 }

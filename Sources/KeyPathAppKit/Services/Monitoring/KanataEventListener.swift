@@ -657,6 +657,7 @@ actor KanataEventListener {
             return
         }
 
+        // The message's JSON field names, not a key press.
         AppLogger.shared.debug("🌐 [EventListener] Parsed JSON keys: \(json.keys.joined(separator: ", "))")
 
         // Handle LayerChange events
