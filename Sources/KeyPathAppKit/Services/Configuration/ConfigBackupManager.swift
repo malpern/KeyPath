@@ -200,7 +200,7 @@ public final class ConfigBackupManager {
             try Foundation.FileManager().createDirectory(
                 atPath: backupDirectory,
                 withIntermediateDirectories: true,
-                attributes: [Foundation.FileAttributeKey.posixPermissions: 0o700]
+                attributes: nil
             )
             AppLogger.shared.log("✅ [BackupManager] Created backup directory: \(backupDirectory)")
         } catch {

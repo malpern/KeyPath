@@ -162,8 +162,10 @@ public final class KanataConfigMigrationService {
         try fileManager.createDirectory(
             atPath: keyPathConfigDirectory,
             withIntermediateDirectories: true,
-            attributes: [FileAttributeKey.posixPermissions: 0o700]
+            attributes: nil
         )
+        // Only the KeyPath folder itself is private, not ~/.config if this created it.
+        ConfigurationService.restrictToOwner(directory: keyPathConfigDirectory)
         AppLogger.shared.log("✅ [MigrationService] Created KeyPath config directory: \(keyPathConfigDirectory)")
     }
 
@@ -221,7 +223,7 @@ public final class KanataConfigMigrationService {
             try fileManager.createDirectory(
                 atPath: backupDir,
                 withIntermediateDirectories: true,
-                attributes: [FileAttributeKey.posixPermissions: 0o700]
+                attributes: nil
             )
         }
 

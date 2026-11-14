@@ -17,12 +17,15 @@ final class SmallSecurityFixesTests: XCTestCase {
         XCTAssertEqual(mode & 0o777, 0o700)
     }
 
-    func testCLIUninstallStopsUnlessThePersonConfirms() {
+    func testCLIUninstallStopsUnlessThePersonConfirms() async {
         var asked = 0
-        XCTAssertNotNil(RuntimeControlHandler.uninstallRefusal(confirmed: false, ask: { asked += 1; return true }))
+        let withoutYes = await RuntimeControlHandler.uninstallRefusal(confirmed: false, ask: { asked += 1; return true })
+        XCTAssertNotNil(withoutYes)
         XCTAssertEqual(asked, 0, "Without --yes, KeyPath does not even ask")
-        XCTAssertNotNil(RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { asked += 1; return false }))
-        XCTAssertNil(RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { asked += 1; return true }))
+        let cancelled = await RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { asked += 1; return false })
+        XCTAssertNotNil(cancelled)
+        let confirmed = await RuntimeControlHandler.uninstallRefusal(confirmed: true, ask: { asked += 1; return true })
+        XCTAssertNil(confirmed)
         XCTAssertEqual(asked, 2)
         XCTAssertLessThan(RuntimeControlHandler.cliConfirmationTimeout, 120, "The dialog closes before the CLI stops waiting")
     }

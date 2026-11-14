@@ -120,7 +120,7 @@ enum RuntimeControlHandler {
     /// deletes the config. Cancel is the default. The dialog closes itself as
     /// "cancelled" before the CLI stops waiting (120 s), so a late click can
     /// never uninstall after the CLI reported a failure. Replaceable for tests.
-    @MainActor static var confirmUninstallFromCLI: @MainActor () -> Bool = {
+    @MainActor static var confirmUninstallFromCLI: @MainActor () async -> Bool = {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = String(localized: "Uninstall KeyPath?")
@@ -129,23 +129,28 @@ enum RuntimeControlHandler {
         let uninstall = alert.addButton(withTitle: String(localized: "Uninstall"))
         uninstall.setAccessibilityIdentifier("cli-uninstall-confirm-button")
         uninstall.hasDestructiveAction = true
-        NSApp.activate()
-        let timeout = Timer(timeInterval: cliConfirmationTimeout, repeats: false) { _ in
-            // The timer fires on the main run loop, in the modal panel mode.
-            MainActor.assumeIsolated { NSApp.abortModal() }
+        alert.buttons.first?.keyEquivalent = "\u{1b}"
+        NSApp.activate(ignoringOtherApps: true)
+        // Shown as a window, not modally, so the main actor keeps running.
+        return await withCheckedContinuation { continuation in
+            var timeout: Timer?
+            let presentation = NonModalAlertPresenter.present(alert) { index in
+                timeout?.invalidate()
+                continuation.resume(returning: index == 1)
+            }
+            timeout = Timer.scheduledTimer(withTimeInterval: cliConfirmationTimeout, repeats: false) { _ in
+                MainActor.assumeIsolated { presentation.dismiss(asButton: 0) }
+            }
         }
-        RunLoop.main.add(timeout, forMode: .modalPanel)
-        defer { timeout.invalidate() }
-        return alert.runModal() == .alertSecondButtonReturn
     }
 
     /// Shorter than the CLI's 120-second wait.
     static let cliConfirmationTimeout: TimeInterval = 100
 
     /// Why a CLI uninstall stops before changing anything, or nil to go ahead.
-    @MainActor static func uninstallRefusal(confirmed: Bool, ask: () -> Bool) -> String? {
+    @MainActor static func uninstallRefusal(confirmed: Bool, ask: @MainActor () async -> Bool) async -> String? {
         guard confirmed else { return "Uninstall needs confirmation; nothing was changed." }
-        guard ask() else { return "Uninstall was not confirmed in KeyPath; nothing was changed." }
+        guard await ask() else { return "Uninstall was not confirmed in KeyPath; nothing was changed." }
         return nil
     }
 
@@ -154,14 +159,14 @@ enum RuntimeControlHandler {
                           manager: RuntimeCoordinator) async -> RuntimeControl.Response
     {
         let status = await manager.currentRuntimeStatusInternal()
-        if let refusal = await MainActor.run(body: { uninstallRefusal(confirmed: confirmed, ask: confirmUninstallFromCLI) }) {
+        if let refusal = await uninstallRefusal(confirmed: confirmed, ask: { await confirmUninstallFromCLI() }) {
             var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
             refused.message = refusal
             return refused
         }
         // tccutil finds the app by bundle id, which fails once it is in the
         // Trash, so clear the entries now, after the person confirmed.
-        let permissionNote = resetPermissions ? resetPermissionEntries() : nil
+        let permissionNote = resetPermissions ? await Task.detached { resetPermissionEntries() }.value : nil
         RuntimeControlServer.shared.withdrawForUninstall()
         // The same entry point as Settings' Uninstall dialog. It also records that
         // cleanup finished, which is what lets the app quit afterwards.
@@ -208,7 +213,7 @@ enum RuntimeControlHandler {
 
     /// Clears KeyPath's privacy entries. ListenEvent and PostEvent rows may
     /// remain from builds or prompts that requested them.
-    static func resetPermissionEntries() -> String {
+    nonisolated static func resetPermissionEntries() -> String {
         let bundleID = Bundle.main.bundleIdentifier ?? "com.keypath.KeyPath"
         var cleared = 0
         for service in ["Accessibility", "ListenEvent", "PostEvent"] {
