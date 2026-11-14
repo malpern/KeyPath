@@ -114,4 +114,16 @@ final class SmallSecurityFixesTests: XCTestCase {
         let mode = try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int
         XCTAssertEqual(mode, 0o700)
     }
+
+    /// Unticking the launcher shortcuts in the import review saves none of them,
+    /// and leaves nothing to count when they were all there was.
+    func testUntickedLauncherShortcutsAreNotImported() {
+        XCTAssertEqual(WizardKarabinerImportPage.launchersToImport([1, 2, 3], keep: true), [1, 2, 3])
+        XCTAssertEqual(WizardKarabinerImportPage.launchersToImport([1, 2, 3], keep: false), [])
+        let onlyLaunchers = WizardKarabinerImportPage.importCount(
+            collections: 0, appKeymaps: 0,
+            launcherMappings: WizardKarabinerImportPage.launchersToImport([1, 2], keep: false).count
+        )
+        XCTAssertEqual(onlyLaunchers, 0, "The Import button is disabled at zero")
+    }
 }

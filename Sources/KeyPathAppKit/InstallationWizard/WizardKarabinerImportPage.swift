@@ -21,6 +21,20 @@ struct WizardKarabinerImportPage: View {
     /// Launch, website, folder and script shortcuts are listed and imported only if kept.
     @State private var importLauncherMappings = true
 
+    /// The launcher shortcuts that will be saved: none once the person unticks them.
+    private func launchersToImport<T>(_ all: [T]) -> [T] {
+        Self.launchersToImport(all, keep: importLauncherMappings)
+    }
+
+    static func launchersToImport<T>(_ all: [T], keep: Bool) -> [T] {
+        keep ? all : []
+    }
+
+    /// What the Import button counts; it is disabled at zero.
+    static func importCount(collections: Int, appKeymaps: Int, launcherMappings: Int) -> Int {
+        collections + appKeymaps + launcherMappings
+    }
+
     // Animation states
     @State private var heroScale: CGFloat = 0.8
     @State private var heroOpacity: Double = 0
@@ -72,8 +86,11 @@ struct WizardKarabinerImportPage: View {
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("wizard-karabiner-continue")
                 } else if conversionResult != nil {
-                    let count = selectedCollectionIds.count + selectedAppKeymapIds.count
-                        + (importLauncherMappings ? (conversionResult?.launcherMappings.count ?? 0) : 0)
+                    let count = Self.importCount(
+                        collections: selectedCollectionIds.count,
+                        appKeymaps: selectedAppKeymapIds.count,
+                        launcherMappings: launchersToImport(conversionResult?.launcherMappings ?? []).count
+                    )
                     Button("Import \(count) Rules") {
                         Task { await performImport() }
                     }
@@ -327,9 +344,10 @@ struct WizardKarabinerImportPage: View {
         }
 
         // Launcher mappings only if the person kept them in the review list.
-        if importLauncherMappings, !result.launcherMappings.isEmpty {
+        let launchers = launchersToImport(result.launcherMappings)
+        if !launchers.isEmpty {
             do {
-                try await KarabinerConverterService.persistLauncherMappings(result.launcherMappings)
+                try await KarabinerConverterService.persistLauncherMappings(launchers)
             } catch {
                 errors.append(String(localized: "Launcher mappings: \(error.localizedDescription)"))
             }

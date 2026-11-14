@@ -255,10 +255,15 @@ enum RuntimeControlHandler {
             tcc.arguments = ["reset", service, bundleID]
             tcc.standardOutput = FileHandle.nullDevice
             tcc.standardError = FileHandle.nullDevice
-            if (try? tcc.run()) != nil {
-                tcc.waitUntilExit()
-                if tcc.terminationStatus == 0 { cleared += 1 }
+            let exited = DispatchSemaphore(value: 0)
+            tcc.terminationHandler = { _ in exited.signal() }
+            guard (try? tcc.run()) != nil else { continue }
+            // A hung tccutil must not hold up the uninstall.
+            if exited.wait(timeout: .now() + 10) == .timedOut {
+                tcc.terminate()
+                continue
             }
+            if tcc.terminationStatus == 0 { cleared += 1 }
         }
         return cleared == 3 ? "Permission entries cleared."
             : "Some permission entries could not be cleared; remove KeyPath in System Settings > Privacy & Security."
