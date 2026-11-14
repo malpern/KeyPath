@@ -65,8 +65,17 @@ struct Uninstall: AsyncParsableCommand {
             var lines = [response.ok ? "KeyPath was uninstalled." : "KeyPath was not uninstalled."]
             // The app reports the permission reset in its message.
             if let message = response.message { lines.append(message) }
+            if let warning = Self.permissionResetWarning(requested: resetPermissions, message: response.message) {
+                lines.append(warning)
+            }
             return lines.joined(separator: "\n")
         }
         if !response.ok { throw ExitCode.failure }
+    }
+
+    /// An older KeyPath ignores --reset-permissions; say so rather than imply it ran.
+    static func permissionResetWarning(requested: Bool, message: String?) -> String? {
+        guard requested, !(message ?? "").localizedCaseInsensitiveContains("permission entries") else { return nil }
+        return "The running KeyPath did not report clearing its permission entries. Remove KeyPath in System Settings > Privacy & Security if you want them gone."
     }
 }

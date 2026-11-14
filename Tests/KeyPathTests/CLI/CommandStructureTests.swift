@@ -90,6 +90,18 @@ final class CommandStructureTests: XCTestCase {
         XCTAssertTrue(uninstall.resetPermissions)
     }
 
+    /// An older KeyPath that ignores --reset-permissions is reported, not hidden.
+    func testUninstallWarnsWhenThePermissionResetWasNotReported() {
+        XCTAssertNotNil(Uninstall.permissionResetWarning(requested: true, message: "KeyPath was removed."))
+        XCTAssertNotNil(Uninstall.permissionResetWarning(requested: true, message: nil))
+        XCTAssertNil(Uninstall.permissionResetWarning(requested: true, message: "Removed.\nPermission entries cleared."))
+        XCTAssertNil(Uninstall.permissionResetWarning(
+            requested: true,
+            message: "Some permission entries could not be cleared; remove KeyPath in System Settings."
+        ))
+        XCTAssertNil(Uninstall.permissionResetWarning(requested: false, message: nil))
+    }
+
     /// Without --yes nothing is sent to the app: the plan prints and the exit is 2.
     func testUninstallWithoutYesChangesNothing() async throws {
         for arguments in [["uninstall"], ["uninstall", "--json"], ["uninstall", "--yes", "--dry-run"]] {

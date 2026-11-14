@@ -1549,14 +1549,30 @@ extension ConfigurationService {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             ioQueue.async {
                 do {
-                    try Foundation.FileManager().createDirectory(
-                        atPath: path,
-                        withIntermediateDirectories: true,
-                        attributes: nil
-                    )
+                    let fileManager = Foundation.FileManager()
                     // Only the KeyPath folder itself, not ~/.config if this created it,
-                    // and never a folder with another name.
-                    if (path as NSString).lastPathComponent == "keypath" {
+                    // and never a folder with another name. Creating it private leaves
+                    // no moment when it is readable by others.
+                    let isKeyPathFolder = (path as NSString).lastPathComponent == "keypath"
+                    if isKeyPathFolder, !fileManager.fileExists(atPath: path) {
+                        try fileManager.createDirectory(
+                            atPath: (path as NSString).deletingLastPathComponent,
+                            withIntermediateDirectories: true,
+                            attributes: nil
+                        )
+                        try fileManager.createDirectory(
+                            atPath: path,
+                            withIntermediateDirectories: false,
+                            attributes: [.posixPermissions: 0o700]
+                        )
+                    } else {
+                        try fileManager.createDirectory(
+                            atPath: path,
+                            withIntermediateDirectories: true,
+                            attributes: nil
+                        )
+                    }
+                    if isKeyPathFolder {
                         Self.restrictToOwner(directory: path)
                     }
                     cont.resume()
