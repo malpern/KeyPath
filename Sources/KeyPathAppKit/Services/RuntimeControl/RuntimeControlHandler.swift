@@ -36,7 +36,7 @@ enum RuntimeControlHandler {
             return await repair(manager: manager, reason: reason)
         case .uninstall:
             return await uninstall(confirmed: request.confirmed == true,
-                                   resetPermissions: request.argument == RuntimeControl.Request.resetPermissionsArgument,
+                                   resetPermissions: wantsPermissionReset(request),
                                    manager: manager)
         case .reload, .layer, .layers, .changeLayer, .hrmStats, .resetHrmStats:
             return await engine(request, manager: manager)
@@ -170,6 +170,11 @@ enum RuntimeControlHandler {
         return nil
     }
 
+    /// Whether `keypath uninstall --reset-permissions` asked to clear the permission entries.
+    static func wantsPermissionReset(_ request: RuntimeControl.Request) -> Bool {
+        request.operation == .uninstall && request.argument == RuntimeControl.Request.resetPermissionsArgument
+    }
+
     /// The app's own uninstall. On success the app quits shortly after answering.
     static func uninstall(confirmed: Bool, resetPermissions: Bool = false,
                           manager: RuntimeCoordinator) async -> RuntimeControl.Response
@@ -198,7 +203,11 @@ enum RuntimeControlHandler {
         if !report.success { RuntimeControlServer.shared.restoreAfterFailedUninstall() }
         var answer = await response(ok: report.success, operation: .uninstall,
                                     status: manager.currentRuntimeStatusInternal(), lastError: nil)
-        answer.message = [report.success ? report.logs.first : report.failureReason, permissionNote]
+        // The entries were cleared before the uninstall, so a failure leaves KeyPath without them.
+        let regrantNote = !report.success && permissionNote != nil
+            ? "KeyPath is still installed, so grant its permissions again in System Settings → Privacy & Security."
+            : nil
+        answer.message = [report.success ? report.logs.first : report.failureReason, permissionNote, regrantNote]
             .compactMap { $0 }.joined(separator: "\n")
         if report.success {
             // Answer first, then quit as the dialog does, from the run loop.

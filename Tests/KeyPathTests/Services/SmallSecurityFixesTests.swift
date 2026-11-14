@@ -1,5 +1,6 @@
 import Foundation
 @testable import KeyPathAppKit
+import KeyPathCore
 import KeyPathRulesCore
 import XCTest
 
@@ -74,5 +75,17 @@ final class SmallSecurityFixesTests: XCTestCase {
         defer { close(fds[0]); close(fds[1]) }
         shutdown(fds[1], SHUT_WR)
         XCTAssertFalse(RuntimeControlServer.isConnected(fds[0]))
+    }
+
+    /// `--reset-permissions` survives the trip over the control socket and reaches the uninstall.
+    func testResetPermissionsArgumentReachesTheUninstall() throws {
+        let sent = RuntimeControl.Request(operation: .uninstall, confirmed: true,
+                                          argument: RuntimeControl.Request.resetPermissionsArgument)
+        let received = try JSONDecoder().decode(RuntimeControl.Request.self, from: JSONEncoder().encode(sent))
+        XCTAssertTrue(RuntimeControlHandler.wantsPermissionReset(received))
+        XCTAssertFalse(RuntimeControlHandler.wantsPermissionReset(.init(operation: .uninstall, confirmed: true)))
+        XCTAssertFalse(RuntimeControlHandler.wantsPermissionReset(
+            .init(operation: .changeLayer, argument: RuntimeControl.Request.resetPermissionsArgument)
+        ))
     }
 }
