@@ -65,6 +65,7 @@ def discover(executable, uid):
 
 def canonical_config(uid):
     """The config the worker must run: the owning user's ~/.config/keypath/keypath.kbd."""
+    # Must match SessionWorkerLaunchCheck.accountConfigPath (KeyPathConstants.Config.fileName).
     import pwd
     try:
         home = pwd.getpwuid(uid).pw_dir
