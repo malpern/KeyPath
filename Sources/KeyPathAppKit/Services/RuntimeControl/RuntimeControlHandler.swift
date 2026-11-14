@@ -130,7 +130,10 @@ enum RuntimeControlHandler {
         uninstall.setAccessibilityIdentifier("cli-uninstall-confirm-button")
         uninstall.hasDestructiveAction = true
         NSApp.activate()
-        let timeout = Timer(timeInterval: cliConfirmationTimeout, repeats: false) { _ in NSApp.abortModal() }
+        let timeout = Timer(timeInterval: cliConfirmationTimeout, repeats: false) { _ in
+            // The timer fires on the main run loop, in the modal panel mode.
+            MainActor.assumeIsolated { NSApp.abortModal() }
+        }
         RunLoop.main.add(timeout, forMode: .modalPanel)
         defer { timeout.invalidate() }
         return alert.runModal() == .alertSecondButtonReturn
