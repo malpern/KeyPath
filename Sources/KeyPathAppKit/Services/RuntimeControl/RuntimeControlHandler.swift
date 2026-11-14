@@ -168,8 +168,9 @@ enum RuntimeControlHandler {
     static func uninstall(confirmed: Bool, resetPermissions: Bool = false,
                           manager: RuntimeCoordinator) async -> RuntimeControl.Response
     {
-        let status = await manager.currentRuntimeStatusInternal()
         if let refusal = await uninstallRefusal(confirmed: confirmed, ask: { await confirmUninstallFromCLI(resetPermissions) }) {
+            // Read after the dialog, which can stay open for 100 seconds.
+            let status = await manager.currentRuntimeStatusInternal()
             var refused = response(ok: false, operation: .uninstall, status: status, lastError: nil)
             refused.message = refusal
             return refused
