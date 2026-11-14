@@ -37,9 +37,11 @@ struct LaunchSplashSequence {
             return
         }
         let started = now()
-        let minimum = minimum
-        let sleep = sleep
         let maximum = maximum
+        // A minimum past the ceiling (a large KEYPATH_SPLASH_DELAY_MS) would show
+        // the dots on a hidden poster.
+        let minimum = min(minimum, maximum)
+        let sleep = sleep
         let preparing = Task { @MainActor in
             await sleep(minimum)
             if !Task.isCancelled { await perform(.showPreparing) }
@@ -62,11 +64,11 @@ struct LaunchSplashSequence {
             await perform(complete ? .showOverlay : .showSetup(posterAlreadyShown: false))
             return
         }
+        // Startup is done: dots that have not appeared yet would only flash.
+        preparing.cancel()
+        await preparing.value
         if elapsed < minimum {
-            preparing.cancel()
             await sleep(minimum - elapsed)
-        } else {
-            await preparing.value
         }
         if complete {
             await perform(.showOverlay)

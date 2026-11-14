@@ -137,4 +137,25 @@ final class LaunchSplashSequenceTests: XCTestCase {
         let result = await run(showsPoster: true, startupTakes: .seconds(20), complete: false)
         XCTAssertEqual(result.steps, [.showPreparing, .hideSplash, .showSetup(posterAlreadyShown: false)])
     }
+
+    /// A minimum longer than the ceiling cannot show the dots on a hidden poster.
+    func testMinimumLongerThanTheCeilingIsCapped() async {
+        let clock = VirtualClock()
+        var steps: [LaunchSplashSequence.Step] = []
+        var finished = false
+        var sequence = LaunchSplashSequence(minimum: .seconds(30), maximum: .seconds(15))
+        sequence.sleep = { await clock.sleep($0) }
+        sequence.now = { clock.now }
+        let task = Task { @MainActor in
+            await sequence.run(
+                showsPoster: true,
+                startup: { await clock.sleep(.seconds(20)); return true },
+                perform: { steps.append($0) }
+            )
+            finished = true
+        }
+        await clock.run { finished }
+        await task.value
+        XCTAssertEqual(steps, [.showPreparing, .hideSplash, .showOverlay])
+    }
 }
