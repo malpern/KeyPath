@@ -25,8 +25,8 @@ final class LaunchSplashTests: XCTestCase {
         XCTAssertFalse(AppDelegate.wasLaunchedAsLoginItem())
     }
 
-    /// Renders the real view with the real poster, so a layout regression shows
-    /// up as an image. Set KEYPATH_SPLASH_DUMP to a path to save it.
+    /// Renders the real view with the real poster and checks the poster is drawn
+    /// across the middle of the window. Set KEYPATH_SPLASH_DUMP to a path to save it.
     func testSplashRendersThePoster() throws {
         let bundle = try XCTUnwrap(Bundle(url: resources))
         SplashView.PosterCache.warmIfNeeded(bundle: bundle)
@@ -43,5 +43,19 @@ final class LaunchSplashTests: XCTestCase {
             try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
         }
         XCTAssertEqual(image.size, NSSize(width: 640, height: 440))
+
+        // The background gradient runs top to bottom, so a row across it is one
+        // colour. A row through the poster has many.
+        let cg = try XCTUnwrap(image.cgImage(forProposedRect: nil, context: nil, hints: nil))
+        let rep = NSBitmapImageRep(cgImage: cg)
+        let middle = rep.pixelsHigh / 2
+        let colours = Set((0 ..< rep.pixelsWide).compactMap { x -> String? in
+            guard let c = rep.colorAt(x: x, y: middle)?.usingColorSpace(.sRGB) else { return nil }
+            return String(format: "%02x%02x%02x", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
+        })
+        XCTAssertGreaterThan(colours.count, 50, "The middle of the splash should be the poster, not the plain background")
+        let edge = try XCTUnwrap(rep.colorAt(x: 4, y: middle)?.usingColorSpace(.sRGB))
+        let centre = try XCTUnwrap(rep.colorAt(x: rep.pixelsWide / 2, y: middle)?.usingColorSpace(.sRGB))
+        XCTAssertNotEqual(edge, centre)
     }
 }

@@ -24,7 +24,6 @@ struct SplashView: View {
         /// Decode the poster before the window shows, so a brief splash is never blank.
         static func warmIfNeeded(bundle: Bundle = .main) {
             guard !didWarm else { return }
-            didWarm = true
             guard let url = bundle.url(forResource: "keypath-poster-hor", withExtension: "png"),
                   let poster = NSImage(contentsOf: url)
             else {
@@ -33,8 +32,12 @@ struct SplashView: View {
             }
             _ = poster.cgImage(forProposedRect: nil, context: nil, hints: nil)
             image = poster
+            didWarm = true
         }
     }
+
+    /// Read once: the splash should not touch the disk each time it redraws.
+    private static let buildInfo = BuildInfo.current()
 
     /// The poster is drawn at a fixed width so it cannot collapse during early launch.
     private let posterWidth: CGFloat = 560
@@ -42,7 +45,7 @@ struct SplashView: View {
     private let warmGray = Color(red: 0.76, green: 0.74, blue: 0.70)
 
     var body: some View {
-        let buildInfo = BuildInfo.current()
+        let buildInfo = Self.buildInfo
         ZStack {
             // Matches the poster's own background, so the edges never read as a frame.
             LinearGradient(
@@ -114,7 +117,9 @@ struct SplashView: View {
         if let image = PosterCache.image {
             Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
         } else {
-            Image(nsImage: NSApp.applicationIconImage).resizable().scaledToFit()
+            Image(systemName: "keyboard").resizable().scaledToFit()
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(80)
         }
     }
 }

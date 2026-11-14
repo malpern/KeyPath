@@ -172,6 +172,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func recordApplicationLaunch() {
+        // Both launch paths arrive here while the launch Apple event is still current.
+        if !launchedAsLoginItem { launchedAsLoginItem = Self.wasLaunchedAsLoginItem() }
         if launchGate.didFinishLaunching() {
             finishApplicationLaunch()
         }
@@ -260,8 +262,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
-        // Read while the launch Apple event is still the current event.
-        launchedAsLoginItem = Self.wasLaunchedAsLoginItem()
         AppLogger.shared.info("[LaunchTrace] delegate callback instance=\(ObjectIdentifier(self))")
         recordApplicationLaunch()
     }
@@ -547,8 +547,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Shows the poster for `launchSplashDelayMs`, then hides it, unless something
     /// else claimed the window meanwhile (the setup wizard, a menu action).
-    private func showBriefLaunchSplash() {
-        guard let controller = mainWindowController else { return }
+    /// Returns false when there is no window to show it in.
+    private func showBriefLaunchSplash() -> Bool {
+        guard let controller = mainWindowController else { return false }
         controller.splashPresentation.isPreparing = false
         controller.show(focus: true)
         AppLogger.shared.info("🪟 [AppDelegate] Showing the launch splash")
@@ -559,10 +560,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             mainWindowController?.hideSplash()
             AppLogger.shared.info("🪟 [AppDelegate] Launch splash hidden after \(delay)ms")
         }
+        return true
     }
 
     /// True when macOS opened KeyPath as a login item. Must be called while the
-    /// launch ('oapp') Apple event is current, during applicationDidFinishLaunching.
+    /// launch ('oapp') Apple event is current, while the app finishes launching.
     static func wasLaunchedAsLoginItem() -> Bool {
         guard let event = NSAppleEventManager.shared().currentAppleEvent,
               event.eventClass == kCoreEventClass, event.eventID == kAEOpenApplication
@@ -614,9 +616,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if hasExistingConfig {
             // Every launch shows the poster briefly (not a reopen of a running
             // app, and not a Launch at Login start), then hands off to the overlay.
-            let showsPoster = !launchedAsLoginItem
             let posterShownAt = ContinuousClock.now
-            if showsPoster { showBriefLaunchSplash() }
+            let showsPoster = !launchedAsLoginItem && showBriefLaunchSplash()
             Task { @MainActor in
                 await runtimeStartupTask?.value
                 if await hasCompletedInitialWizard() {
