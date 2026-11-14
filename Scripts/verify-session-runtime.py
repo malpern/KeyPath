@@ -87,7 +87,8 @@ def owned_launch(processes, executable, uid):
     version = argument('--session-owner-pidversion')
     require(version.isdigit() and 0 < int(version) <= 2**32 - 1, 'invalid owner PID version')
     require('--session-port' not in args, 'worker was given a TCP port')
-    require(bool(argument('--session-config')), 'worker config path unavailable')
+    require(argument('--session-config').endswith('/.config/keypath/keypath.kbd'),
+            'worker is not running the canonical config')
     nonce = argument('--session-nonce')
     require(str(uuid.UUID(nonce)).lower() == nonce.lower(), 'invalid session nonce')
     report = Path(argument('--session-report'))
