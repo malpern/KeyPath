@@ -90,8 +90,11 @@ enum ExternalActionPolicy {
         return URL(string: string)
     }
 
-    /// An app name or bundle ID, never a path.
+    /// An app name or bundle ID, never a path. Without a "/", a ".." inside a
+    /// name cannot leave the folder it is looked up in, so only an exact ".."
+    /// is refused. (A full path never worked here: the handler looks names up
+    /// in /Applications, /System/Applications and ~/Applications.)
     static func isPlainAppName(_ name: String) -> Bool {
-        !name.contains("/") && !name.contains("..")
+        !name.contains("/") && name != ".." && name != "."
     }
 }

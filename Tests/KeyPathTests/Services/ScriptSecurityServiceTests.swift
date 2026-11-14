@@ -88,6 +88,30 @@ final class ScriptSecurityServiceTests: XCTestCase {
         }
     }
 
+    func testSymlinkedScriptRunsAndAsksAgainWhenRetargeted() throws {
+        service.isScriptExecutionEnabled = true
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("link-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let first = dir.appendingPathComponent("a.sh"), second = dir.appendingPathComponent("b.sh")
+        try Data("#!/bin/sh\necho a\n".utf8).write(to: first)
+        try Data("#!/bin/sh\necho b\n".utf8).write(to: second)
+        let link = dir.appendingPathComponent("tool.sh")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: first)
+
+        guard case let .needsConfirmation(path, digest) = service.checkExecution(at: link.path) else {
+            return XCTFail("A symlinked script must be runnable after approval")
+        }
+        service.alwaysAllow(path: path, digest: digest)
+        guard case .allowed = service.checkExecution(at: link.path) else { return XCTFail("Approved") }
+
+        try FileManager.default.removeItem(at: link)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: second)
+        guard case .needsConfirmation = service.checkExecution(at: link.path) else {
+            return XCTFail("Pointing the link elsewhere must ask again")
+        }
+    }
+
     func testRetiredBypassSettingIsRemoved() {
         testDefaults.set(true, forKey: "KeyPath.Security.BypassFirstRunDialog")
         _ = ScriptSecurityService(defaults: testDefaults, approvals: InMemoryScriptApprovalStore())

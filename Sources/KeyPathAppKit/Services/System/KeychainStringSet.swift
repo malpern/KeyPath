@@ -23,7 +23,8 @@ final class KeychainStringSet {
     /// Adds a member. Returns false, and changes nothing, when the Keychain refuses the write.
     @discardableResult
     func insert(_ member: String) -> Bool {
-        var next = load()
+        // Writing after a failed read would replace the stored set with one member.
+        guard var next = loadForWrite() else { return false }
         guard next.insert(member).inserted else { return true }
         return save(next)
     }
@@ -31,7 +32,7 @@ final class KeychainStringSet {
     /// Removes a member. Returns false, and changes nothing, when the Keychain refuses the write.
     @discardableResult
     func remove(_ member: String) -> Bool {
-        var next = load()
+        guard var next = loadForWrite() else { return false }
         guard next.remove(member) != nil else { return true }
         return save(next)
     }
@@ -56,6 +57,15 @@ final class KeychainStringSet {
         ]
     }
 
+    /// The stored members, or nil when the Keychain could not be read.
+    private func loadForWrite() -> Set<String>? {
+        let members = load()
+        return lastReadFailed ? nil : members
+    }
+
+    private var lastReadFailed = false
+
+    /// A failed read is not cached, so the next read tries again.
     private func load() -> Set<String> {
         if let cache { return cache }
         var query = baseQuery
@@ -70,7 +80,10 @@ final class KeychainStringSet {
             members = Set(list)
         } else if status != errSecItemNotFound {
             AppLogger.shared.log("⚠️ [Keychain] Could not read \(account) (status \(status))")
+            lastReadFailed = true
+            return []
         }
+        lastReadFailed = false
         cache = members
         return members
     }

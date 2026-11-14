@@ -83,7 +83,10 @@ enum ScriptApproval {
 
     /// SHA-256 of the file's contents, or nil when it is not a regular file,
     /// is larger than `maximumScriptBytes`, or cannot be read.
+    /// A symlinked script (stow, chezmoi) is read through its link; pointing the
+    /// link somewhere else changes the digest, so it asks again.
     static func digest(ofFileAt path: String) -> String? {
+        let path = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
         guard let attributes = try? Foundation.FileManager().attributesOfItem(atPath: path),
               attributes[.type] as? FileAttributeType == .typeRegular,
               let size = attributes[.size] as? Int, size <= maximumScriptBytes,

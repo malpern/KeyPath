@@ -49,7 +49,9 @@ final class ExternalActionPolicyTests: XCTestCase {
     func testAppNamesCannotBePaths() {
         XCTAssertTrue(ExternalActionPolicy.isPlainAppName("Visual Studio Code"))
         XCTAssertTrue(ExternalActionPolicy.isPlainAppName("com.apple.Safari"))
+        XCTAssertTrue(ExternalActionPolicy.isPlainAppName("Foo..Bar"))
         XCTAssertFalse(ExternalActionPolicy.isPlainAppName("../../tmp/evil"))
+        XCTAssertFalse(ExternalActionPolicy.isPlainAppName(".."))
         XCTAssertFalse(ExternalActionPolicy.isPlainAppName("Utilities/Terminal"))
     }
 
@@ -163,6 +165,14 @@ final class ExternalActionPolicyTests: XCTestCase {
             guard case .failed = try dispatcher.dispatch(uri("keypath://launch/..%2F..%2Ftmp%2Fevil"), origin: origin) else {
                 return XCTFail("A path must not be launched (\(origin))")
             }
+        }
+    }
+
+    func testLaunchPathFromLinkIsRefused() throws {
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
+        guard case .failed = try dispatcher.dispatch(uri("keypath://launch/..%2Ftmp%2Fevil"), origin: .externalURL) else {
+            return XCTFail("A path from a link must not be launched")
         }
     }
 }

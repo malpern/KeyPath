@@ -9,6 +9,7 @@ import KeyPathCore
 enum DeepLinkRouter {
     /// Links that arrived before the app wired its prompts (a cold launch).
     private static var pending: [KeyPathActionURI] = []
+    private static let maximumPending = 20
 
     /// Dispatches links held during launch. Called once the prompts are wired.
     static func flushPending() {
@@ -35,7 +36,12 @@ enum DeepLinkRouter {
                 AppLogger.shared.log("🎬 [DeepLinkRouter] Dispatching action: \(actionURI.action)")
                 // Another app opened this link; it may come from a web page or a document.
                 if ActionDispatcher.shared.onExternalActionConfirmationNeeded == nil {
-                    pending.append(actionURI)
+                    // A launch burst is a handful of links; more is not a person.
+                    if pending.count < maximumPending {
+                        pending.append(actionURI)
+                    } else {
+                        AppLogger.shared.log("⚠️ [DeepLinkRouter] Dropped a link that arrived during launch; too many were waiting")
+                    }
                 } else {
                     ActionDispatcher.shared.dispatch(actionURI, origin: .externalURL)
                 }
