@@ -405,8 +405,10 @@ final class DeploymentScriptContractTests: XCTestCase {
             "Only build-and-test should require the SwiftPM-safe interactive runner in ci.yml, written as \(safeRunnerChoice) inside its runs-on expression."
         )
         // Both required jobs move to the hosted image together, either by the repo
-        // variable or because the pull request comes from a fork (S5).
-        let hostedChoice = #"(vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '"xcode-27"'"#
+        // variable or because the pull request comes from a fork (S5). The fork
+        // test applies to pull_request events only: a merge-queue run has no
+        // pull_request and stays on the mini.
+        let hostedChoice = #"(vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '"xcode-27"'"#
         XCTAssertEqual(ci.components(separatedBy: hostedChoice).count - 1, 2,
                        "Both required jobs move to the hosted image together; each runs-on should start with fromJSON(\(hostedChoice) || …).")
         XCTAssertFalse(ci.contains(safeRunner),

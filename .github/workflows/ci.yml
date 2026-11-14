@@ -4,6 +4,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [ main, master ]
+  # The merge queue tests each queued PR on top of the ones ahead of it, so
+  # nobody has to bring a branch up to date by hand before it can merge.
+  merge_group:
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -21,8 +24,15 @@ concurrency:
 # A pull request from a fork always runs on the hosted image, whatever the
 # variable says: the mini's runners are persistent, hold other credentials, and
 # keep a SwiftPM scratch that later trusted builds reuse, so code from outside
-# the repository never runs there. (This workflow runs only on pull_request, so
-# github.event.pull_request is always set.)
+# the repository never runs there. A merge-queue run (merge_group) has no
+# github.event.pull_request and runs on the mini even when the queue holds a
+# fork's PR. That is deliberate: only someone with write access can add a PR to
+# the queue, and once it merges its code runs on the mini in every later build,
+# so enqueueing it is the point where the owner trusts it. The fork test
+# therefore applies to pull_request events only; read the base commit from
+# whichever event ran. The required checks are build-and-test and code-quality,
+# both from this workflow; claude-review is not required, so the queue never
+# waits for it.
 
 # GitHub counts a skipped check as passing, so the required checks must never be
 # skipped. `build-and-test` and `code-quality` at the bottom of this file always run
@@ -46,7 +56,7 @@ jobs:
       - name: Check whether all changed files are docs-only
         id: classify
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         # master's copy of the script: a PR must not decide its own CI by changing it.
         run: |
           script=$(mktemp)
@@ -66,13 +76,13 @@ jobs:
     # 2026-10-19 the swiftpm-safe runner is a daemon too, because clawd has no GUI
     # session; the persistent scratch below means Sparkle is fetched only on a
     # cold scratch, not on every job.
-    runs-on: ${{ fromJSON((vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '"xcode-27"' || '["self-hosted", "macOS", "keypath", "swiftpm-safe"]') }}
+    runs-on: ${{ fromJSON((vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '"xcode-27"' || '["self-hosted", "macOS", "keypath", "swiftpm-safe"]') }}
     # Warm runs normally finish in 2-3 minutes. A measured cold run spent about
     # 3 minutes on setup/Kanata and was still compiling Swift tests after another
     # 12 minutes, before test execution. Keep a finite bound with real headroom.
     # Every hosted run is cold, on a smaller machine. The mini's budget also
     # covers up to 10 minutes waiting for the test lock below.
-    timeout-minutes: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && 60 || 35 }}
+    timeout-minutes: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && 60 || 35 }}
     # Two swift test runs must never overlap on the mini: they share unsandboxed
     # local state (e.g. RuleCollectionsManager's config file), which caused
     # spurious CLIPackCRUDTests failures. The runner label does that: only one
@@ -101,7 +111,7 @@ jobs:
       # xcode-select. Never export SDKROOT here: with it set, SwiftPM's Metal step
       # reports "missing Metal Toolchain" (#1372). The cargo scripts take the SDK
       # from KEYPATH_SDKROOT.
-      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository)
+      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository))
       run: |
         xcode=/Applications/Xcode_27.2.app/Contents/Developer
         build=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Build version //p' | head -1)
@@ -118,7 +128,7 @@ jobs:
         # A hosted VM has far less disk than the mini. 12 GiB is a floor, not a
         # measurement of what a cold run uses; raise it once a hosted run has
         # shown the real number.
-        KEYPATH_MIN_FREE_DISK_GIB: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '12' || '40' }}
+        KEYPATH_MIN_FREE_DISK_GIB: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '12' || '40' }}
       run: ./Scripts/lab/host-disk-reserve
 
     - name: Ensure Metal toolchain
@@ -204,12 +214,12 @@ jobs:
         # SwiftPM can wrap XCTest post-run SIGABRT as exit 1 on the self-hosted runner;
         # run-tests-safe.sh still fails if it parses any test failures and emits a warning when this path is used.
         # Not on hosted runners, where that quirk hasn't been seen.
-        KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '0' || '1' }}
+        KEYPATH_ALLOW_TEST_RUNNER_CRASH_SUCCESS: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '0' || '1' }}
         KEYPATH_TEST_ENFORCE_CLEAN_SUMMARY: "1"
         KEYPATH_TEST_RESET_MODULE_CACHE: "0"
         # The mini (M4 Pro, 14 cores) runs one test job at a time; leave a few
         # cores for quality-full on the other runner. Hosted VMs are smaller.
-        KEYPATH_SWIFT_BUILD_JOBS: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '4' || '10' }}
+        KEYPATH_SWIFT_BUILD_JOBS: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '4' || '10' }}
         # SCRATCH_PATH comes from "Prepare persistent SwiftPM scratch" via GITHUB_ENV.
       run: |
         echo "Running full named test lane..."
@@ -299,9 +309,9 @@ jobs:
   quality-full:
     needs: classify-docs-only
     if: ${{ (success() || failure()) && needs.classify-docs-only.outputs.docs_only != 'true' }}
-    runs-on: ${{ fromJSON((vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
+    runs-on: ${{ fromJSON((vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && '"xcode-27"' || '["self-hosted", "macOS", "keypath"]') }}
     # Hosted runs also install mise and SwiftLint on a smaller machine.
-    timeout-minutes: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository) && 30 || 15 }}
+    timeout-minutes: ${{ (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)) && 30 || 15 }}
     # No test state is shared, so this runs on whichever mini runner is free,
     # alongside a test job. It lints only the changed files and takes under a
     # minute; the test job leaves it spare cores. No job-level concurrency group:
@@ -329,7 +339,7 @@ jobs:
       # xcode-select. Never export SDKROOT here: with it set, SwiftPM's Metal step
       # reports "missing Metal Toolchain" (#1372). The cargo scripts take the SDK
       # from KEYPATH_SDKROOT.
-      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository)
+      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository))
       run: |
         xcode=/Applications/Xcode_27.2.app/Contents/Developer
         build=$("$xcode/usr/bin/xcodebuild" -version | sed -n 's/^Build version //p' | head -1)
@@ -344,7 +354,7 @@ jobs:
     - name: Install mise and SwiftLint (hosted runner)
       # The mini has both; GitHub's image has neither. mise ignores a repo config
       # it hasn't been told to trust, which would skip the SwiftFormat pin.
-      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || github.event.pull_request.head.repo.full_name != github.repository)
+      if: (vars.KEYPATH_CI_RUNNER == 'hosted' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository))
       run: |
         brew install mise swiftlint ripgrep
         mise trust mise.toml
@@ -355,7 +365,7 @@ jobs:
     - name: Get changed Swift files
       id: changed
       run: |
-        BASE=${{ github.event.pull_request.base.sha }}
+        BASE=${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         CHANGED=$(git diff --name-only --diff-filter=d "$BASE"...HEAD -- '*.swift' || true)
         if [ -z "$CHANGED" ]; then
           echo "swift_files=" >> $GITHUB_OUTPUT
