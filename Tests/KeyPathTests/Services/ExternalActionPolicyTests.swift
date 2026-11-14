@@ -175,4 +175,14 @@ final class ExternalActionPolicyTests: XCTestCase {
             return XCTFail("A path from a link must not be launched")
         }
     }
+
+    func testMixedCaseScriptLinkIsNotRun() throws {
+        let (dispatcher, _, _, cleanup) = try makeFixture()
+        defer { cleanup() }
+        var prompted = false
+        dispatcher.onScriptConfirmationNeeded = { _ in prompted = true }
+        let result = try dispatcher.dispatch(uri("keypath://Script//bin/bash"), origin: .externalURL)
+        guard case .unknownAction = result else { return XCTFail("Only exact action names route") }
+        XCTAssertFalse(prompted)
+    }
 }

@@ -4,9 +4,10 @@ import KeyPathCore
 /// The prompts KeyPath shows before running a script for the first time, or
 /// before acting on a link from another app that presses a virtual key.
 ///
-/// A prompt never blocks its caller: the engine's event reader dispatches
-/// actions, and must keep reading while the user decides. One prompt shows at
-/// a time; a request that arrives while one is open is cancelled.
+/// A prompt never blocks: it is a window (NonModalAlertPresenter), not a modal
+/// run loop, so the engine's event reader and every other main-actor task keep
+/// running while the user decides. One prompt shows at a time; a request that
+/// arrives while one is open is cancelled.
 @MainActor
 enum ActionConfirmationPrompts {
     private static var isShowing = false
@@ -27,10 +28,13 @@ enum ActionConfirmationPrompts {
                 (String(localized: "Always Allow"), "script-confirm-always-allow-button"),
                 (String(localized: "Cancel"), "script-confirm-cancel-button")
             ])
-            switch alert.runModal() {
-            case .alertFirstButtonReturn: request.runOnce()
-            case .alertSecondButtonReturn: request.alwaysAllow()
-            default: request.cancel()
+            NonModalAlertPresenter.present(alert) { index in
+                isShowing = false
+                switch index {
+                case 0: request.runOnce()
+                case 1: request.alwaysAllow()
+                default: request.cancel()
+                }
             }
         }
     }
@@ -51,10 +55,13 @@ enum ActionConfirmationPrompts {
                 (String(localized: "Always Allow"), "link-confirm-always-allow-button"),
                 (String(localized: "Don't Allow"), "link-confirm-deny-button")
             ])
-            switch alert.runModal() {
-            case .alertFirstButtonReturn: request.allow()
-            case .alertSecondButtonReturn: request.alwaysAllow()
-            default: request.deny()
+            NonModalAlertPresenter.present(alert) { index in
+                isShowing = false
+                switch index {
+                case 0: request.allow()
+                case 1: request.alwaysAllow()
+                default: request.deny()
+                }
             }
         }
     }
@@ -65,15 +72,10 @@ enum ActionConfirmationPrompts {
             onBusy()
             return
         }
+        // Cleared when the prompt is answered.
         isShowing = true
-        // Let the caller (often the engine's event reader) return before the modal runs.
-        DispatchQueue.main.async {
-            MainActor.assumeIsolated {
-                defer { isShowing = false }
-                NSApp.activate()
-                show()
-            }
-        }
+        NSApp.activate(ignoringOtherApps: true)
+        show()
     }
 
     private static func addButtons(to alert: NSAlert, _ buttons: [(String, String)]) {

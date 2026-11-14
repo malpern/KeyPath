@@ -74,10 +74,14 @@ final class KeychainStringSet {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         var members: Set<String> = []
-        if status == errSecSuccess, let data = result as? Data,
-           let list = try? JSONDecoder().decode([String].self, from: data)
-        {
-            members = Set(list)
+        if status == errSecSuccess {
+            // Undecodable contents are treated as empty, so a damaged item can be
+            // replaced; refusing every write would make "Always Allow" impossible.
+            if let data = result as? Data, let list = try? JSONDecoder().decode([String].self, from: data) {
+                members = Set(list)
+            } else {
+                AppLogger.shared.log("⚠️ [Keychain] \(account) could not be decoded; starting fresh")
+            }
         } else if status != errSecItemNotFound {
             AppLogger.shared.log("⚠️ [Keychain] Could not read \(account) (status \(status))")
             lastReadFailed = true
