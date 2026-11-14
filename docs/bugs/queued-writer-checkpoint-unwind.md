@@ -6,7 +6,7 @@ Signed `60dfd2d3054308bdde33bafe8403b712462052ba` passed the queued-writer case 
 
 This accepts containment of a queued writer that survives its owner. It does not establish the child's exit status, execution inside an opaque mutation, automatic restoration, or physical continuity. Recovery files and the applied mapping were retained until disposal. Earlier failed receipts remain failed.
 
-Selected receipt: [queued-writer acceptance](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-queued-writer-acceptance.json). Raw evidence: `/private/tmp/keypath-queued-writer-live-04`.
+Selected receipt: [queued-writer acceptance](https://github.com/malpern-labs/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-queued-writer-acceptance.json). Raw evidence: `/private/tmp/keypath-queued-writer-live-04`.
 
 ## Earlier attempts and diagnosis
 

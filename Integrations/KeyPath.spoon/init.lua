@@ -11,7 +11,7 @@
 ---       end
 ---   end):start()
 ---
---- [KeyPath](https://github.com/malpern/KeyPath)
+--- [KeyPath](https://github.com/malpern-labs/KeyPath)
 
 local obj = {}
 obj.__index = obj
@@ -20,7 +20,7 @@ obj.name = "KeyPath"
 obj.version = "1.0"
 obj.author = "Micah Alpern <malpern@gmail.com>"
 obj.license = "MIT - https://opensource.org/licenses/MIT"
-obj.homepage = "https://github.com/malpern/KeyPath"
+obj.homepage = "https://github.com/malpern-labs/KeyPath"
 
 obj._watchers = {}
 obj._layerCallbacks = {}

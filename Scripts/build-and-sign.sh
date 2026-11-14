@@ -63,8 +63,8 @@ create_sparkle_archive() {
     ditto "${SPARKLE_DIR}/${ARCHIVE_NAME}" "$FEED_WORK_DIR/${ARCHIVE_NAME}"
 
     local APPCAST_ARGS=(
-        --download-url-prefix "https://github.com/malpern/KeyPath/releases/download/v${VERSION}/"
-        --full-release-notes-url "https://github.com/malpern/KeyPath/releases/tag/v${VERSION}"
+        --download-url-prefix "https://github.com/malpern-labs/KeyPath/releases/download/v${VERSION}/"
+        --full-release-notes-url "https://github.com/malpern-labs/KeyPath/releases/tag/v${VERSION}"
         --link "https://keypath-app.com"
         --versions "$BUILD"
         --maximum-versions 0

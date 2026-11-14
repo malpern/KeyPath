@@ -7,7 +7,7 @@
 > **Note (2026-11-04):** From a source review, the port exposes a keystroke stream and input injection to
 > every local process. The review and the proposed replacement are in
 > [ADR-046](adr-046-session-engine-control-channel.md); tracked in
-> [#1354](https://github.com/malpern/KeyPath/issues/1354).
+> [#1354](https://github.com/malpern-labs/KeyPath/issues/1354).
 
 **Status:** Superseded by [ADR-046](adr-046-session-engine-control-channel.md) (2026-11-11). The engine no longer opens a TCP port.
 **Date:** 2024

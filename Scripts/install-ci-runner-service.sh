@@ -204,7 +204,7 @@ echo
 # fallback so we never silently leave CI without a runner.
 if launchctl print "system/$LABEL" 2>/dev/null | grep -qE "state = running"; then
     echo "✅ Installed. The runner auto-starts on boot and restarts if it crashes."
-    echo "   Confirm 'online' at: https://github.com/malpern/KeyPath/settings/actions/runners"
+    echo "   Confirm 'online' at: https://github.com/malpern-labs/KeyPath/settings/actions/runners"
     echo "   Logs: $RUNNER_DIR/_diag/launchd-runner.{out,err}.log"
 else
     echo "❌ Daemon did not reach a running state. CI may have no runner right now." >&2

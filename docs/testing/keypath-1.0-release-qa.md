@@ -43,21 +43,21 @@ manual or Computer Use checks for real macOS behavior.
 
 | Issue | State | Area | Acceptance signal |
 | --- | --- | --- | --- |
-| [#814](https://github.com/malpern/KeyPath/issues/814) | passed | Product-wide QA matrix | This document covers key workflows with status, evidence, and issue links, and defines the public 1.0 acceptance boundary. |
-| [#815](https://github.com/malpern/KeyPath/issues/815) | passed | Installed-app smoke | Core rule families are applied, validated, reloaded, log-checked, and restored through `/Applications/KeyPath.app`. |
-| [#816](https://github.com/malpern/KeyPath/issues/816) | passed | Settings/preferences | Critical settings have persistence, validation, UI wiring, and config/runtime effect coverage. |
-| [#817](https://github.com/malpern/KeyPath/issues/817) | passed | Logs/errors | Release QA fails on unclassified high-signal app/helper/Kanata errors. |
-| [#818](https://github.com/malpern/KeyPath/issues/818) | passed | UI snapshots and Computer Use | Overlay, sidebar, menus, mapper, pack detail, and settings have deterministic snapshots or manual QA rows. |
-| [#819](https://github.com/malpern/KeyPath/issues/819) | passed | Per-rule options | Every shipping rule family has documented config and UI/persistence coverage for key options. |
-| [#831](https://github.com/malpern/KeyPath/issues/831) | passed | Catalog rule editor CU readiness | Catalog rows, editor controls, and advanced action variants have stable Computer Use identifiers/contracts. |
-| [#832](https://github.com/malpern/KeyPath/issues/832) | passed | Settings CU readiness | Settings tabs and controls have stable Computer Use identifiers/contracts. |
-| [#833](https://github.com/malpern/KeyPath/issues/833) | passed | Overlay/sidebar CU readiness | Overlay, sidebar, inspector, and layer context controls have stable Computer Use identifiers/contracts. |
-| [#835](https://github.com/malpern/KeyPath/issues/835) | passed | Computer Use contracts | Remaining CU-targeted audited surfaces have explicit source contracts or documented manual/script-only exceptions. |
-| [#836](https://github.com/malpern/KeyPath/issues/836) | passed | Overlay layer picker | User-layer deletion is reachable through a stable Computer Use action, not hover choreography. |
-| [#747](https://github.com/malpern/KeyPath/issues/747) | blocked | Signed setup UX | Permission and setup UX still need verification in a signed release build. |
-| [#804](https://github.com/malpern/KeyPath/issues/804) | passed | HRM layer assignment | New Layer flow assigns the selected HRM key. |
-| [#810](https://github.com/malpern/KeyPath/issues/810) | passed | HRM layer overlay | Layer-mode overlay shows assigned layer labels. |
-| [#811](https://github.com/malpern/KeyPath/issues/811) | passed | Vallack interop | Vallack install/uninstall applies and restores managed HRM/nav config without hanging. |
+| [#814](https://github.com/malpern-labs/KeyPath/issues/814) | passed | Product-wide QA matrix | This document covers key workflows with status, evidence, and issue links, and defines the public 1.0 acceptance boundary. |
+| [#815](https://github.com/malpern-labs/KeyPath/issues/815) | passed | Installed-app smoke | Core rule families are applied, validated, reloaded, log-checked, and restored through `/Applications/KeyPath.app`. |
+| [#816](https://github.com/malpern-labs/KeyPath/issues/816) | passed | Settings/preferences | Critical settings have persistence, validation, UI wiring, and config/runtime effect coverage. |
+| [#817](https://github.com/malpern-labs/KeyPath/issues/817) | passed | Logs/errors | Release QA fails on unclassified high-signal app/helper/Kanata errors. |
+| [#818](https://github.com/malpern-labs/KeyPath/issues/818) | passed | UI snapshots and Computer Use | Overlay, sidebar, menus, mapper, pack detail, and settings have deterministic snapshots or manual QA rows. |
+| [#819](https://github.com/malpern-labs/KeyPath/issues/819) | passed | Per-rule options | Every shipping rule family has documented config and UI/persistence coverage for key options. |
+| [#831](https://github.com/malpern-labs/KeyPath/issues/831) | passed | Catalog rule editor CU readiness | Catalog rows, editor controls, and advanced action variants have stable Computer Use identifiers/contracts. |
+| [#832](https://github.com/malpern-labs/KeyPath/issues/832) | passed | Settings CU readiness | Settings tabs and controls have stable Computer Use identifiers/contracts. |
+| [#833](https://github.com/malpern-labs/KeyPath/issues/833) | passed | Overlay/sidebar CU readiness | Overlay, sidebar, inspector, and layer context controls have stable Computer Use identifiers/contracts. |
+| [#835](https://github.com/malpern-labs/KeyPath/issues/835) | passed | Computer Use contracts | Remaining CU-targeted audited surfaces have explicit source contracts or documented manual/script-only exceptions. |
+| [#836](https://github.com/malpern-labs/KeyPath/issues/836) | passed | Overlay layer picker | User-layer deletion is reachable through a stable Computer Use action, not hover choreography. |
+| [#747](https://github.com/malpern-labs/KeyPath/issues/747) | blocked | Signed setup UX | Permission and setup UX still need verification in a signed release build. |
+| [#804](https://github.com/malpern-labs/KeyPath/issues/804) | passed | HRM layer assignment | New Layer flow assigns the selected HRM key. |
+| [#810](https://github.com/malpern-labs/KeyPath/issues/810) | passed | HRM layer overlay | Layer-mode overlay shows assigned layer labels. |
+| [#811](https://github.com/malpern-labs/KeyPath/issues/811) | passed | Vallack interop | Vallack install/uninstall applies and restores managed HRM/nav config without hanging. |
 
 ## Required Test Layers
 

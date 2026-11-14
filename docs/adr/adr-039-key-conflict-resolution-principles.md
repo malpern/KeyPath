@@ -82,6 +82,6 @@ If a user resolves a conflict by disabling Collection A in favor of Collection B
 
 ## Related
 
-- [#375](https://github.com/malpern/KeyPath/issues/375) — Pack conflict detection
-- [#379](https://github.com/malpern/KeyPath/issues/379) — Overlay zone coloring (surfaced the dedup bug)
+- [#375](https://github.com/malpern-labs/KeyPath/issues/375) — Pack conflict detection
+- [#379](https://github.com/malpern-labs/KeyPath/issues/379) — Overlay zone coloring (surfaced the dedup bug)
 - `docs/design/sprint-2/pack-coherence.md` — Pack coherence design

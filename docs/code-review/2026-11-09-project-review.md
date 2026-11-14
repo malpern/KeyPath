@@ -14,7 +14,7 @@ ADR-046 and the Swift client, not the fork's source.
 
 ## Status (updated 2026-11-12)
 
-Verified against `master` through [#1453](https://github.com/malpern/KeyPath/pull/1453). O5 is complete. The findings below this status section describe the original review.
+Verified against `master` through [#1453](https://github.com/malpern-labs/KeyPath/pull/1453). O5 is complete. The findings below this status section describe the original review.
 
 Key: ✅ done · 🟡 partly done or in progress · ⬜ not started · 🔒 tracked privately
 
@@ -39,7 +39,7 @@ Key: ✅ done · 🟡 partly done or in progress · ⬜ not started · 🔒 trac
 | **O2** Four copies of UI state | ✅ | The UI reads status and dialogs from their owners. Settled collections and custom rules are observed directly. `KanataUIState`, `StatePublisherService`, and manual UI refresh calls were removed (#1435, #1436, #1443, #1447). |
 | **O3** Forwarding layers on the rule path | ✅ | Rule toggles and custom rules use the settled rule state. `RuleCollectionsCoordinator` was removed, and reloads use one result and transport seam (#1435, #1436, #1441, #1444). |
 | **O4** Wizard module boundary | ✅ | Kept the module for the CLI. Removed dead boundary code, unified runtime status, and replaced `WizardDependencies` with environment-provided `InstallerServices` (#1423–#1425). |
-| **O5** Events, health polling, stacked caches | ✅ | Removed the dead router and drove app validation from lifecycle health changes (#1406, #1442). Migrated key input, activation and resolution, and the remaining engine events to typed messages ([#1448](https://github.com/malpern/KeyPath/pull/1448), [#1450](https://github.com/malpern/KeyPath/pull/1450), [#1451](https://github.com/malpern/KeyPath/pull/1451)). Made `PermissionOracle` the sole validation permission cache ([#1452](https://github.com/malpern/KeyPath/pull/1452)) and consolidated async timeout helpers in `KeyPathCore` ([#1453](https://github.com/malpern/KeyPath/pull/1453)). |
+| **O5** Events, health polling, stacked caches | ✅ | Removed the dead router and drove app validation from lifecycle health changes (#1406, #1442). Migrated key input, activation and resolution, and the remaining engine events to typed messages ([#1448](https://github.com/malpern-labs/KeyPath/pull/1448), [#1450](https://github.com/malpern-labs/KeyPath/pull/1450), [#1451](https://github.com/malpern-labs/KeyPath/pull/1451)). Made `PermissionOracle` the sole validation permission cache ([#1452](https://github.com/malpern-labs/KeyPath/pull/1452)) and consolidated async timeout helpers in `KeyPathCore` ([#1453](https://github.com/malpern-labs/KeyPath/pull/1453)). |
 | **O6** Plugin system | ✅ | Downloads removed (#1407); Insights linked into the app (#1411). |
 | **O7** Metal stage, onboarding, packs, CLI split | ⬜ | Product decisions open. |
 | **O8** Unimplemented flags, wording, public-docs lint | ✅ | #1405. |
@@ -72,7 +72,7 @@ Key: ✅ done · 🟡 partly done or in progress · ⬜ not started · 🔒 trac
 
 - P2: run the clean-VM installation and confirm the Apple Events consent prompt. B7 also tracks the macOS 27 Accessibility screenshot.
 - P8 and P9: finish localization verification and continue isolating shared test state.
-- B5: help asset compression and deduplication are tracked in [#1422](https://github.com/malpern/KeyPath/pull/1422).
+- B5: help asset compression and deduplication are tracked in [#1422](https://github.com/malpern-labs/KeyPath/pull/1422).
 
 ---
 

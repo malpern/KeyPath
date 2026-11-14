@@ -74,7 +74,7 @@ def main() -> None:
         default=pathlib.Path(__file__).resolve().parents[2]
         / "docs/testing/keypath-github-issues-state.json",
     )
-    parser.add_argument("--repo", default="malpern/KeyPath")
+    parser.add_argument("--repo", default="malpern-labs/KeyPath")
     args = parser.parse_args()
     gh = shutil.which("gh") or "/opt/homebrew/bin/gh"
     def list_issues(state: str, limit: int) -> list[dict]:

@@ -5,7 +5,7 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
     <channel>
         <title>KeyPath Updates</title>
-        <link>https://github.com/malpern/KeyPath</link>
+        <link>https://github.com/malpern-labs/KeyPath</link>
         <description>KeyPath keyboard remapping for macOS - automatic updates feed</description>
         <language>en</language>
         <!--
@@ -23,13 +23,13 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <title>1.0.1</title>
             <pubDate>Thu, 30 Jul 2026 14:28:27 -0700</pubDate>
             <link>https://keypath-app.com</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/malpern/KeyPath/releases/tag/v1.0.1</sparkle:fullReleaseNotesLink>
+            <sparkle:fullReleaseNotesLink>https://github.com/malpern-labs/KeyPath/releases/tag/v1.0.1</sparkle:fullReleaseNotesLink>
             <sparkle:phasedRolloutInterval>86400</sparkle:phasedRolloutInterval>
             <sparkle:version>12</sparkle:version>
             <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/malpern/KeyPath/releases/download/v1.0.1/KeyPath-1.0.1.zip" length="88800268" type="application/octet-stream" sparkle:edSignature="gIQACmslMCtT2mvtLHabN1c6yHxFDBDwoKstQpj3B0kuiI/GYTk5dxJTaIkAFcVHvNMrDYFCgLustPqtarsdBQ=="/>
+            <enclosure url="https://github.com/malpern-labs/KeyPath/releases/download/v1.0.1/KeyPath-1.0.1.zip" length="88800268" type="application/octet-stream" sparkle:edSignature="gIQACmslMCtT2mvtLHabN1c6yHxFDBDwoKstQpj3B0kuiI/GYTk5dxJTaIkAFcVHvNMrDYFCgLustPqtarsdBQ=="/>
         </item>
         <item>
             <title>Version 1.0.0-beta3</title>
@@ -38,7 +38,7 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <sparkle:shortVersionString>1.0.0-beta3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0.0</sparkle:minimumSystemVersion>
             <pubDate>Fri, 16 May 2026 07:21:00 -0700</pubDate>
-            <enclosure url="https://github.com/malpern/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.zip" sparkle:edSignature="eLCNwIGoc4wVcwMOHwaf5Ruuju48F7cUgMsD8FqJp50yy/XJ+rSM/iQYMUHxarwEDwaITKsSg0VB1nOKjSNaAA==" length="102087728" type="application/octet-stream"/>
+            <enclosure url="https://github.com/malpern-labs/KeyPath/releases/download/v1.0.0-beta3/KeyPath-1.0.0-beta3.zip" sparkle:edSignature="eLCNwIGoc4wVcwMOHwaf5Ruuju48F7cUgMsD8FqJp50yy/XJ+rSM/iQYMUHxarwEDwaITKsSg0VB1nOKjSNaAA==" length="102087728" type="application/octet-stream"/>
             <description><![CDATA[
                 <style>
                     :root { color-scheme: light dark; }
@@ -108,7 +108,7 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
                     <p>Reverted to the rock-solid LaunchDaemon runtime. Added VirtualHID emergency stop. Simplified the installer wizard. 413 tests, all green. We also contributed 27 PRs back to Kanata — 20 merged so far. Open source is cool.</p>
                 </div>
 
-                <p style="margin-top: 16px;"><a href="https://github.com/malpern/KeyPath/releases/tag/v1.0.0-beta3">Full release notes →</a></p>
+                <p style="margin-top: 16px;"><a href="https://github.com/malpern-labs/KeyPath/releases/tag/v1.0.0-beta3">Full release notes →</a></p>
             ]]></description>
         </item>
     </channel>

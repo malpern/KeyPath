@@ -16,7 +16,7 @@ content_class: content-full kanata-landing
         <p class="kanata-landing-subtitle">A native Mac app to remap, customize, and power your keyboard</p>
 
         <div class="kanata-landing-actions">
-          <a class="button button-orange" href="https://github.com/malpern/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
+          <a class="button button-orange" href="https://github.com/malpern-labs/KeyPath/releases/download/v1.0.0/KeyPath-1.0.0.zip">Download</a>
           <a class="button button-secondary" href="{{ '/migration/kanata-users' | relative_url }}">Existing Kanata users</a>
         </div>
 

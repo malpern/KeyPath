@@ -70,5 +70,5 @@ KeyPath config generation can be built and tested now. Actual macOS device discr
 
 - [ADR-034](adr-034-kanata-engine-app-bundle-for-tcc-identity.md): KanataEngine.app bundle for TCC identity
 - [ADR-035](adr-035-bundle-id-tcc-detection-with-path-fallback.md): Bundle ID TCC detection
-- KeyPath issue: [#63](https://github.com/malpern/KeyPath/issues/63)
+- KeyPath issue: [#63](https://github.com/malpern-labs/KeyPath/issues/63)
 - kanata fork issues: [#6](https://github.com/malpern/kanata/issues/6) (defdevice), [#8](https://github.com/malpern/kanata/issues/8) (macOS multi-device), [#9](https://github.com/malpern/kanata/issues/9) (stable indexing)

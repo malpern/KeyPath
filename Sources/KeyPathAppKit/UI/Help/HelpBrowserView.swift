@@ -244,7 +244,7 @@ struct HelpBrowserView: View {
                 .accessibilityIdentifier("help-website-link")
             Text("\u{00B7}")
                 .foregroundStyle(.secondary)
-            Link("Report an Issue", destination: URL(string: "https://github.com/malpern/KeyPath/issues") ?? URL(fileURLWithPath: "/"))
+            Link("Report an Issue", destination: URL(string: "https://github.com/malpern-labs/KeyPath/issues") ?? URL(fileURLWithPath: "/"))
                 .accessibilityIdentifier("help-report-issue-link")
         }
         .font(.caption)

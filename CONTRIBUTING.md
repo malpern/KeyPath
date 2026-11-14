@@ -8,7 +8,7 @@ Development requires an **Apple Silicon (M-series) Mac** running **macOS 27 or l
 
 ```bash
 # 1. Clone (the Kanata engine is a submodule)
-git clone --recurse-submodules https://github.com/malpern/KeyPath.git
+git clone --recurse-submodules https://github.com/malpern-labs/KeyPath.git
 cd KeyPath
 
 # 2. Build and run the fast tests
@@ -32,7 +32,7 @@ build, test and release workflow.
 For potential vulnerabilities, do **not** open a public issue.
 
 - Preferred: GitHub Security Advisory
-  - https://github.com/malpern/KeyPath/security/advisories/new
+  - https://github.com/malpern-labs/KeyPath/security/advisories/new
 - Fallback: malpern@gmail.com
 
 See [`SECURITY.md`](SECURITY.md) for full policy and response expectations.
@@ -340,7 +340,7 @@ git commit -m "feat: add new feature"
 
 ## Getting Help
 
-- **Issues:** Check [GitHub Issues](https://github.com/malpern/KeyPath/issues)
+- **Issues:** Check [GitHub Issues](https://github.com/malpern-labs/KeyPath/issues)
 - **Documentation:** See [AGENTS.md](AGENTS.md) for architecture and workflow, and [docs/adr/](docs/adr/README.md) for design decisions
 - **Ask:** Create an issue with the `question` label
 

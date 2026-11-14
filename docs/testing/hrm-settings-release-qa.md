@@ -58,30 +58,30 @@ retest after a fix. Current status reflects the deeper installed-app pass run on
 | Key selection | Left hand only | Not exposed in the current Home Row Mods pack-detail UI; use individual key chips to disable right-hand keys | 🚧 Not current UI |
 | Key selection | Right hand only | Not exposed in the current Home Row Mods pack-detail UI; use individual key chips to disable left-hand keys | 🚧 Not current UI |
 | Key selection | Custom individual keys | Toggle each key on/off; disabled keys are omitted from generated config | ✅ |
-| Key selection | Re-enable disabled key with custom assignment | Re-enabled key preserves the user's previous assignment | ❌ [#809](https://github.com/malpern/KeyPath/issues/809) |
+| Key selection | Re-enable disabled key with custom assignment | Re-enabled key preserves the user's previous assignment | ❌ [#809](https://github.com/malpern-labs/KeyPath/issues/809) |
 | Assignments | Modifier assignment popovers | Per-key modifier changes persist and update overlay labels | ✅ |
 | Assignments | Existing layer assignment popovers | Per-key layer changes persist in config and pack detail chips | ✅ |
-| Assignments | New Layer flow from key chip | Created layer is assigned to the selected key | ❌ [#804](https://github.com/malpern/KeyPath/issues/804) |
-| Pack detail | Layer-mode copy and relationship text | Copy reflects layer-mode behavior and does not describe F as Command | ❌ [#805](https://github.com/malpern/KeyPath/issues/805) |
+| Assignments | New Layer flow from key chip | Created layer is assigned to the selected key | ❌ [#804](https://github.com/malpern-labs/KeyPath/issues/804) |
+| Pack detail | Layer-mode copy and relationship text | Copy reflects layer-mode behavior and does not describe F as Command | ❌ [#805](https://github.com/malpern-labs/KeyPath/issues/805) |
 | Overlay | Idle overlay in modifiers mode | Primary alpha remains large; small modifier appears below; HRM keys use subtle tint | ✅ |
-| Overlay | Idle overlay in layers mode | Primary alpha remains large; small layer label appears below; HRM keys use subtle tint | ❌ [#810](https://github.com/malpern/KeyPath/issues/810) |
+| Overlay | Idle overlay in layers mode | Primary alpha remains large; small layer label appears below; HRM keys use subtle tint | ❌ [#810](https://github.com/malpern-labs/KeyPath/issues/810) |
 | Overlay | Press/hold ambiguity | Simulator confirms resolved hold output after the ambiguity window; live overlay transient still needs physical keydown/manual automation coverage | 🚧 Manual overlay check |
 | Persistence | Close/reopen sheet | All HRM settings survive sheet close/reopen | ✅ |
 | Persistence | Relaunch KeyPath | All HRM settings survive app relaunch and overlay rebuild | ✅ |
-| Pack interop | Ben Vallack system enabled | Vallack top-row mods and nav layer coexist with HRM UI conventions | ❌ [#811](https://github.com/malpern/KeyPath/issues/811) |
-| Pack interop | Switch Vallack off | Previous HRM settings restore from snapshot | ❌ [#811](https://github.com/malpern/KeyPath/issues/811) |
+| Pack interop | Ben Vallack system enabled | Vallack top-row mods and nav layer coexist with HRM UI conventions | ❌ [#811](https://github.com/malpern-labs/KeyPath/issues/811) |
+| Pack interop | Switch Vallack off | Previous HRM settings restore from snapshot | ❌ [#811](https://github.com/malpern-labs/KeyPath/issues/811) |
 | Logs | Unified logs during every apply/reload | No errors from config apply, helper routing, overlay label resolution, or Kanata reload | ✅ |
 
 ## Recent Findings To Keep In Scope
 
 | Issue | Severity label | Regression check |
 | --- | --- | --- |
-| [#804](https://github.com/malpern/KeyPath/issues/804) | `1.0 release` | In layer mode, creating a new layer from HRM must assign the selected key to that layer. |
-| [#805](https://github.com/malpern/KeyPath/issues/805) | `post-release` | HRM pack detail copy should reflect layer mode after switching from modifiers. |
-| [#806](https://github.com/malpern/KeyPath/issues/806) | `post-release` | Hold-timing slider accessibility increment/decrement should change the value or stop exposing invalid actions. |
-| [#809](https://github.com/malpern/KeyPath/issues/809) | `post-release` | Disabling and re-enabling an HRM key should preserve that key's custom assignment. |
-| [#810](https://github.com/malpern/KeyPath/issues/810) | `1.0 release` | HRM layer mode overlay should show assigned layer labels, not alpha hold labels. |
-| [#811](https://github.com/malpern/KeyPath/issues/811) | `1.0 release` | Installing Vallack system should apply managed HRM/nav config and uninstall should restore the prior HRM snapshot without hanging. |
+| [#804](https://github.com/malpern-labs/KeyPath/issues/804) | `1.0 release` | In layer mode, creating a new layer from HRM must assign the selected key to that layer. |
+| [#805](https://github.com/malpern-labs/KeyPath/issues/805) | `post-release` | HRM pack detail copy should reflect layer mode after switching from modifiers. |
+| [#806](https://github.com/malpern-labs/KeyPath/issues/806) | `post-release` | Hold-timing slider accessibility increment/decrement should change the value or stop exposing invalid actions. |
+| [#809](https://github.com/malpern-labs/KeyPath/issues/809) | `post-release` | Disabling and re-enabling an HRM key should preserve that key's custom assignment. |
+| [#810](https://github.com/malpern-labs/KeyPath/issues/810) | `1.0 release` | HRM layer mode overlay should show assigned layer labels, not alpha hold labels. |
+| [#811](https://github.com/malpern-labs/KeyPath/issues/811) | `1.0 release` | Installing Vallack system should apply managed HRM/nav config and uninstall should restore the prior HRM snapshot without hanging. |
 
 ## Log Review
 

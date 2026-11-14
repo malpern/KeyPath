@@ -61,7 +61,7 @@ representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the project maintainers at:
 
-- https://github.com/malpern/KeyPath/issues
+- https://github.com/malpern-labs/KeyPath/issues
 
 For sensitive reports, follow the private disclosure process in `SECURITY.md`.
 All complaints will be reviewed and investigated promptly and fairly.

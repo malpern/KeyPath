@@ -108,7 +108,7 @@ public final class UpdateService: NSObject {
     }
 
     @ObservationIgnored var openDownloadPage: @MainActor (URL) -> Bool = { NSWorkspace.shared.open($0) }
-    private static let downloadURL = URL(string: "https://github.com/malpern/KeyPath/releases/latest")!
+    private static let downloadURL = URL(string: "https://github.com/malpern-labs/KeyPath/releases/latest")!
 
     @ObservationIgnored private var updaterController: SPUStandardUpdaterController?
     /// Sparkle turns `canCheckForUpdates` off while a check or install runs.
@@ -210,7 +210,7 @@ public final class UpdateService: NSObject {
     public func checkForUpdates() {
         if usesManualDownloads {
             preparationError = openDownloadPage(Self.downloadURL)
-                ? nil : String(localized: "Couldn't open the downloads page. Visit github.com/malpern/KeyPath/releases.")
+                ? nil : String(localized: "Couldn't open the downloads page. Visit github.com/malpern-labs/KeyPath/releases.")
             return
         }
         AppLogger.shared.log("🔍 [UpdateService] Manual update check requested")

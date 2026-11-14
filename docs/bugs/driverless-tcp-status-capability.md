@@ -32,4 +32,4 @@ was not captured, and bspc→del was not a separate physical sample. The worker'
 diagnostic config hash retains initialization provenance after reload. Original
 profile/process cleanup, VM deletion, retained template and detached nonpersistent
 USB independently passed. The hydration-stop255 warning remains recorded.
-[Selected live receipt](https://github.com/malpern/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-protocol-live-acceptance.json).
+[Selected live receipt](https://github.com/malpern-labs/KeyPath/blob/experiment/macos-permission-footprint/docs/testing/evidence/2026-10-05-protocol-live-acceptance.json).

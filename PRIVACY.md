@@ -121,7 +121,7 @@ Icons are cached locally.
 
 ### 5. Plugins
 
-**Destination:** `https://github.com/malpern/KeyPath/releases`
+**Destination:** `https://github.com/malpern-labs/KeyPath/releases`
 
 Activity Insights ships inside the app. If a plugin is not present, KeyPath
 can download it from the project's GitHub releases when you choose to install
@@ -271,7 +271,7 @@ not revoked automatically. You can remove it in System Settings.
 
 KeyPath is open source. You can audit the code yourself:
 
-- **Repository:** [github.com/malpern/KeyPath](https://github.com/malpern/KeyPath)
+- **Repository:** [github.com/malpern-labs/KeyPath](https://github.com/malpern-labs/KeyPath)
 - **License:** MIT
 
 ---
@@ -279,8 +279,8 @@ KeyPath is open source. You can audit the code yourself:
 ## Contact
 
 - **Security issues:** see [SECURITY.md](SECURITY.md); do not open a public issue
-- **GitHub Issues:** [github.com/malpern/KeyPath/issues](https://github.com/malpern/KeyPath/issues)
-- **Discussions:** [github.com/malpern/KeyPath/discussions](https://github.com/malpern/KeyPath/discussions)
+- **GitHub Issues:** [github.com/malpern-labs/KeyPath/issues](https://github.com/malpern-labs/KeyPath/issues)
+- **Discussions:** [github.com/malpern-labs/KeyPath/discussions](https://github.com/malpern-labs/KeyPath/discussions)
 
 ---
 
