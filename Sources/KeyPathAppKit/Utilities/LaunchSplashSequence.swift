@@ -20,7 +20,9 @@ struct LaunchSplashSequence {
 
     var minimum: Duration
     var maximum: Duration = .seconds(15)
+    /// The clock, injectable so tests run in virtual time.
     var sleep: @MainActor (Duration) async -> Void = { try? await Task.sleep(for: $0) }
+    var now: @MainActor () -> ContinuousClock.Instant = { ContinuousClock.now }
 
     /// - Parameters:
     ///   - showsPoster: the poster is on screen now.
@@ -34,7 +36,7 @@ struct LaunchSplashSequence {
             await perform(startup() ? .showOverlay : .showSetup(posterAlreadyShown: false))
             return
         }
-        let started = ContinuousClock.now
+        let started = now()
         let minimum = minimum
         let sleep = sleep
         let maximum = maximum
@@ -51,7 +53,7 @@ struct LaunchSplashSequence {
         }
         let complete = await startup()
         ceiling.cancel()
-        let elapsed = ContinuousClock.now - started
+        let elapsed = now() - started
         if gaveUp.isSet {
             await preparing.value
             // The poster has been hidden, so setup brings the window back itself.
