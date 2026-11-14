@@ -66,4 +66,13 @@ final class SmallSecurityFixesTests: XCTestCase {
         close(fds[1])
         XCTAssertFalse(RuntimeControlServer.isConnected(fds[0]), "A client that went away is not")
     }
+
+    /// A half-closed client reads as gone, which is why the CLI never half-closes.
+    func testHalfClosedClientReadsAsGone() {
+        var fds: [Int32] = [0, 0]
+        XCTAssertEqual(socketpair(AF_UNIX, SOCK_STREAM, 0, &fds), 0)
+        defer { close(fds[0]); close(fds[1]) }
+        shutdown(fds[1], SHUT_WR)
+        XCTAssertFalse(RuntimeControlServer.isConnected(fds[0]))
+    }
 }

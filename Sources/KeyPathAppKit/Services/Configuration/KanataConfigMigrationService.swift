@@ -226,6 +226,7 @@ public final class KanataConfigMigrationService {
                 attributes: nil
             )
         }
+        ConfigurationService.restrictToOwner(directory: backupDir)
 
         // Copy to backup
         do {

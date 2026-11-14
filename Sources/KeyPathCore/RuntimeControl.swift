@@ -173,6 +173,9 @@ public enum RuntimeControl {
 
     /// Send one request and wait for the app's answer. Start, stop and restart
     /// return only after the app has finished the operation, so allow time for it.
+    /// Keeps the socket fully open until the answer is read: the app treats an
+    /// end-of-file from the client as the command having given up, and cancels
+    /// an uninstall that is still asking. Never half-close (shutdown) it.
     public static func send(_ request: Request, timeout: TimeInterval, socketPath: String = socketURL.path) throws -> Response {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw ClientError.protocolError("socket() failed: \(errno)") }
