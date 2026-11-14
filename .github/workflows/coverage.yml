@@ -27,7 +27,7 @@ jobs:
           git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
           persist-credentials: false
@@ -92,7 +92,7 @@ jobs:
 
       - name: Upload coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage
           path: coverage/
@@ -132,7 +132,7 @@ jobs:
           git config --global --unset-all url.https://github.com/.insteadof 2>/dev/null || true
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
           persist-credentials: false
@@ -173,7 +173,7 @@ jobs:
 
       - name: Upload full coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: coverage-full
           path: coverage-full/
