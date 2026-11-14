@@ -55,7 +55,7 @@ public final class PermissionRequestService {
 
     private func ensureForeground() {
         if !NSApplication.shared.isActive {
-            NSApplication.shared.activate()
+            NSApplication.shared.activate(ignoringOtherApps: true)
             AppLogger.shared.info("ℹ️ [PermissionRequest] Activated app to foreground for system prompt")
         }
     }

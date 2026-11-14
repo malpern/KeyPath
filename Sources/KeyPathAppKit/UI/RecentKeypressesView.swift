@@ -175,7 +175,7 @@ final class RecentKeypressesWindowController {
     func showWindow() {
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
@@ -197,7 +197,7 @@ final class RecentKeypressesWindowController {
 
         window = newWindow
         newWindow.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
 
         AppLogger.shared.log("🔍 [RecentKeypresses] Window opened")
     }

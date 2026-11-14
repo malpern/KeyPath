@@ -202,7 +202,7 @@ extension LiveKeyboardOverlayController {
     func handleHealthIndicatorTap() {
         AppLogger.shared.log("🔘 [Controller] handleHealthIndicatorTap - bringing main window to front and opening wizard")
 
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
 
         if let mainWindow = NSApp.windows.first(where: { !$0.styleMask.contains(.borderless) && $0.level == .normal }) {
             mainWindow.makeKeyAndOrderFront(nil)

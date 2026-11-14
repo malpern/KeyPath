@@ -352,7 +352,7 @@ final class FaviconFetcher {
     }
 
     /// Normalize favicon into a square bitmap to avoid odd rendering artifacts.
-    private func normalizedFaviconImage(_ image: NSImage, size: CGFloat = 64) -> NSImage {
+    func normalizedFaviconImage(_ image: NSImage, size: CGFloat = 64) -> NSImage {
         let targetSize = NSSize(width: size, height: size)
         // Draw into a bitmap of its own (lockFocus is deprecated), at 2x so it
         // stays sharp on Retina screens.
@@ -361,8 +361,11 @@ final class FaviconFetcher {
             bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
             samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
             bytesPerRow: 0, bitsPerPixel: 0
-        ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return image }
+        ) else { return image }
+        // The point size must be set before the context exists, or the context
+        // works in pixels and the icon fills only one quadrant.
         bitmap.size = targetSize
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return image }
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         context.imageInterpolation = .high

@@ -14,7 +14,7 @@ final class SimulatorWindowController {
     func showWindow() {
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
@@ -32,7 +32,7 @@ final class SimulatorWindowController {
 
         window = newWindow
         newWindow.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
 
         AppLogger.shared.log("⌨️ [Simulator] Window opened")
     }

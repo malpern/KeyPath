@@ -44,7 +44,7 @@ final class WizardWindowController {
         // If window already exists and is visible, just bring it to front
         if let existingWindow = window, existingWindow.isVisible {
             existingWindow.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
@@ -128,7 +128,7 @@ final class WizardWindowController {
         }
 
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
 
         self.window = window
 

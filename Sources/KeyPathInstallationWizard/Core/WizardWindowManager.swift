@@ -119,7 +119,7 @@ public final class WizardWindowManager {
 
     /// Bring KeyPath to the front
     public func focusKeyPath() {
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
         AppLogger.shared.log("🎯 [WizardWindowManager] Activated KeyPath window")
     }
 
