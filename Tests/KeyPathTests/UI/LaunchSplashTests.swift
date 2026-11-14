@@ -16,7 +16,7 @@ final class LaunchSplashTests: XCTestCase {
     func testPosterShipsAtTwiceItsDisplayWidth() throws {
         let url = resources.appendingPathComponent("keypath-poster-hor.png")
         let rep = try XCTUnwrap(NSImageRep(contentsOf: url))
-        XCTAssertEqual(rep.pixelsWide, 1120, "Drawn 560 pt wide, so 1120 px covers Retina")
+        XCTAssertEqual(CGFloat(rep.pixelsWide), 2 * SplashView.posterWidth, "Twice the drawn width covers Retina")
         let bytes = try XCTUnwrap(FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
         XCTAssertLessThan(bytes, 1_000_000, "Keep the poster small; the original was 6.4 MB")
     }

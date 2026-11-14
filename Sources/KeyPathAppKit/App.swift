@@ -529,11 +529,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Preserve the branded launch beat, then hand off to the actionable wizard.
     /// Reopen/subsequent activation paths intentionally skip this delay.
-    private func showSetupWizardAfterLaunchSplash(targetPage: WizardPage? = nil) async {
+    private func showSetupWizardAfterLaunchSplash(targetPage: WizardPage? = nil, waitForSplash: Bool = true) async {
         showSplashWindow(preparing: true)
-        let splashDelayMs = launchSplashDelayMs
-        AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
-        try? await Task.sleep(for: .milliseconds(splashDelayMs))
+        if waitForSplash {
+            let splashDelayMs = launchSplashDelayMs
+            AppLogger.shared.info("[AppDelegate] Launch splash delay: \(splashDelayMs)ms")
+            try? await Task.sleep(for: .milliseconds(splashDelayMs))
+        }
         guard !Task.isCancelled else { return }
         if targetPage == nil, await hasCompletedInitialWizard() {
             LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
@@ -545,22 +547,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Public Window Access
 
-    /// Shows the poster for `launchSplashDelayMs`, then hides it, unless something
-    /// else claimed the window meanwhile (the setup wizard, a menu action).
-    /// Returns false when there is no window to show it in.
-    private func showBriefLaunchSplash() -> Bool {
+    /// Shows the poster without the activity dots. `LaunchSplashSequence` decides
+    /// when it goes away. Returns false when there is no window to show it in.
+    private func showLaunchPoster() -> Bool {
         guard let controller = mainWindowController else { return false }
         controller.splashPresentation.isPreparing = false
         controller.show(focus: true)
         AppLogger.shared.info("🪟 [AppDelegate] Showing the launch splash")
-        let delay = launchSplashDelayMs
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(delay))
-            guard let self, !self.suppressLaunchSplashAutoHide else { return }
-            mainWindowController?.hideSplash()
-            AppLogger.shared.info("🪟 [AppDelegate] Launch splash hidden after \(delay)ms")
-        }
         return true
+    }
+
+    private func performLaunchSplashStep(_ step: LaunchSplashSequence.Step) async {
+        switch step {
+        case .showPreparing:
+            mainWindowController?.splashPresentation.isPreparing = true
+        case .showOverlay:
+            AppLogger.shared.info("🪟 [AppDelegate] Relaunch — showing the overlay after the launch splash")
+            LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
+        case .hideSplash:
+            // A menu action may have taken over the window meanwhile.
+            guard !suppressLaunchSplashAutoHide else { return }
+            mainWindowController?.hideSplash()
+            AppLogger.shared.info("🪟 [AppDelegate] Launch splash hidden")
+        case let .showSetup(posterAlreadyShown):
+            AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — showing launch splash before setup wizard")
+            await showSetupWizardAfterLaunchSplash(waitForSplash: !posterAlreadyShown)
+        }
     }
 
     /// True when macOS opened KeyPath as a login item. Must be called while the
@@ -616,22 +628,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if hasExistingConfig {
             // Every launch shows the poster briefly (not a reopen of a running
             // app, and not a Launch at Login start), then hands off to the overlay.
-            let posterShownAt = ContinuousClock.now
-            let showsPoster = !launchedAsLoginItem && showBriefLaunchSplash()
-            Task { @MainActor in
+            let showsPoster = !launchedAsLoginItem && showLaunchPoster()
+            let sequence = LaunchSplashSequence(minimum: .milliseconds(launchSplashDelayMs))
+            let startup: @MainActor () async -> Bool = { [weak self] in
+                guard let self else { return false }
                 await runtimeStartupTask?.value
-                if await hasCompletedInitialWizard() {
-                    if showsPoster {
-                        // The overlay appears once the poster has had its moment.
-                        let remaining = .milliseconds(launchSplashDelayMs) - (ContinuousClock.now - posterShownAt)
-                        if remaining > .zero { try? await Task.sleep(for: remaining) }
-                    }
-                    AppLogger.shared.info("🪟 [AppDelegate] Relaunch — showing the overlay after the launch splash")
-                    LiveKeyboardOverlayController.shared.showForStartup(bypassHiddenCheck: true)
-                } else {
-                    AppLogger.shared.info("🪟 [AppDelegate] Initial wizard incomplete — showing launch splash before setup wizard")
-                    await showSetupWizardAfterLaunchSplash()
-                }
+                return await hasCompletedInitialWizard()
+            }
+            let perform: @MainActor (LaunchSplashSequence.Step) async -> Void = { [weak self] step in
+                await self?.performLaunchSplashStep(step)
+            }
+            Task { @MainActor in
+                await sequence.run(showsPoster: showsPoster, startup: startup, perform: perform)
             }
             return
         }

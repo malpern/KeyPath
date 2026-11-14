@@ -40,14 +40,14 @@ struct SplashView: View {
     private static let buildInfo = BuildInfo.current()
 
     /// The poster is drawn at a fixed width so it cannot collapse during early launch.
-    private let posterWidth: CGFloat = 560
+    static let posterWidth: CGFloat = 560
     private let amber = Color(red: 1, green: 0.61, blue: 0.16)
     private let warmGray = Color(red: 0.76, green: 0.74, blue: 0.70)
 
     var body: some View {
         let buildInfo = Self.buildInfo
         ZStack {
-            // Matches the poster's own background, so the edges never read as a frame.
+            // The poster's own dark background, so the poster card sits on matching colour.
             LinearGradient(
                 colors: [KeyPathColors.splashGradientTop, KeyPathColors.splashGradientBottom],
                 startPoint: .top,
@@ -57,7 +57,7 @@ struct SplashView: View {
             VStack(spacing: 0) {
                 Spacer(minLength: 24)
                 poster
-                    .frame(width: posterWidth, height: posterWidth / posterAspect)
+                    .frame(width: Self.posterWidth, height: Self.posterWidth / posterAspect)
                     .shadow(color: .black.opacity(0.16), radius: 18, x: 0, y: 10)
                     .accessibilityLabel("KeyPath")
                     .accessibilityIdentifier("main-window-splash-poster")
