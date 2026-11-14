@@ -156,6 +156,20 @@ Notes:
 - Do not report missing local review tools as a PR issue. The actionable gate
   state is `remote review gate selected`; the GitHub `claude-review` check is
   the enforced reviewer in that path.
+- Run the review gate once, when the change is complete, and batch every fix
+  from it into one push. Re-run it only if those fixes changed logic, not after
+  each small edit. Each run takes 5–10 minutes.
+- Review comments marked minor, non-blocking or optional do not need a push.
+  Reply once in the PR if a decision needs recording. GitHub `claude-review`
+  comments only when it finds a blocking defect; a passing check with no
+  comment is its approval.
+- Before pushing, run the quick checks CI runs, so they fail locally in seconds:
+  `./Scripts/lint-no-sleep.sh`, `python3 Scripts/check-accessibility.py`, and
+  `./Scripts/l10n/sync-strings.sh --check` after a Debug build.
+- Merge with `gh pr merge <n> --auto --merge`. With the merge queue on, that
+  adds the PR to the queue, which tests it on top of the PRs ahead of it. Do
+  not bring branches up to date by hand to get them merged; resolve real
+  conflicts only.
 - Git guardrail hooks in `.claude/settings.json` block commits on `master`,
   force-pushes to `master`, `reset --hard`, and `clean -f`.
 
